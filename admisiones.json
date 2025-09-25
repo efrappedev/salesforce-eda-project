@@ -1,0 +1,16 @@
+{
+  "name": "NOT_FOUND",
+  "message": "The requested resource does not exist",
+  "exitCode": 1,
+  "context": "SObjectDescribe",
+  "data": {
+    "errorCode": "NOT_FOUND",
+    "message": "The requested resource does not exist"
+  },
+  "stack": "NOT_FOUND: The requested resource does not exist\n    at SfCommandError.from (file:///usr/local/lib/sf/node_modules/@salesforce/plugin-schema/node_modules/@salesforce/sf-plugins-core/lib/SfCommandError.js:39:16)\n    at SObjectDescribe.catch (file:///usr/local/lib/sf/node_modules/@salesforce/plugin-schema/node_modules/@salesforce/sf-plugins-core/lib/sfCommand.js:316:47)\n    at SObjectDescribe._run (/usr/local/lib/sf/node_modules/@oclif/core/lib/command.js:185:29)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Config.runCommand (/usr/local/lib/sf/node_modules/@oclif/core/lib/config/config.js:456:25)\n    at async run (/usr/local/lib/sf/node_modules/@oclif/core/lib/main.js:96:16)\n    at async file:///usr/local/lib/sf/bin/run.js:15:1",
+  "cause": "NOT_FOUND: The requested resource does not exist\n    at HttpApi.getError (/usr/local/lib/sf/node_modules/@jsforce/jsforce-node/lib/http-api.js:292:56)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /usr/local/lib/sf/node_modules/@jsforce/jsforce-node/lib/http-api.js:127:33\n    at async Connection.describe (/usr/local/lib/sf/node_modules/@jsforce/jsforce-node/lib/connection.js:1023:22)\n    at async executeFetch (/usr/local/lib/sf/node_modules/@jsforce/jsforce-node/lib/cache.js:111:36)\n    at async SObjectDescribe.run (file:///usr/local/lib/sf/node_modules/@salesforce/plugin-schema/lib/commands/sobject/describe.js:38:15)\n    at async SObjectDescribe._run (/usr/local/lib/sf/node_modules/@oclif/core/lib/command.js:181:22)\n    at async Config.runCommand (/usr/local/lib/sf/node_modules/@oclif/core/lib/config/config.js:456:25)\n    at async run (/usr/local/lib/sf/node_modules/@oclif/core/lib/main.js:96:16)\n    at async file:///usr/local/lib/sf/bin/run.js:15:1 {\n  data: {\n    errorCode: 'NOT_FOUND',\n    message: 'The requested resource does not exist'\n  },\n  errorCode: 'NOT_FOUND'\n}",
+  "warnings": [],
+  "code": "1",
+  "status": 1,
+  "commandName": "SObjectDescribe"
+}
