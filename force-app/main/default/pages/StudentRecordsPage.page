@@ -1,0 +1,331 @@
+<apex:page controller="StudentRecordsController" showHeader="false" sidebar="false" standardStylesheets="false">
+  <apex:includeScript value="/soap/ajax/60.0/connection.js"/>
+  <apex:includeScript value="/soap/ajax/60.0/apex.js"/>
+  <link rel="stylesheet" type="text/css" href="{!URLFOR($Resource.StudentRecordsStyle)}"/>
+  <script src="{!URLFOR($Resource.html2canvas_min)}"></script>
+  <script src="{!URLFOR($Resource.jspdf, 'jspdf.umd.min.js')}"></script>
+
+  <div class="controls-container">
+    <div class="left-column">
+      <div class="pdf-options-radio">
+        <label><input type="radio" name="pdfType" value="unofficial" onchange="selectOption('unofficial')"/> Non officiel</label>
+        <label><input type="radio" name="pdfType" value="official" onchange="selectOption('official')"/> Officiel avec sceau</label>
+        <label><input type="radio" name="pdfType" value="blank" onchange="selectOption('blank')" checked="checked"/> Sans marques</label>
+      </div>
+    </div>
+    <div class="right-column">
+      <select id="programSelect" class="program-select" onchange="filterPrograms(this.value)">
+        <option value="all">Tous les programmes</option>
+      </select>
+      <button class="pdf-download-button" onclick="exportToPdf()">Télécharger PDF</button>
+    </div>
+  </div>
+
+  <div id="output" class="pdf-container">Chargement...</div>
+
+  <script>
+    let selectedOption = 'blank';
+    let studentData = null;
+    let currentPage = null;
+    let currentContent = null;
+    let currentTableBody = null;
+    let allPrograms = [];
+    const maxHeight = 650;
+
+    function selectOption(option) {
+      selectedOption = option;
+      applyPdfDecoration();
+    }
+
+    function getUrlParam(param) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(param);
+    }
+
+    function fetchDataAndRender() {
+      const contactId = getUrlParam('idContato');
+      if (!contactId) return;
+
+      StudentRecordsController.fetchStudentPdfData(contactId, (result, event) => {
+        if (!event.status) return;
+        studentData = result;
+        allPrograms = [...result.Programs];
+        if (result.HorsProgram?.length > 0) {
+          allPrograms.push({ Name: 'Cours hors programme', Courses: result.HorsProgram, TotalCredits: result.TotalCreditsHorsProgram });
+        }
+        fillProgramSelect(allPrograms);
+        window.requestAnimationFrame(() => {
+          renderPrograms(allPrograms);
+          applyPdfDecoration();
+        });
+      });
+    }
+    
+    function decodeHtml(html) {
+      var txt = document.createElement('textarea');
+      txt.innerHTML = html;
+      return txt.value;
+    }
+
+    function fillProgramSelect(programs) {
+      const select = document.getElementById('programSelect');
+      select.innerHTML = '<option value="all">Tous les programmes</option>';
+      programs.forEach(p => {
+        const title = buildProgramTitle(p);
+        const option = document.createElement('option');
+        option.value = title;
+        option.textContent = decodeHtml(title);
+        select.appendChild(option);
+      });
+    }
+
+    function buildProgramTitle(p) {
+      if (p.Name.includes('hors programme')) return 'Programme : Cours hors programme';
+      let title = `Programme : ${p.Name}`;
+      if (p.StartYear && p.Status) {
+        if (p.EndYear) {
+          title += ` ${p.StartYear} - ${p.EndYear} ${p.Status}`;
+        } else {
+          title += ` ${p.StartYear} - ${p.Status}`;
+        }
+      }
+      return title;
+    }
+
+    function filterPrograms(selected) {
+      const container = document.getElementById('output');
+      container.innerHTML = '';
+      const programsToRender = selected === 'all' ? allPrograms : allPrograms.filter(p => buildProgramTitle(p) === selected);
+      renderPrograms(programsToRender);
+
+      // --- RESTAURA RADIO BUTTON ---
+      document.querySelectorAll('input[type="radio"][name="pdfType"]').forEach(input => {
+        input.checked = (input.value === selectedOption);
+      });
+      applyPdfDecoration();
+    }
+
+    function renderPrograms(programs) {
+      const container = document.getElementById('output');
+      container.innerHTML = '';
+      newPage(container, true);
+      programs.forEach(program => renderProgram(program));
+    }
+
+    // === FUNCIÓN MODIFICADA PARA ORDENAR LOS CURSOS POR TERMS ===
+    function renderProgram(program) {
+      appendOrBreakTitle(buildProgramTitle(program));
+      createNewTable(false);
+
+      // Ordenamiento avanzado de cursos por Terms (session)
+      const periodMap = {
+        'H': '01', // Hiver (Invierno)
+        'P': '03', // Printemps (Primavera)
+        'E': '06', // Été (Verano)
+        'A': '09', // Automne (Otoño)
+      };
+
+      function parseTermsToSortable(terms) {
+        if (!terms) return '999999'; // Vacíos van al final
+        const dateMatch = terms.match(/^(\d{4})-(\d{2})$/);
+        if (dateMatch) return dateMatch[1] + dateMatch[2];
+        const codeMatch = terms.match(/^([HPEA])(\d{4})$/i);
+        if (codeMatch) {
+          const period = periodMap[codeMatch[1].toUpperCase()] || '00';
+          return codeMatch[2] + period;
+        }
+        return '999999'; // Otros formatos, al final
+      }
+
+      const sortedCourses = [...program.Courses].sort((a, b) => {
+        const aVal = parseTermsToSortable(a.Terms);
+        const bVal = parseTermsToSortable(b.Terms);
+        return aVal.localeCompare(bVal);
+      });
+
+      sortedCourses.forEach(course => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${course.Terms || '-'}</td>
+          <td>${course.Code}</td>
+          <td>${course.Name}</td>
+          <td>${course.Remarque || '-'}</td>
+          <td>${course.Note || '-'}</td>
+          <td>${(course.Credits != null) ? course.Credits.toFixed(1) : ''}</td>`;
+        currentTableBody.appendChild(row);
+        const totalHeight = currentContent.getBoundingClientRect().height;
+        if (totalHeight > maxHeight) {
+          currentTableBody.removeChild(row);
+          newPage(document.getElementById('output'), false);
+          createNewTable(true);
+          currentTableBody.appendChild(row);
+        }
+      });
+
+      if (program.TotalCredits !== undefined) {
+        const totalDiv = document.createElement('div');
+        totalDiv.className = 'credit-total';
+        totalDiv.innerHTML = `Total des crédits : <strong>${program.TotalCredits.toFixed(1)}</strong>`;
+        appendOrBreak(totalDiv);
+      }
+    }
+    // === FIN DE LA FUNCIÓN MODIFICADA ===
+
+    function appendOrBreakTitle(titleText) {
+      const title = document.createElement('div');
+      title.className = 'section-title';
+      title.textContent = decodeHtml(titleText);
+      currentContent.appendChild(title);
+      const totalHeight = currentContent.getBoundingClientRect().height;
+      if (totalHeight > maxHeight) {
+        currentContent.removeChild(title);
+        newPage(document.getElementById('output'), false);
+        currentContent.appendChild(title);
+      }
+    }
+
+    function createNewTable(isContinuation) {
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'table-wrapper';
+
+      const table = document.createElement('table');
+      table.className = 'course-table';
+      if (isContinuation) table.classList.add('program-first-in-page');
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Session</th><th>Sigle</th><th>Titre du cours</th>
+            <th>Remarque</th><th>Note</th><th>Unités Obtenues</th>
+          </tr>
+        </thead>`;
+      currentTableBody = document.createElement('tbody');
+      table.appendChild(currentTableBody);
+      tableWrapper.appendChild(table);
+      currentContent.appendChild(tableWrapper);
+    }
+
+    function appendOrBreak(el) {
+      currentContent.appendChild(el);
+      const totalHeight = currentContent.getBoundingClientRect().height;
+      if (totalHeight > maxHeight) {
+        currentContent.removeChild(el);
+        newPage(document.getElementById('output'), false);
+        currentContent.appendChild(el);
+      }
+    }
+
+    function newPage(container, includeStudentHeader) {
+      currentPage = document.createElement('div');
+      currentPage.className = 'page';
+      container.appendChild(currentPage);
+
+      // HEADER: Solo logo + título
+      const header = document.createElement('div');
+      header.className = 'header';
+      header.innerHTML = `
+        <div class="logo-block">
+          <img src="{!URLFOR($Resource.Logo)}" alt="Logo" />
+        </div>
+        <div class="releve-title">Relevé de Notes</div>`;
+      currentPage.appendChild(header);
+
+      // SOLO EN LA PRIMERA PAGINA: todos los bloques separados y controlables
+      if (includeStudentHeader) {
+        // BLOQUE CODE + FECHA DE EMISIÓN (JUNTOS, debajo del logo)
+        const codeDateBlock = document.createElement('div');
+        codeDateBlock.className = 'student-code-date-block';
+        codeDateBlock.innerHTML = `
+          <div class="student-code"><strong>Code étudiant :</strong> ${studentData.StudentCode || '-'}</div>
+          <div class="emission-date"><strong>Date d'émission :</strong> ${studentData.EmissionDate}</div>
+        `;
+        currentPage.appendChild(codeDateBlock);
+
+        // Nombre
+        const nameBlock = document.createElement('div');
+        nameBlock.className = 'student-name';
+        nameBlock.innerText = studentData.Name;
+        currentPage.appendChild(nameBlock);
+
+        // Dirección (formateada en 2 líneas)
+        const addressBlock = document.createElement('div');
+        addressBlock.className = 'student-address';
+        let fullAddress = studentData.Address || '';
+        let lines = fullAddress.split(',');
+        if (lines.length >= 3) {
+          addressBlock.innerHTML = `
+            ${lines[0]},${lines[1]}<br/>
+            ${lines.slice(2).join(',')}
+          `;
+        } else {
+          addressBlock.innerText = fullAddress;
+        }
+        currentPage.appendChild(addressBlock);
+
+        // Leyenda + tabla (bloque separado)
+        const legendBlock = document.createElement('div');
+        legendBlock.className = 'legend-block';
+        legendBlock.innerHTML = `
+          <div class="legend-label">Légende :</div>
+          <div class="legend-compact">
+            <table>
+              <tr><td><strong>EPR</strong> : En progression</td><td><strong>E</strong> : Échec</td></tr>
+              <tr><td><strong>INC</strong> : Incomplet</td><td><strong>TRANSF</strong> : Transfert</td></tr>
+              <tr><td><strong>AUD</strong> : Auditeur libre</td><td><strong>R</strong> : Réussi</td></tr>
+              <tr><td><strong>ABA</strong> : Abandon</td><td><strong>EQV</strong> : Équivalence</td></tr>
+              <tr><td><strong>PPC</strong> : Prog. par compétences</td></tr>
+            </table>
+          </div>`;
+        currentPage.appendChild(legendBlock);
+      }
+
+      // Wrapper para cursos
+      const contentWrapper = document.createElement('div');
+      contentWrapper.className = 'content';
+      currentPage.appendChild(contentWrapper);
+      currentContent = contentWrapper;
+
+      // Footer
+      const footer = document.createElement('div');
+      footer.className = 'footer';
+      footer.innerHTML = `9780, rue Sherbrooke Est, Montréal, QC, H1L 6N6 — Tel: 514-337-8555`;
+      currentPage.appendChild(footer);
+    }
+
+    function applyPdfDecoration() {
+      document.querySelectorAll('.page').forEach(page => {
+        page.querySelectorAll('.signature-seal, .watermark').forEach(e => e.remove());
+        if (selectedOption === 'official') {
+          const seal = document.createElement('img');
+          seal.src = '{!URLFOR($Resource.Sceau)}';
+          seal.className = 'signature-seal';
+          page.appendChild(seal);
+        } else if (selectedOption === 'unofficial') {
+          const watermark = document.createElement('div');
+          watermark.className = 'watermark';
+          watermark.innerText = 'NON OFFICIEL';
+          page.appendChild(watermark);
+        }
+      });
+    }
+
+    function exportToPdf() {
+      const pages = document.querySelectorAll('.page');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'pt', format: 'letter' });
+
+      const renderPage = (i) => {
+        if (i >= pages.length) return pdf.save(`student-record-${selectedOption}.pdf`);
+        html2canvas(pages[i], { backgroundColor: '#ffffff', scale: 2, useCORS: true })
+          .then(canvas => {
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, 612, 792);
+            renderPage(i + 1);
+          });
+      };
+      renderPage(0);
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchDataAndRender);
+  </script>
+</apex:page>

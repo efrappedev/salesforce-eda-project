@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+
+    <!-- Decision: solo continúa si cambió alguno de los 4 campos en Account -->
+    <decisions>
+        <description>Proceed when any mapped Account field changed</description>
+        <name>Account_fields_changed</name>
+        <label>Account fields changed</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>AnyChanged</name>
+            <conditionLogic>or</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.AEBEQ__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record__Prior.AEBEQ__c</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.SEMBEQ__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record__Prior.SEMBEQ__c</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.ID_Prodon__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record__Prior.ID_Prodon__c</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Preferred_Language_Account__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record__Prior.Preferred_Language_Account__c</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Update_Contacts_from_Account</targetReference>
+            </connector>
+            <label>Any mapped Account field changed</label>
+        </rules>
+    </decisions>
+
+    <description>Account → Contact mirror for 4 mapped fields, with diff filters to avoid loops.</description>
+    <environments>Default</environments>
+    <interviewLabel>Update Account_to_Contact_Sync 4 fields {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Update Account_to_Contact_Sync 4 fields</label>
+
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value><stringValue>LightningFlowBuilder</stringValue></value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value><stringValue>AUTO_LAYOUT_CANVAS</stringValue></value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value><stringValue>LightningFlowBuilder</stringValue></value>
+    </processMetadataValues>
+
+    <processType>AutoLaunchedFlow</processType>
+
+    <!-- Update: Contact (solo contactos de esta Account y solo si el valor difiere) -->
+    <recordUpdates>
+        <name>Update_Contacts_from_Account</name>
+        <label>Update Contacts from Account</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <!-- Filtra por contactos RELACIONADOS a esta cuenta y donde el valor no coincide -->
+        <!-- Usamos la colección $Record.Contacts para limitar a los hijos de esta Account -->
+        <filterLogic>or</filterLogic>
+
+        <!-- AEBEQ distinto -->
+        <filters>
+            <field>AEBEQ_Update_Checkbox_in_account__c</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.AEBEQ__c</elementReference>
+            </value>
+        </filters>
+
+        <!-- SEMBEQ distinto -->
+        <filters>
+            <field>SEMBEQ_Update_Checkbox_in_account__c</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.SEMBEQ__c</elementReference>
+            </value>
+        </filters>
+
+        <!-- ID_Prodon distinto -->
+        <filters>
+            <field>ID_Prodon_contact__c</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.ID_Prodon__c</elementReference>
+            </value>
+        </filters>
+
+        <!-- Preferred Language distinto -->
+        <filters>
+            <field>Preferred_Language_Contact__c</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.Preferred_Language_Account__c</elementReference>
+            </value>
+        </filters>
+
+        <!-- Actualizaciones (asignaciones) -->
+        <inputAssignments>
+            <field>AEBEQ_Update_Checkbox_in_account__c</field>
+            <value>
+                <elementReference>$Record.AEBEQ__c</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>SEMBEQ_Update_Checkbox_in_account__c</field>
+            <value>
+                <elementReference>$Record.SEMBEQ__c</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>ID_Prodon_contact__c</field>
+            <value>
+                <elementReference>$Record.ID_Prodon__c</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Preferred_Language_Contact__c</field>
+            <value>
+                <elementReference>$Record.Preferred_Language_Account__c</elementReference>
+            </value>
+        </inputAssignments>
+
+        <!-- IMPORTANTÍSIMO: actualizar SOLO los Contacts de ESTA Account -->
+        <inputReference>$Record.Contacts</inputReference>
+    </recordUpdates>
+
+    <!-- Start: Record-Triggered en Account (After Save, UPDATE) -->
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Account_fields_changed</targetReference>
+        </connector>
+        <object>Account</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+
+    <status>Active</status>
+</Flow>
