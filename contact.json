@@ -792,6 +792,26 @@
         "restrictedDelete": false
       },
       {
+        "cascadeDelete": false,
+        "childSObject": "OutgoingEmail",
+        "deprecatedAndHidden": false,
+        "field": "WhoId",
+        "junctionIdListNames": [],
+        "junctionReferenceTo": [],
+        "relationshipName": null,
+        "restrictedDelete": false
+      },
+      {
+        "cascadeDelete": false,
+        "childSObject": "OutgoingEmailRelation",
+        "deprecatedAndHidden": false,
+        "field": "RelationId",
+        "junctionIdListNames": [],
+        "junctionReferenceTo": [],
+        "relationshipName": "OutgoingEmailRelations",
+        "restrictedDelete": false
+      },
+      {
         "cascadeDelete": true,
         "childSObject": "ProcessInstance",
         "deprecatedAndHidden": false,
@@ -1309,16 +1329,6 @@
         "junctionIdListNames": [],
         "junctionReferenceTo": [],
         "relationshipName": "hed__Tests__r",
-        "restrictedDelete": false
-      },
-      {
-        "cascadeDelete": false,
-        "childSObject": "mone__Mailchimp_Member__c",
-        "deprecatedAndHidden": false,
-        "field": "mone__Contact__c",
-        "junctionIdListNames": [],
-        "junctionReferenceTo": [],
-        "relationshipName": "mone__Mailchimp_Members__r",
         "restrictedDelete": false
       }
     ],
@@ -14960,11 +14970,11 @@
       "compactLayouts": "/services/data/v64.0/sobjects/Contact/describe/compactLayouts",
       "rowTemplate": "/services/data/v64.0/sobjects/Contact/{ID}",
       "approvalLayouts": "/services/data/v64.0/sobjects/Contact/describe/approvalLayouts",
-      "uiDetailTemplate": "https://sembeq--newdevpro.sandbox.my.salesforce.com/{ID}",
-      "uiEditTemplate": "https://sembeq--newdevpro.sandbox.my.salesforce.com/{ID}/e",
+      "uiDetailTemplate": "https://sembeq.my.salesforce.com/{ID}",
+      "uiEditTemplate": "https://sembeq.my.salesforce.com/{ID}/e",
       "listviews": "/services/data/v64.0/sobjects/Contact/listviews",
       "describe": "/services/data/v64.0/sobjects/Contact/describe",
-      "uiNewRecord": "https://sembeq--newdevpro.sandbox.my.salesforce.com/003/e",
+      "uiNewRecord": "https://sembeq.my.salesforce.com/003/e",
       "quickActions": "/services/data/v64.0/sobjects/Contact/quickActions",
       "layouts": "/services/data/v64.0/sobjects/Contact/describe/layouts",
       "sobject": "/services/data/v64.0/sobjects/Contact"

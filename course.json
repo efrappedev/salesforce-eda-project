@@ -2053,10 +2053,10 @@
       "compactLayouts": "/services/data/v64.0/sobjects/hed__Course__c/describe/compactLayouts",
       "rowTemplate": "/services/data/v64.0/sobjects/hed__Course__c/{ID}",
       "approvalLayouts": "/services/data/v64.0/sobjects/hed__Course__c/describe/approvalLayouts",
-      "uiDetailTemplate": "https://sembeq--newdevpro.sandbox.my.salesforce.com/{ID}",
-      "uiEditTemplate": "https://sembeq--newdevpro.sandbox.my.salesforce.com/{ID}/e",
+      "uiDetailTemplate": "https://sembeq.my.salesforce.com/{ID}",
+      "uiEditTemplate": "https://sembeq.my.salesforce.com/{ID}/e",
       "describe": "/services/data/v64.0/sobjects/hed__Course__c/describe",
-      "uiNewRecord": "https://sembeq--newdevpro.sandbox.my.salesforce.com/a0C/e",
+      "uiNewRecord": "https://sembeq.my.salesforce.com/a0C/e",
       "quickActions": "/services/data/v64.0/sobjects/hed__Course__c/quickActions",
       "layouts": "/services/data/v64.0/sobjects/hed__Course__c/describe/layouts",
       "sobject": "/services/data/v64.0/sobjects/hed__Course__c"
