@@ -1,0 +1,575 @@
+<template>
+    <!-- ── Wizard header: ticket info + step indicators ───────────────────── -->
+    <div class="wizard-header slds-border_bottom slds-p-around_medium">
+        <!-- Ticket info row -->
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+            <div class="slds-media slds-media_center">
+                <div class="slds-media__figure">
+                    <lightning-icon icon-name={ticketTypeIcon} size="small"></lightning-icon>
+                </div>
+                <div class="slds-media__body">
+                    <p class="slds-text-heading_small slds-truncate">{ticketMatchValue}</p>
+                    <p class="slds-text-body_small slds-text-color_weak">{ticketSubtitle}</p>
+                </div>
+            </div>
+            <div class="slds-grid slds-gutters_x-small">
+                <span class={confidenceClass}>{ticket.Match_Confidence__c}</span>
+                <lightning-button-icon
+                    icon-name="utility:close"
+                    variant="bare"
+                    alternative-text="Fermer le ticket"
+                    title="Fermer / Faux positif"
+                    onclick={openDismissModal}>
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- Step progress bar -->
+        <div class="wiz-stepper">
+            <div class="wiz-step">
+                <button class={step1CircleClass} onclick={goToStep1} disabled={step1Disabled}>
+                    <template if:true={step1Done}>
+                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse">
+                        </lightning-icon>
+                    </template>
+                    <template if:false={step1Done}>1</template>
+                </button>
+                <span class={step1LabelClass}>Sélection</span>
+            </div>
+            <div class={connector1Class}></div>
+            <div class="wiz-step">
+                <button class={step2CircleClass} onclick={goToStep2} disabled={step2Disabled}>
+                    <template if:true={step2Done}>
+                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse">
+                        </lightning-icon>
+                    </template>
+                    <template if:false={step2Done}>2</template>
+                </button>
+                <span class={step2LabelClass}>Comparer</span>
+            </div>
+            <div class={connector2Class}></div>
+            <div class="wiz-step">
+                <button class={step3CircleClass} disabled>3</button>
+                <span class={step3LabelClass}>Confirmer</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Wizard body ─────────────────────────────────────────────────────── -->
+    <div class="wizard-body slds-p-around_medium">
+
+        <!-- Loading spinner -->
+        <template if:true={isLoading}>
+            <div class="wizard-loading">
+                <lightning-spinner alternative-text="Chargement..."></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- STEP 1: Candidate selection cards -->
+        <template if:true={showStep1}>
+            <template if:false={hasMultipleCandidates}>
+                <p class="slds-text-body_regular slds-m-bottom_medium slds-text-color_weak">
+                    Cliquez sur un enregistrement pour le sélectionner comme <strong>master</strong>.
+                    L&apos;enregistrement avec le plus d&apos;inscriptions EDA est recommandé.
+                </p>
+            </template>
+            <template if:true={hasMultipleCandidates}>
+                <div class="multi-candidate-banner slds-m-bottom_medium">
+                    <lightning-icon icon-name="utility:info" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    <strong>{candidateCards.length} enregistrements détectés.</strong>
+                    &nbsp;Choisissez le <strong>master</strong> (clic sur la carte) et cliquez
+                    <strong>+ Fusionner</strong> sur le seul doublon à éliminer.
+                    Les autres ne seront <strong>pas modifiés</strong>.
+                </div>
+            </template>
+            <div class="slds-grid slds-gutters slds-wrap">
+                <template for:each={candidateCards} for:item="card">
+                    <div key={card.recordId} class={card.colClass}>
+                        <div class={card.cardClass}
+                            onclick={handleCardMasterSelect}
+                            data-id={card.recordId}
+                            role="button"
+                            tabindex="0">
+                            <!-- Card header -->
+                            <div class="slds-card__header slds-grid">
+                                <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name={card.typeIcon} size="small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <h2 class="slds-card__header-title">
+                                            <span class="slds-truncate" title={card.recordName}>
+                                                {card.recordName}
+                                            </span>
+                                        </h2>
+                                    </div>
+                                </header>
+                                <template if:true={card.isMaster}>
+                                    <span class="slds-badge slds-badge_success">&#10003; Master</span>
+                                </template>
+                                <template if:true={card.showLoserToggle}>
+                                    <button class={card.loserPillClass}
+                                        data-id={card.recordId}
+                                        onclick={handleCardLoserToggle}>
+                                        {card.loserPillLabel}
+                                    </button>
+                                </template>
+                            </div>
+                            <!-- Card body: key field values -->
+                            <div class="slds-card__body slds-card__body_inner">
+                                <dl class="slds-dl_horizontal slds-text-body_small candidate-fields">
+                                    <template for:each={card.keyFieldRows} for:item="kf">
+                                        <dt key={kf.label} class="slds-dl_horizontal__label
+                                            slds-text-color_weak">{kf.label}</dt>
+                                        <dd key={kf.val} class="slds-dl_horizontal__detail
+                                            slds-truncate">{kf.val}</dd>
+                                    </template>
+                                </dl>
+                                <template if:true={card.isMergedLoser}>
+                                    <div class="slds-grid slds-grid_align-end slds-m-top_x-small">
+                                        <span class="merged-loser-badge">
+                                            ✗&nbsp;Fusionné
+                                        </span>
+                                    </div>
+                                </template>
+                                <template if:true={card.isMergedMaster}>
+                                    <div class="slds-grid slds-grid_align-end slds-m-top_x-small">
+                                        <span class="merged-master-badge">
+                                            ✓&nbsp;Conservé
+                                        </span>
+                                    </div>
+                                </template>
+                            </div>
+                            <!-- EDA footer -->
+                            <div class="slds-card__footer">
+                                <div class="slds-grid slds-gutters_small slds-grid_align-center">
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class={card.courseClass}>{card.edaCounts.courseConnections}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Cours</p>
+                                    </div>
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class={card.programClass}>{card.edaCounts.programEnrollments}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Prog.</p>
+                                    </div>
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class="slds-text-heading_small">{card.edaCounts.affiliations}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Affil.</p>
+                                    </div>
+                                </div>
+                                <template if:true={card.hasActiveEnrollmentWarning}>
+                                    <div class="candidate-warning slds-m-top_x-small" role="alert">
+                                        <lightning-icon icon-name="utility:warning"
+                                            size="xx-small" class="slds-m-right_xx-small">
+                                        </lightning-icon>
+                                        Inscriptions actives — recommandé comme master
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Deleted accounts log (Contact merge tickets) -->
+        <template if:true={hasDeletedAccounts}>
+            <div class="deleted-accounts-box slds-m-top_medium">
+                <div class="deleted-accounts-header">
+                    <lightning-icon icon-name="utility:delete" size="xx-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    Compte(s) supprimé(s) lors de cette fusion
+                </div>
+                <template for:each={deletedAccounts} for:item="acc">
+                    <div key={acc.accountId} class="deleted-account-row">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <div class="slds-col slds-truncate">
+                                <lightning-icon icon-name="standard:account" size="xx-small"
+                                    class="slds-m-right_xx-small">
+                                </lightning-icon>
+                                <strong>{acc.accountName}</strong>
+                                <span class="deleted-record-badge slds-m-left_x-small">Fusionné</span>
+                                <span class="slds-text-body_small slds-text-color_weak
+                                    slds-m-left_x-small">
+                                    — supprimé le {acc.deletedAt}
+                                </span>
+                            </div>
+                            <div class="slds-col slds-shrink slds-m-left_small">
+                                <lightning-button
+                                    label="Restaurer"
+                                    variant="neutral"
+                                    icon-name="utility:undo"
+                                    data-id={acc.accountId}
+                                    onclick={handleRestoreAccount}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Deleted contacts log (Account merge tickets) -->
+        <template if:true={hasDeletedContacts}>
+            <div class="deleted-accounts-box slds-m-top_medium">
+                <div class="deleted-accounts-header">
+                    <lightning-icon icon-name="utility:delete" size="xx-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    Contact(s) supprimé(s) lors de cette fusion
+                </div>
+                <template for:each={deletedContacts} for:item="ct">
+                    <div key={ct.contactId} class="deleted-account-row">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <div class="slds-col slds-truncate">
+                                <lightning-icon icon-name="standard:contact" size="xx-small"
+                                    class="slds-m-right_xx-small">
+                                </lightning-icon>
+                                <strong>{ct.contactName}</strong>
+                                <span class="deleted-record-badge slds-m-left_x-small">Fusionné</span>
+                                <span class="slds-text-body_small slds-text-color_weak
+                                    slds-m-left_x-small">
+                                    — supprimé le {ct.deletedAt}
+                                </span>
+                            </div>
+                            <div class="slds-col slds-shrink slds-m-left_small">
+                                <lightning-button
+                                    label="Restaurer"
+                                    variant="neutral"
+                                    icon-name="utility:undo"
+                                    data-id={ct.contactId}
+                                    onclick={handleRestoreContact}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- STEP 2: Comparison matrix -->
+        <template if:true={showStep2}>
+            <template if:true={hasMatrix}>
+                <c-merge-comparison-matrix
+                    matrix={comparisonMatrix}
+                    master-id={masterId}
+                    field-decisions={fieldDecisions}
+                    loser-ids={selectedLoserIds}
+                    onmasterchange={handleMasterChange}
+                    onfielddecisionchange={handleFieldDecisionChange}>
+                </c-merge-comparison-matrix>
+            </template>
+        </template>
+
+        <!-- STEP 3: Confirmation summary -->
+        <template if:true={showStep3}>
+            <!-- Active loser warning (most important — shown at top) -->
+            <template if:true={hasActiveLoserWarning}>
+                <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_medium"
+                    role="alert">
+                    <lightning-icon icon-name="utility:error" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    <strong>ATTENTION :</strong>&nbsp;
+                    Un ou plusieurs enregistrements à supprimer ont des inscriptions actives.
+                    Vérifiez que le master possède bien toutes les données avant de continuer.
+                </div>
+            </template>
+
+            <!-- Summary box -->
+            <div class="slds-box slds-m-bottom_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">Résumé de la fusion</h3>
+
+                <!-- Master -->
+                <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                    <lightning-icon icon-name="utility:success" size="x-small"
+                        class="slds-m-right_x-small" style="color:#2e844a">
+                    </lightning-icon>
+                    <span class="slds-text-body_small">
+                        <strong>Master conservé :</strong>&nbsp;{masterRecordName}
+                    </span>
+                </div>
+
+                <!-- Losers -->
+                <div class="slds-m-bottom_x-small">
+                    <p class="slds-text-body_small slds-m-bottom_xx-small">
+                        <strong>Enregistrement(s) à fusionner / supprimer :</strong>
+                    </p>
+                    <ul class="slds-list_dotted">
+                        <template for:each={losingRecordNames} for:item="name">
+                            <li key={name} class="slds-text-body_small">{name}</li>
+                        </template>
+                    </ul>
+                </div>
+
+                <!-- Excluded records (not part of this merge) -->
+                <template if:true={hasExcludedRecords}>
+                    <div class="slds-m-bottom_x-small">
+                        <p class="slds-text-body_small slds-m-bottom_xx-small">
+                            <strong>Enregistrement(s) non sélectionnés (ne seront pas modifiés) :</strong>
+                        </p>
+                        <ul class="slds-list_dotted">
+                            <template for:each={excludedRecordNames} for:item="name">
+                                <li key={name} class="slds-text-body_small slds-text-color_weak">{name}</li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+
+                <!-- Field decisions that differ from master -->
+                <template if:true={hasCustomDecisions}>
+                    <div>
+                        <p class="slds-text-body_small slds-m-bottom_xx-small">
+                            <strong>Valeurs de champs sélectionnées depuis un autre enregistrement :</strong>
+                        </p>
+                        <ul class="slds-list_dotted">
+                            <template for:each={customDecisionSummary} for:item="d">
+                                <li key={d.fieldLabel} class="slds-text-body_small">
+                                    {d.fieldLabel}
+                                    &nbsp;&#8592;&nbsp;
+                                    <em>{d.sourceName}</em>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Notes -->
+            <lightning-textarea
+                label="Notes (optionnel)"
+                placeholder="Raison de la fusion, contexte..."
+                value={mergeNotes}
+                onchange={handleNotesChange}
+                max-length="32768">
+            </lightning-textarea>
+        </template>
+    </div>
+
+    <!-- ── Wizard footer ───────────────────────────────────────────────────── -->
+    <div class="wizard-footer slds-border_top slds-p-horizontal_medium slds-p-vertical_small
+        slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+
+        <!-- Dismiss button (always visible) -->
+        <lightning-button
+            label="Ignorer / Faux positif"
+            icon-name="utility:close"
+            variant="destructive-text"
+            onclick={openDismissModal}>
+        </lightning-button>
+
+        <!-- Navigation -->
+        <div class="slds-grid slds-gutters_x-small">
+            <lightning-button
+                label="Retour"
+                onclick={goToPrevStep}
+                disabled={isPrevDisabled}>
+            </lightning-button>
+            <template if:false={isLastStep}>
+                <lightning-button
+                    label="Suivant"
+                    variant="brand"
+                    icon-name="utility:forward"
+                    icon-position="right"
+                    onclick={goToNextStep}
+                    disabled={isNextDisabled}>
+                </lightning-button>
+            </template>
+            <template if:true={isLastStep}>
+                <lightning-button
+                    label="Exécuter la fusion"
+                    variant="brand"
+                    icon-name="utility:merge"
+                    onclick={executeMerge}
+                    disabled={isExecuting}>
+                </lightning-button>
+            </template>
+        </div>
+    </div>
+
+    <!-- ── Dismiss modal ───────────────────────────────────────────────────── -->
+    <template if:true={showDismissModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                        title="Fermer" onclick={closeDismissModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">Fermer le ticket</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-m-bottom_small slds-text-body_regular">
+                        Ce ticket n&apos;apparaîtra plus dans la liste principale.
+                        La décision sera enregistrée pour référence.
+                    </p>
+                    <lightning-combobox
+                        label="Raison de fermeture"
+                        value={dismissReason}
+                        options={closedReasonOptions}
+                        onchange={handleDismissReasonChange}
+                        required>
+                    </lightning-combobox>
+                    <lightning-textarea
+                        label="Notes complémentaires (optionnel)"
+                        value={dismissNotes}
+                        onchange={handleDismissNotesChange}
+                        class="slds-m-top_small">
+                    </lightning-textarea>
+                    <template if:true={dismissError}>
+                        <p class="slds-text-color_error slds-m-top_small">{dismissError}</p>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Annuler" onclick={closeDismissModal}></lightning-button>
+                    <lightning-button
+                        label="Fermer le ticket"
+                        variant="destructive"
+                        onclick={confirmDismiss}
+                        disabled={isDismissing}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ── Executing overlay ───────────────────────────────────────────────── -->
+    <template if:true={isExecuting}>
+        <div class="wizard-executing-overlay">
+            <lightning-spinner alternative-text="Fusion en cours..." size="large"></lightning-spinner>
+            <p class="slds-text-heading_small slds-m-top_medium" style="color:#fff">
+                Fusion en cours, veuillez patienter...
+            </p>
+        </div>
+    </template>
+
+    <!-- ── Orphaned Contact modal (Account merges) ─────────────────────── -->
+    <template if:true={showOrphanContactModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_warning">
+                    <button class="slds-modal__close btn-modal-close"
+                        title="Fermer" onclick={closeOrphanContactModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        Contact(s) déplacés vers le compte maître
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_medium">
+                        La fusion a réussi. Les contact(s) ci-dessous appartenaient aux comptes supprimés
+                        et ont été déplacés vers le compte maître.
+                        Supprimez-les s&apos;ils sont des doublons — vous pourrez les restaurer ensuite.
+                    </p>
+                    <template for:each={orphanedContacts} for:item="ct">
+                        <div key={ct.contactId}
+                            class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
+                            <div class="slds-grid slds-grid_vertical-align-center slds-gutters_small">
+                                <div class="slds-col">
+                                    <lightning-icon icon-name="standard:contact" size="small"
+                                        class="slds-m-right_x-small">
+                                    </lightning-icon>
+                                    <strong>{ct.contactName}</strong>
+                                    <template if:true={ct.email}>
+                                        <span class="slds-text-body_small slds-text-color_weak
+                                            slds-m-left_x-small">{ct.email}</span>
+                                    </template>
+                                    <template if:true={ct.phone}>
+                                        <span class="slds-text-body_small slds-text-color_weak
+                                            slds-m-left_x-small">{ct.phone}</span>
+                                    </template>
+                                </div>
+                                <div class="slds-col slds-shrink">
+                                    <lightning-button
+                                        label="Supprimer"
+                                        variant="destructive-text"
+                                        icon-name="utility:delete"
+                                        data-id={ct.contactId}
+                                        onclick={handleDeleteOrphanedContact}
+                                        disabled={isDeletingContact}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Garder tous et continuer"
+                        variant="brand"
+                        onclick={closeOrphanContactModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ── Orphaned Account modal ────────────────────────────────────────── -->
+    <template if:true={showOrphanModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_warning">
+                    <button class="slds-modal__close btn-modal-close"
+                        title="Fermer" onclick={closeOrphanModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        Compte(s) sans contact après la fusion
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_medium">
+                        La fusion a réussi. Le(s) compte(s) ci-dessous n&apos;ont plus aucun contact associé.
+                        Choisissez l&apos;action à effectuer pour chacun.
+                    </p>
+                    <template for:each={orphanedAccounts} for:item="acc">
+                        <div key={acc.accountId} class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
+                            <div class="slds-grid slds-grid_vertical-align-center slds-gutters_small">
+                                <div class="slds-col">
+                                    <lightning-icon icon-name="standard:account" size="small"
+                                        class="slds-m-right_x-small">
+                                    </lightning-icon>
+                                    <strong>{acc.accountName}</strong>
+                                    <template if:true={acc.affiliationCount}>
+                                        <span class="slds-m-left_x-small slds-badge badge-warning-soft">
+                                            <lightning-icon icon-name="utility:warning"
+                                                size="xx-small" class="slds-m-right_xx-small">
+                                            </lightning-icon>
+                                            {acc.affiliationCount} affiliation(s) — vérifiez avant suppression
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="slds-col slds-shrink">
+                                    <lightning-button
+                                        label="Supprimer"
+                                        variant="destructive-text"
+                                        icon-name="utility:delete"
+                                        data-id={acc.accountId}
+                                        onclick={handleDeleteOrphanedAccount}
+                                        disabled={isDeletingAccount}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Garder tous et continuer"
+                        variant="brand"
+                        onclick={closeOrphanModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

@@ -1,0 +1,702 @@
+<apex:page standardController="Contact" extensions="DegreeAuditMatrixController"
+           sidebar="false" showHeader="false" docType="html-5.0" lightningStylesheets="true">
+
+    <!-- CSS global de la app -->
+    <apex:stylesheet value="{!URLFOR($Resource.DegreeAuditCSS)}"/>
+
+    <apex:form id="contactActionForm">
+    <apex:pageMessages id="msgs"/>
+        <apex:actionStatus id="stOpt" onstop="setTimeout(normalizeDetailCourseNames,0)"/>
+
+                <!-- Caso: varios planes -->
+        <apex:outputPanel id="selectorPanel"
+                          rendered="{!NOT(ISBLANK(studentPlanOptions))}">
+          <div class="da-container">
+            <div class="da-title">Sélectionnez un programme</div>
+        
+            <!-- SELECT del PE -->
+            <apex:selectList id="pePick"
+                             value="{!selectedStudentPlanId}"
+                             size="1"
+                             required="true"
+                             styleClass="da-select">
+              <apex:selectOptions value="{!studentPlanOptions}"/>
+            </apex:selectList>
+        
+            <!-- Botón -->
+            <apex:commandButton value="Afficher" 
+                action="{!choosePlanForAction}" 
+                rerender="contactActionForm" 
+                status="stOpt"
+                styleClass="da-btn"/>
+          </div>
+        </apex:outputPanel>      
+        <!-- Caso: detalle directo -->
+        <apex:outputPanel id="studentDetailPanel" rendered="{!showDetail}">
+                  <div id="daContactVF">
+                    <div class="da-container">
+                
+                      <div class="da-title">Détail de l’étudiant</div>
+                
+                      <!-- CSV oculto (para exportación) -->
+                      <pre id="detailCsv" class="csv-hidden">{!detailCsvContent}</pre>
+                
+                      <div id="studentDetailCapture">
+                    <div class="detail-grid">
+                        <div><span class="muted">Nom:</span> <strong>{!studentDetail.DisplayName}</strong></div>
+                        <div><span class="muted">Plan:</span> <strong>{!studentDetail.PlanName}</strong></div>
+                        <div><span class="muted">Avancement:</span> <strong>{!studentDetail.ProgressPercentText}</strong></div>
+                        <div><span class="muted">Dernier cours:</span> <strong>{!studentDetail.LastCourseDateText}</strong></div>
+                        <div><span class="muted">7+ ans:</span>
+                            <strong>
+                                <apex:outputText rendered="{!studentDetail.OlderThan7Years}" value="&#x26D4;" styleClass="ico miss" escape="false"/>
+                                <apex:outputText rendered="{!NOT(studentDetail.OlderThan7Years)}" value="&#x2705;" styleClass="ico ok" escape="false"/>
+                            </strong>
+                        </div>
+                        <div><span class="muted">Manquants:</span> <strong>{!studentDetail.MissingCount}</strong></div>
+                        <div><span class="muted">Email:</span> <strong>{!studentDetail.Email}</strong></div>
+                        <!-- NUEVO: ID Contact visible en modal -->
+                        <div><span class="muted">ID Contact:</span> <strong id="contactExternalId">{!studentDetail.ContactExternalId}</strong></div>
+                    </div>
+
+                    <div class="detail-table-wrap">
+                        <table class="detail-table" id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:80px;text-align:center;">Statut</th>
+                                    <th>Nom du cours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <apex:repeat value="{!studentDetail.Courses}" var="c">
+                                    <tr>
+                                        <td style="text-align:center;">
+                                            <apex:outputText rendered="{!c.IsOk}" value="&#10003;" styleClass="ico ok"
+                                                             title="{!c.Tooltip}" escape="false"/>
+                                            <apex:outputText rendered="{!NOT(c.IsOk)}" value="&#10005;" styleClass="ico miss"
+                                                             title="{!c.Tooltip}" escape="false"/>
+                                        </td>
+                                        <td class="js-course-name">{!c.CourseName}</td>
+                                    </tr>
+                                </apex:repeat>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+                
+                <!-- ====== Fuente oculta para OPTATIVOS (solo Contacto) ====== -->
+                <apex:outputPanel id="optHidden" layout="none" rendered="{!hasOptBlocks}">
+                  <div id="optSource" style="display:none;">
+                    <table>
+                      <thead>
+                        <tr>
+                          <apex:repeat value="{!optBlocks}" var="block">
+                            <th data-opt="1">
+                              {!block.name}
+                              <br/>
+                              <span class="muted">({!block.requiredCredits} u.)</span>
+                            </th>
+                          </apex:repeat>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <apex:repeat value="{!optBlocks}" var="block">
+                            <td data-opt="1"
+                                title="{!detailOptTipByPrId[block.prId]} — {!IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])} / {!IF(AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits>0), block.requiredCredits, '—')}">
+                              <apex:outputText value="{!
+                                  IF(
+                                    AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits > 0),
+                                    IF(
+                                      IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId]) > block.requiredCredits,
+                                      block.requiredCredits,
+                                      IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])
+                                    ),
+                                    IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])
+                                  )
+                                }"/>
+                              <apex:outputText value=" / "/>
+                              <apex:outputText rendered="{!AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits > 0)}" value="{!block.requiredCredits}"/>
+                              <apex:outputText rendered="{!OR(ISNULL(block.requiredCredits), block.requiredCredits = 0)}" value="—"/>
+                            </td>
+                          </apex:repeat>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </apex:outputPanel>
+                
+                <!-- Disparador seguro: se ejecuta cuando optHidden se re-renderiza -->
+                    <apex:outputPanel id="optTrigger" layout="none" rendered="{!hasOptBlocks}">
+                      <script>
+                        // corre tras el PPR, cuando #optSource YA existe en el DOM
+                        setTimeout(function(){ try{ buildStudentOptionalBlocks(); }catch(e){} }, 0);
+                      </script>
+                    </apex:outputPanel>
+
+
+                <!-- BOTONES (forzados visibles en Quick Action) -->
+                <div class="modal-actions qa-actions" id="qaActions">
+                    <a href="javascript:void(0)" class="da-btn-secondary" onclick="exportDetailCsv()">Exporter CSV</a>
+                    <a href="javascript:void(0)" class="da-btn" onclick="exportDetailPdf()">Exporter PDF</a>
+
+
+                    <a href="javascript:void(0)" class="da-btn" onclick="window.close()">Fermer</a>
+                </div>
+            </div>
+        </apex:outputPanel>
+
+        <!-- Caso: sin programas -->
+        <apex:outputPanel rendered="{!AND( OR(ISNULL(studentPlanOptions), studentPlanOptions.size = 0), NOT(showDetail))}">
+                <div class="da-container">
+                    <div class="note-fr">Aucun programme trouvé pour cet étudiant.</div>
+                </div>
+                </apex:outputpanel>
+    </apex:form>
+
+    <!-- Librerías (mismas que en la página principal) -->
+    <apex:includeScript value="{!URLFOR($Resource.html2canvas_min)}"/>
+    <apex:includeScript value="{!URLFOR($Resource.jsPDF, 'jspdf.umd.min.js')}"/>
+
+    <!-- Logo oculto para PDF -->
+    <img id="pdfLogo" src="{!URLFOR($Resource.logo)}" alt="logo" style="display:none;" />
+
+    <!-- JS: exportaciones -->
+    <script>
+        //<![CDATA[
+        function exportDetailCsv(){
+          const el = document.getElementById('detailCsv');
+          let csv = el ? (el.textContent || el.innerText || '') : '';
+          if (!csv || !csv.trim()){ alert('Aucun contenu CSV.'); return; }
+        
+          // Normaliza EOL
+          let lines = csv.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+          if (lines.length && !lines[lines.length-1].trim()) lines.pop();
+        
+          // ⬅️ Nuevo: detecta el delimitador del CSV base
+          const headerLine = lines[0] || '';
+          const count = (s,ch)=> (s.match(new RegExp(ch,'g'))||[]).length;
+          const DELIM = count(headerLine,';') > count(headerLine,',') ? ';' : ',';  // usa el que más aparece
+        
+          // Apéndice de OPTATIVOS
+          try{
+            const host = document.getElementById('optSource');
+            if (host){
+              const ths = host.querySelectorAll('thead th[data-opt="1"]');
+              const row = host.querySelector('tbody tr');
+              const tds = row ? row.querySelectorAll('td[data-opt="1"]') : [];
+              if (ths.length && tds.length){
+                lines.push('');
+                for (let k=0; k<Math.min(ths.length, tds.length); k++){
+                  const th = ths[k], td = tds[k];
+                  const blockTitle = titleFromTH(th);
+        
+                  // ⬅️ Usa el mismo DELIM detectado
+                  lines.push(['', blockTitle].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(DELIM));
+        
+                  const courses = parseOptTooltip(td.getAttribute('title')||'');
+                  courses.forEach(name=>{
+                    lines.push(['✔', name].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(DELIM));
+                  });
+                  lines.push('');
+                }
+              }
+            }
+          }catch(e){ console.warn('CSV optatifs', e); }
+        
+          // Descarga (igual que tenías)
+          const BOM = '\uFEFF';
+          const out = lines.join('\r\n');
+          const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + out);
+          const a = document.createElement('a');
+          a.style.display = 'none'; a.href = dataUrl; a.download = 'telechargement.csv';
+          document.body.appendChild(a); a.click(); setTimeout(()=>document.body.removeChild(a),0);
+        }
+
+        
+        async function exportDetailPdf(){
+          try{
+            const wrap = document.getElementById('studentDetailCapture');
+            if(!wrap){ alert('Aucun contenu à exporter.'); return; }
+        
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const marginX = 40, marginTopFirst = 80, marginTopNext = 40, marginBottom = 40;
+        
+            const logoEl = document.getElementById('pdfLogo');
+            const drawLogo = () => {
+              if (logoEl && (logoEl.complete || logoEl.naturalWidth)) {
+                const targetH = 32;
+                const ratio   = logoEl.naturalWidth ? (logoEl.naturalWidth / logoEl.naturalHeight) : 3;
+                const targetW = targetH * ratio;
+                pdf.addImage(logoEl, 'PNG', marginX, 24, targetW, targetH);
+              }
+            };
+        
+            const canvas = await html2canvas(wrap, { scale: 2, backgroundColor:'#ffffff', useCORS:true });
+        
+            const usableWpt = pageW - marginX * 2;
+            const ptPerPx = usableWpt / canvas.width;
+            const availFirstPt = pageH - marginTopFirst - marginBottom;
+            const availNextPt  = pageH - marginTopNext - marginBottom;
+            const availFirstPx = Math.floor(availFirstPt / ptPerPx);
+            const availNextPx  = Math.floor(availNextPt  / ptPerPx);
+        
+            const tmp = document.createElement('canvas');
+            const ctx = tmp.getContext('2d');
+            let sy = 0, first = true;
+        
+            while (sy < canvas.height) {
+              const slicePx = first ? availFirstPx : availNextPx;
+              const hPx = Math.min(slicePx, canvas.height - sy);
+        
+              tmp.width  = canvas.width;
+              tmp.height = hPx;
+              ctx.clearRect(0,0,tmp.width,tmp.height);
+              ctx.drawImage(canvas, 0, sy, canvas.width, hPx, 0, 0, tmp.width, hPx);
+        
+              const dataUrl = tmp.toDataURL('image/jpeg', 0.7);
+              const targetHpt = hPx * ptPerPx;
+        
+              if (first) { drawLogo(); }
+              pdf.addImage(dataUrl, 'JPEG', marginX, first ? marginTopFirst : marginTopNext, usableWpt, targetHpt, undefined, 'FAST');
+        
+              sy += hPx;
+              first = false;
+              if (sy < canvas.height) { pdf.addPage(); }
+            }
+        
+            const nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+            const nameTxt = (nameEl && nameEl.textContent) ? nameEl.textContent.trim().replace(/\s+/g,'_') : 'etudiant';
+            const d = new Date(), y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
+            pdf.save('Degree_audit_'+nameTxt+'_'+y+m+day+'.pdf');
+          }catch(e){
+            console.error(e);
+            alert('Impossible de générer le PDF.');
+          }
+        }
+        //]]>
+        
+                    // === helpers iguales a la principal ===
+            function cleanCourseName(s){
+          if(!s) return '';
+          s = String(s).replace(/&nbsp;/gi, ' ');
+        
+          // Quita viñetas/checks/dashes al inicio
+          s = s.replace(/^[\s\u2713\u2714\u2705\u2022•\-]+/, '');
+        
+          // Quita banderas en cualquier parte
+          s = s.replace(/\s*\((?:R|EQV|TR\/?EX?|EXV?)\)\s*/gi, ' ');
+        
+          // Quita prefijos acumulados: A/H/P 20xx, rangos 019-20/2020-21, año suelto 2021, etc.
+          const rePrefix = /^\s*(?:[AHP]\s*20\d{2}|[AHP]\d{4}|\d{4}\s*-\s*\d{2}|\d{3}\s*-\s*\d{2}|\d{2}\s*-\s*\d{2}|\d{4})\s*/i;
+          while (rePrefix.test(s)) s = s.replace(rePrefix, '');
+        
+          return s.replace(/\s{2,}/g, ' ').trim();
+        }
+            function parseOptTooltip(ttl){
+              if (!ttl) return [];
+              ttl = ttl.replace(/&nbsp;/gi,' ')
+                       .replace(/&lt;br\s*\/?&gt;|<br\s*\/?>/gi,'\n')
+                       .replace(/&#10;|&NewLine;|\\n/g,'\n')
+                       .replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+              var left = ttl.split(' — ')[0] || ttl;
+            
+              var items = left.split(/[\n\u2022•;|,]+/g)
+                              .map(s=> (s||'').trim()).filter(Boolean);
+              function onlyName(s){
+                var ix = s.indexOf(' · ');
+                var raw = (ix>=0 ? s.substring(0,ix) : s).trim();
+                return cleanCourseName(raw);
+              }
+              if (items.length>1){
+                var seen={}, out=[];
+                items.forEach(s=>{ var n=onlyName(s); if(n && !seen[n]){ seen[n]=1; out.push(n); }});
+                if (out.length) return out;
+              }
+              var re=/\s*(.+?)\s*·\s*[\d.,]+u\s*·\s*(?:[^—]+?)(?=(?:\s*.+?\s*·\s*[\d.,]+u\s*·)|\s*$|\s*—)/g;
+              var m, seen2={}, out2=[];
+              while((m=re.exec(left))!==null){
+                var n=cleanCourseName((m[1]||'').trim());
+                if(n && !seen2[n]){ seen2[n]=1; out2.push(n); }
+              }
+              if (out2.length) return out2;
+              var ix = left.indexOf(' · ');
+              return (ix>0)?[ cleanCourseName(left.substring(0,ix).trim()) ]:[];
+            }
+            function titleFromTH(th){
+              if(!th) return '';
+              var base = (th.childNodes && th.childNodes[0] && th.childNodes[0].nodeType===3)
+                ? (th.childNodes[0].nodeValue||'').trim()
+                : ((th.textContent||'').split('\n')[0]||'').trim();
+              base = base.replace(/\s*\(.*?\)\s*$/,'');
+              var muted = th.querySelector('.muted');
+              var credits = muted ? (muted.textContent||'').trim() : '';
+              return credits ? (base+' '+credits) : base;
+            }
+            
+            // === pinta los optativos en la tabla de detalle del Contacto ===
+            function buildStudentOptionalBlocks(){
+              try{
+                var tbody = document.querySelector('#detailTable tbody');
+                if(!tbody) return;
+            
+                // limpia anteriores
+                Array.from(tbody.querySelectorAll('.js-opt-row')).forEach(tr=>tr.remove());
+            
+                // fuente oculta
+                var host = document.getElementById('optSource');
+                if(!host) return;
+            
+                var ths = host.querySelectorAll('thead th[data-opt="1"]');
+                var row = host.querySelector('tbody tr');
+                var tds = row ? row.querySelectorAll('td[data-opt="1"]') : [];
+                if(!ths.length || !tds.length) return;
+            
+                for (var k=0; k<Math.min(ths.length, tds.length); k++){
+                  var th = ths[k], td = tds[k];
+            
+                  // fila subtítulo del bloque
+                  var sub = document.createElement('tr');
+                  sub.className = 'opt-sub js-opt-row';
+                  var thSub = document.createElement('th');
+                  thSub.colSpan = 2;
+                  thSub.textContent = titleFromTH(th);     // ⬅️ usa la GLOBAL
+                  sub.appendChild(thSub);
+                  tbody.appendChild(sub);
+            
+                  // cursos (desde el title del td)
+                  var courses = parseOptTooltip(td.getAttribute('title')||''); // ⬅️ usa la GLOBAL
+                  courses.forEach(function(course){
+                    var tr = document.createElement('tr'); tr.className='js-opt-row';
+                    var td1 = document.createElement('td'); td1.style.textAlign='center'; td1.className='ico ok'; td1.innerHTML='&#10003;';
+                    var td2 = document.createElement('td'); 
+                    td2.textContent = cleanCourseName(course);                  // ⬅️ asegura limpieza
+                    tr.appendChild(td1); tr.appendChild(td2);
+                    tbody.appendChild(tr);
+                  });
+                }
+            
+                // seguridad extra: limpiar cualquier 2ª celda agregada
+                Array.from(tbody.querySelectorAll('.js-opt-row td:nth-child(2)')).forEach(function(td){
+                  td.textContent = cleanCourseName(td.textContent || '');
+                });
+              }catch(e){ console.warn('buildStudentOptionalBlocks (Contact)', e); }
+            }
+           
+            function ensurePlanSelected(){
+                  try{
+                    var sel = document.querySelector('select[id$="pePick"]');
+                    if(!sel) return true;
+                
+                    var v = sel.value;
+                    if(!v){
+                      alert("Veuillez sélectionner un programme.");
+                      try{ sel.focus(); }catch(_e){}
+                      return false;
+                    }
+                    var lbl = (sel.options[sel.selectedIndex] || {}).text || '';
+                    if((lbl||'').toLowerCase().indexOf('hors programme') >= 0){
+                      alert("Sélection non valide.");
+                      return false;
+                    }
+                
+                    return true;
+                  }catch(e){
+                    return true;
+                  }
+                }
+            
+            // ejecútalo al cargar
+            window.addEventListener('load', function(){ try{ buildStudentOptionalBlocks(); }catch(e){} });
+            
+            function normalizeDetailCourseNames(){
+                try{
+                  var cells = document.querySelectorAll('#detailTable tbody td.js-course-name');
+                  cells.forEach(function(td){
+                    td.textContent = cleanCourseName(td.textContent || '');
+                  });
+                }catch(e){}
+              }
+            
+              // también al cargar la página (vista directa sin rerender)
+              window.addEventListener('load', function(){ setTimeout(normalizeDetailCourseNames,0); });
+            
+    </script>
+
+    <!-- Overrides CSS específicos para Quick Action (aseguran que los botones se VEAN) -->
+<style>
+/* ==== Quick Action: permitir scroll en el iframe ==== */
+html, body{
+  height:auto !important;
+  overflow:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ==== Botonera fija (no tapa contenido) ==== */
+.qa-actions{
+  position:fixed !important;
+  left:16px; right:16px; bottom:12px;
+  z-index:9999;
+  display:flex !important; gap:8px; align-items:center; justify-content:flex-end;
+  padding:10px 12px;
+  background:rgba(255,255,255,.98);
+  border:1px solid #e5e7eb; border-radius:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.10);
+}
+/* colchón para que la botonera no tape la última fila */
+#studentDetailCapture{ padding-bottom:96px !important; }
+
+/* ==== Caja de la tabla ==== */
+#studentDetailPanel .detail-table-wrap{
+  border:1px solid #e5e7eb !important;
+  border-radius:8px !important;
+  overflow:hidden !important;
+  background:#fff !important;
+}
+
+/* ==== Reset duro SOLO para esta tabla (anula SLDS y el CSS global) ==== */
+#studentDetailPanel #detailTable,
+#studentDetailPanel #detailTable *{
+  box-shadow:none !important;
+  background-image:none !important;
+  border:0 !important;
+  outline:0 !important;
+}
+#studentDetailPanel #detailTable tr::before,
+#studentDetailPanel #detailTable tr::after,
+#studentDetailPanel #detailTable th::before,
+#studentDetailPanel #detailTable th::after,
+#studentDetailPanel #detailTable td::before,
+#studentDetailPanel #detailTable td::after{
+  content:none !important;
+}
+
+/* ==== Apariencia limpia de la tabla ==== */
+#studentDetailPanel table.detail-table{
+  width:100% !important;
+  table-layout:fixed !important;
+  border-collapse:separate !important;
+  border-spacing:0 !important;
+  background:#fff !important;
+  font-size:13px;
+}
+
+/* celdas base */
+#studentDetailPanel .detail-table thead th,
+#studentDetailPanel .detail-table tbody td{
+  position:relative;
+  padding:10px 14px !important;
+  border-bottom:1px solid #e5e7eb !important;
+  vertical-align:middle !important;
+  background:#fff !important;
+  background-clip:padding-box;
+  /* sin bordes verticales heredados */
+  border-right:0 !important;
+}
+
+/* cabecera */
+#studentDetailPanel .detail-table thead th{
+  background:#f9fafb !important;
+  font-weight:600;
+  text-transform:uppercase;
+  font-size:12px;
+}
+
+/* 1ª columna (✓/✕) fija y centrada */
+#studentDetailPanel .detail-table thead th:first-child,
+#studentDetailPanel .detail-table tbody td:first-child{
+  width:80px !important;
+  text-align:center !important;
+  /* quitar cualquier separador en esta columna */
+  border-right:0 !important;
+}
+#studentDetailPanel .detail-table tbody td:first-child::after{
+  content:none !important;  /* evita la “guía” junto al ✓ */
+}
+
+/* un poco más de aire al nombre del curso */
+#studentDetailPanel .detail-table tbody td:nth-child(2){
+  padding-left:18px !important;
+}
+
+/* sin zebra (para evitar parches de fondo) */
+#studentDetailPanel .detail-table tbody tr:nth-child(even) td{
+  background:#fff !important;
+}
+
+/* subtítulo de bloque optativo */
+#studentDetailPanel .detail-table .opt-sub th{
+  text-align:left !important;
+  background:#f3f4f6 !important;
+  color:#111827; font-weight:600;
+  border-top:1px solid #e5e7eb !important;
+  border-bottom:1px solid #e5e7eb !important;
+  padding:10px 14px !important;
+}
+
+/* filas inyectadas (cursos del bloque) */
+#studentDetailPanel .detail-table .js-opt-row td{
+  background:#fff !important;
+}
+
+/* última fila sin línea extra */
+#studentDetailPanel .detail-table tr:last-child > *{
+  border-bottom:0 !important;
+}
+
+/* ajuste de los iconos ✓/✕ */
+#studentDetailPanel .detail-table td .ico.ok,
+#studentDetailPanel .detail-table td .ico.miss{
+  display:inline-block; line-height:1;
+}
+
+/* Quitar cualquier borde que venga de SLDS en la 2ª columna */
+#studentDetailPanel .detail-table thead th + th,
+#studentDetailPanel .detail-table tbody td + td{
+  border-left: 0 !important;
+  position: relative;
+  background-clip: padding-box;
+}
+
+/* Pintar nuestro separador vertical limpio entre ✓ y el nombre */
+#studentDetailPanel .detail-table thead th + th::before,
+#studentDetailPanel .detail-table tbody td + td::before{
+  content:"";
+  position:absolute;
+  left:-1px;              /* justo pegado a la 1ª columna */
+  top:-1px; bottom:-1px;
+  width:1px;
+  background:#e5e7eb;
+  pointer-events:none;
+}
+
+/* Asegura que la 1ª columna NO pinte nada adicional */
+#studentDetailPanel .detail-table thead th:first-child,
+#studentDetailPanel .detail-table tbody td:first-child{
+  border-right: 0 !important;
+}
+#studentDetailPanel .detail-table tbody td:first-child::before,
+#studentDetailPanel .detail-table tbody td:first-child::after{
+  content:none !important;
+}
+
+/* === Parámetros de la tabla del detalle (solo Contact) === */
+#studentDetailPanel .detail-table{
+  --statusW: 80px;     /* ancho de la 1ª col (✓/✕) */
+  --cellPadX: 14px;    /* padding horizontal de las celdas */
+}
+
+/* Quita cualquier borde heredado en la 2ª columna */
+#studentDetailPanel .detail-table thead th + th,
+#studentDetailPanel .detail-table tbody td + td{
+  border-left: 0 !important;
+  position: relative;
+  background-clip: padding-box;
+}
+
+/* Nuestro separador limpio entre 1ª y 2ª columna */
+#studentDetailPanel .detail-table thead th + th::before,
+#studentDetailPanel .detail-table tbody td + td::before{
+  content:"";
+  position:absolute;
+  left: -1px;
+  top:-1px; bottom:-1px;
+  width:1px;
+  background:#e5e7eb;
+  pointer-events:none;
+}
+
+/* Asegura que la 1ª columna no pinte bordes raros */
+#studentDetailPanel .detail-table thead th:first-child,
+#studentDetailPanel .detail-table tbody td:first-child{
+  border-right: 0 !important;
+}
+#studentDetailPanel .detail-table tbody td:first-child::before,
+#studentDetailPanel .detail-table tbody td:first-child::after{
+  content:none !important;
+}
+
+/* ===== SUBTÍTULO DE BLOQUE (fila .opt-sub) =====
+   - Alinea el texto como la 2ª columna
+   - Dibuja el separador vertical a los 80px para que no “se corte” */
+#studentDetailPanel .detail-table .opt-sub th{
+  position: relative;
+  padding-left: calc(var(--statusW) + var(--cellPadX)) !important; /* alinea con col 2 */
+}
+
+/* pinta el separador donde iría el borde entre col 1 y 2 */
+#studentDetailPanel .detail-table .opt-sub th::before{
+  content:"";
+  position:absolute;
+  left: var(--statusW);
+  top:-1px; bottom:-1px;
+  width:1px;
+  background:#e5e7eb;
+  pointer-events:none;
+}
+
+/* (opcional) “tapa” la zona de la 1ª columna para que se vea
+   homogénea con las filas normales */
+#studentDetailPanel .detail-table .opt-sub th::after{
+  content:"";
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width: var(--statusW);
+  background:#fff; /* mismo fondo que las filas */
+  pointer-events:none;
+}
+
+/* Asegura ancho fijo de la 1ª columna */
+#detailTable col:first-child { width:80px; }
+
+.detail-table .opt-title{
+  background:#f9fafb;
+  font-weight:600;
+  color:#111827;
+  border-top:1px solid #e5e7eb;
+  border-bottom:1px solid #e5e7eb;
+  padding:10px 14px;
+}
+
+/* 1ª columna fija y centrada (✓/✕) */
+#studentDetailPanel .detail-table thead th:first-child,
+#studentDetailPanel .detail-table tbody td:first-child{
+  width:80px !important;
+  text-align:center !important;
+}
+
+/* separador limpio aplicado a la 2ª columna */
+#studentDetailPanel .detail-table thead th:nth-child(2),
+#studentDetailPanel .detail-table tbody td:nth-child(2){
+  position: relative;
+}
+#studentDetailPanel .detail-table thead th:nth-child(2)::before,
+#studentDetailPanel .detail-table tbody td:nth-child(2)::before{
+  content:""; position:absolute; left:-1px; top:-1px; bottom:-1px; width:1px;
+  background:#e5e7eb; pointer-events:none;
+}
+
+/* fila título de bloque (dos TD: .opt-gap + .opt-title) */
+#studentDetailPanel .detail-table td.opt-gap{
+  width:80px !important; padding:0 !important; border:0 !important; background:#fff !important;
+}
+#studentDetailPanel .detail-table td.opt-title{
+  position:relative;
+  background:#f9fafb !important; color:#111827; font-weight:600;
+  padding:10px 14px !important;
+  border-top:1px solid #e5e7eb !important; border-bottom:1px solid #e5e7eb !important;
+}
+/* el mismo separador entre col 1 y 2 en la fila de título */
+#studentDetailPanel .detail-table td.opt-title::before{
+  content:""; position:absolute; left:-1px; top:-1px; bottom:-1px; width:1px;
+  background:#e5e7eb; pointer-events:none;
+}
+
+</style>
+
+
+</apex:page>

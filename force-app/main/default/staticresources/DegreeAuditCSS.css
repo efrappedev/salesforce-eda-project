@@ -1,0 +1,272 @@
+/* ========== 1) VARS + RESET ========== */
+:root{
+  --bg:#fff; --bg-soft:#f9fafb; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+  --ok:#16a34a; --miss:#dc2626; --chip:#f3f4f6;
+  --shadow:rgba(0,0,0,.06); --shadow-strong:rgba(0,0,0,.12);
+  --radius:6px; --radius-lg:10px;
+  --font:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  --accent:#00B599;
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; background:var(--bg); color:var(--text); font-family:var(--font); }
+a{ color:#1f5fbf; text-decoration:none; } a:hover{ text-decoration:underline; }
+
+/* ========== 2) LAYOUT + TOOLBAR ========== */
+.da-container{ padding:16px 18px 20px; }
+.da-title{ font-size:18px; font-weight:600; margin-bottom:10px; }
+.da-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.da-toolbar .group{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.inline-form{ display:inline-flex; align-items:center; gap:8px; }
+.da-select{ min-width:280px; padding:6px 8px; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg); }
+.chip-wrap{ display:flex; gap:10px; margin-top:8px; }
+.da-chip{ background:var(--chip); border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; display:inline-flex; gap:6px; align-items:baseline; }
+.note-fr{ color:var(--muted); font-size:12px; }
+.da-logo-top{ display:block; height:40px; width:auto; margin-bottom:8px; }
+
+/* ========== 3) TABLA MATRIZ (ESTABLE Y SIN JITTER) ========== */
+#tblPanel, #notePanel {
+    overflow: visible;
+}
+.da-table-wrap {
+    max-height: calc(100vh - 240px);
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+.da-table {
+    width: 100%;
+    /* MUY IMPORTANTE: separar bordes para que sticky no â€œtiembleâ€ */
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    text-align: center;
+}
+
+.da-table th, .da-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.da-table th:last-child, .da-table td:last-child { border-right: none; }
+
+.da-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-soft);
+    text-transform: uppercase;
+    font-size: 12px;
+}
+.da-table tbody td.da-col-idx,
+.da-table tbody td.da-col-student,
+.da-table tbody td.da-col-email {
+    position: sticky;
+    z-index: 5;
+    background: #fff;
+}
+.da-table thead th.da-col-idx,
+.da-table thead th.da-col-student,
+.da-table thead th.da-col-email {
+    position: sticky;
+    z-index: 20;
+}
+.da-table .da-col-idx { left: 0; }
+.da-table .da-col-student { left: var(--left-student, 40px); }
+.da-table .da-col-email   { left: var(--left-email, 260px); }
+
+.da-col-idx { width: 40px; }
+.da-col-student { min-width: 220px; text-align: left; }
+.da-col-email { min-width: 220px; text-align: left; }
+.da-table thead th.da-col-student,
+.da-table thead th.da-col-email { text-align: left; }
+.da-table td.da-col-student,
+.da-table td.da-col-email { text-align: left; }
+
+.da-table tbody td:not(.da-col-idx):not(.da-col-student):not(.da-col-email) {
+    border-left: 1px solid var(--line);
+}
+
+/* 1) Quita el border-right real de las 3 columnas congeladas (#, Ã‰tudiant, Email)
+      en THEAD y TBODY para evitar â€œdoble bordeâ€ y micro-gaps */
+.da-table thead th.da-col-idx,
+.da-table thead th.da-col-student,
+.da-table thead th.da-col-email,
+.da-table tbody td.da-col-idx,
+.da-table tbody td.da-col-student,
+.da-table tbody td.da-col-email{
+  border-right: none;
+  background-clip: padding-box;
+}
+
+/* Asegura anclaje para pseudo-elementos */
+.da-table th, .da-table td { position: relative; }
+
+/* Ancla para pseudos */
+.da-table th, .da-table td { position: relative; }
+
+/* Pintar el separador en las columnas STICKY (dentro del mismo <th>/<td>) */
+.da-table thead th.da-col-student::before,
+.da-table tbody td.da-col-student::before,
+.da-table thead th.da-col-email::before,
+.da-table tbody td.da-col-email::before{
+  content:"";
+  position:absolute;
+  right:-1px;              /* justo en el borde derecho */
+  top:-1px;
+  width:1px;
+  height:calc(100% + 2px); /* cubre redondeos/DPR */
+  background:var(--line);
+  pointer-events:none;
+  z-index:30;              /* por encima de vecinos no sticky */
+}
+
+/* Asegura prioridad de apilado de los sticky del header */
+.da-table thead th.da-col-idx,
+.da-table thead th.da-col-student,
+.da-table thead th.da-col-email{ z-index:20; }
+
+/* Flechas de orden a la derecha (compatibles con cualquier charset) */
+.da-table thead th.sortable{ padding-right:26px; }
+.da-table thead th.sortable::after{
+  content:"\2195";            /* ↕ */
+  position:absolute; right:6px; top:50%;
+  transform:translateY(-50%);
+  font-size:11px; opacity:.35; pointer-events:none;
+}
+.da-table thead th.sortable:hover::after{ opacity:.7; }
+.da-table thead th.sortable.sort-asc::after{  content:"\25B2"; opacity:1; } /* ▲ */
+.da-table thead th.sortable.sort-desc::after{ content:"\25BC"; opacity:1; } /* ▼ */
+
+
+.da-table tbody tr:nth-child(even) td { background-color: #fcfdff; }
+.da-table tbody tr:nth-child(even) td.da-col-idx,
+.da-table tbody tr:nth-child(even) td.da-col-student,
+.da-table tbody tr:nth-child(even) td.da-col-email {
+    background-color: #fcfdff;
+}
+
+/* Estabiliza pintura de los sticky (evita micro-saltos) */
+.da-table thead th,
+.da-table tbody td.da-col-idx,
+.da-table tbody td.da-col-student,
+.da-table tbody td.da-col-email{
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: paint;
+}
+
+/* ========== 4) ICONOS + AYUDAS ========== */
+.ico{ font-weight:700; font-size:15px; display:inline-block; line-height:1; }
+.ico.ok{ color:var(--ok); } .ico.miss{ color:var(--miss); }
+.ico-help{ display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:999px; font-size:12px; color:#fff; background:#16325c; cursor:pointer; margin-left:6px; }
+.ico-help:hover{ filter:brightness(1.1); }
+.help-popover{ display:none; position:fixed; z-index:10000; max-width:320px; padding:8px 10px; border-radius:6px; background:#16325c; color:#fff; font-size:12px; line-height:1.35; box-shadow:0 4px 12px rgba(0,0,0,.18); pointer-events:none; text-transform:none; letter-spacing:normal; white-space:normal; word-break:break-word; }
+.help-popover::after{ content:""; position:absolute; left:16px; border-width:6px; border-style:solid; }
+.help-popover.below::after{ top:-6px;    border-color:transparent transparent #16325c transparent; }
+.help-popover.above::after{ bottom:-6px; border-color:#16325c transparent transparent transparent; }
+
+/* ========== 5) MODAL DETALLE ========== */
+.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1100; display:none; backdrop-filter:blur(1px); }
+.modal-panel{ position:fixed; z-index:1110; display:none; top:6vh; left:50%; transform:translateX(-50%); width:min(960px,92vw); max-height:88vh; background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:0 10px 24px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.12); overflow:hidden; display:flex; flex-direction:column; isolation:isolate; }
+.modal-header{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); }
+.modal-title{ font-size:16px; font-weight:700; }
+.modal-close{ margin-left:auto; border:none; background:transparent; font-size:20px; line-height:1; cursor:pointer; color:#374151; }
+.modal-close:hover{ color:#111; }
+.modal-body{ flex:1 1 auto; overflow:auto; padding:12px 14px; padding-bottom:72px; scroll-padding-bottom:72px; contain:layout paint; }
+.modal-actions{ position:sticky; bottom:0; z-index:5; display:flex; gap:8px; align-items:center; justify-content:flex-end; min-height:56px; padding:10px 14px; background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -6px 12px rgba(0,0,0,.06); }
+.detail-grid{ display:grid; grid-template-columns:repeat(2, minmax(220px,1fr)); gap:8px 14px; margin-bottom:12px; }
+.detail-table-wrap{ border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+.detail-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px; table-layout:fixed; }
+.detail-table thead th, .detail-table tbody td{ border-bottom:1px solid var(--line); padding:8px 10px; background:#fff; text-align:center; }
+.detail-table thead th{ background:var(--bg-soft); font-weight:600; text-transform:uppercase; font-size:12px; }
+.detail-table tbody tr:nth-child(even) td{ background:#fcfdff; }
+.detail-table th:nth-child(2), .detail-table td:nth-child(2){ text-align:left; }
+
+/* ========== 6) UTILIDADES / ESTADOS ========== */
+.mt-8{ margin-top:8px; } .mt-12{ margin-top:12px; } .mt-16{ margin-top:16px; }
+.spacer{ flex:1; }
+.csv-hidden{ display:none; white-space:pre; }
+.da-empty{ text-align:center; color:var(--muted); padding:18px; background:#fff; border-bottom:1px solid var(--line); }
+.da-status{ display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+.spin{ width:14px; height:14px; border:2px solid var(--line); border-top-color:#2563eb; border-radius:50%; display:inline-block; animation:sp 1s linear infinite; }
+@keyframes sp{ to{ transform:rotate(360deg); } }
+.busy-overlay{ position:fixed; inset:0; z-index:3000; background:rgba(255,255,255,.65); display:flex; align-items:center; justify-content:center; }
+body.modal-open{ overflow:hidden; }
+@supports (-webkit-touch-callout:none){ body.modal-open{ position:fixed; width:100%; } }
+
+/* ========== 7) BOTONES UNIFICADOS + ACENTO ========== */
+.da-btn, .da-btn-secondary, .da-export,
+.modal-actions .da-btn, .modal-actions .da-btn-secondary, .modal-actions .da-export{ appearance:none; -webkit-appearance:none; display:inline-flex; align-items:center; justify-content:center; gap:.35rem; padding:7px 12px; min-height:36px; border-radius:8px; border:1px solid #D1D5DB; background:#fff; color:#111827; font-weight:600; line-height:1.1; text-decoration:none; box-shadow:inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04); transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .02s linear, color .15s ease; }
+.da-export{ padding:7px 12px; border-width:1px; }
+.da-btn:hover, .da-btn-secondary:hover, .da-export:hover{ color:var(--accent); background:#f8fafc; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,181,153,.12), inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04); }
+.da-btn:active, .da-btn-secondary:active, .da-export:active{ transform:translateY(1px); box-shadow:0 0 0 4px rgba(0,181,153,.18) inset, 0 1px 1px rgba(0,0,0,.03); }
+.da-btn:focus-visible, .da-btn-secondary:focus-visible, .da-export:focus-visible{ outline:0; border-color:#94a3b8; box-shadow:0 0 0 3px rgba(37,99,235,.15), inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04); }
+.da-btn:not(input), .da-btn-secondary:not(input), .da-export:not(input){ position:relative; overflow:hidden; }
+.da-btn:not(input)::after,
+.da-btn-secondary:not(input)::after,
+.da-export:not(input)::after{ content:""; position:absolute; left:50%; top:50%; width:0; height:0; border-radius:9999px; pointer-events:none; background:rgba(0,181,153,.16); transform:translate(-50%,-50%); transition:width .45s cubic-bezier(0,0,0.2,1), height .45s cubic-bezier(0,0,0.2,1), opacity .6s; opacity:.9; }
+.da-btn:not(input):hover::after,
+.da-btn-secondary:not(input):hover::after,
+.da-export:not(input):hover::after{ width:160%; height:160%; opacity:0; }
+input.da-btn,
+input.da-btn-secondary{ -webkit-appearance:none !important; appearance:none !important; background:#fff !important; background-image:none !important; border:1px solid #D1D5DB !important; border-radius:8px !important; padding:7px 12px !important; min-height:36px !important; color:#111827 !important; font-weight:600 !important; line-height:1.1 !important; box-shadow:inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04) !important; cursor:pointer; transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .02s linear, color .15s ease; background-image: radial-gradient(circle at center, rgba(0,181,153,.16) 0%, rgba(0,181,153,.16) 1%, rgba(0,181,153,0) 60%), linear-gradient(#ffffff,#ffffff); background-repeat:no-repeat; background-position:center; background-size:0 0, 100% 100%; }
+input.da-btn:hover,
+input.da-btn-secondary:hover{ color:var(--accent) !important; background-size:160% 160%, 100% 100%; border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(0,181,153,.12), inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04) !important; }
+input.da-btn:active,
+input.da-btn-secondary:active{ transform:translateY(1px); background-size:200% 200%, 100% 100%; box-shadow:0 0 0 4px rgba(0,181,153,.18) inset, 0 1px 1px rgba(0,0,0,.03) !important; }
+input.da-btn:focus-visible,
+input.da-btn-secondary:focus-visible{ outline:0 !important; border-color:#94a3b8 !important; box-shadow:0 0 0 3px rgba(37,99,235,.15), inset 0 -1px 0 rgba(0,0,0,.02), 0 1px 1px rgba(0,0,0,.04) !important; }
+.btn-visual{ position: relative; display: inline-block; border-radius: 8px; isolation: isolate; }
+.btn-visual::before{ content:""; position:absolute; inset:0; border-radius: 8px; pointer-events: none; background: radial-gradient(circle at center, rgba(0,181,153,.16) 0%, rgba(0,181,153,.16) 1%, rgba(0,181,153,0) 60%); transform: scale(0); opacity: .9; transition: transform .45s cubic-bezier(0,0,0.2,1), opacity .6s; }
+.btn-visual.hover::before{ transform: scale(1.6); opacity: 0; }
+.btn-visual.pressed::before{ transform: scale(2.0); opacity: 0; }
+
+/* Filtro visible pero no interactivo cuando no hay datos */
+.is-disabled { opacity:.55; pointer-events:none; }
+
+/* Centrar los contadores (0/N) en los encabezados */
+.da-table thead th .muted{
+  display:block;        /* va en su propia lÃ­nea */
+  width:100%;
+  text-align:center;    /* centrado real */
+  margin-top:2px;       /* opcional: separa un pelÃ­n del tÃ­tulo */
+}
+
+/* Separadores en las 3 columnas sticky (#, Ã‰tudiant, Email) */
+.da-table thead th.da-col-idx::before,
+.da-table tbody td.da-col-idx::before,
+.da-table thead th.da-col-student::before,
+.da-table tbody td.da-col-student::before,
+.da-table thead th.da-col-email::before,
+.da-table tbody td.da-col-email::before{
+  content:"";
+  position:absolute;
+  right:-1px;              /* borde derecho exacto */
+  top:-1px;
+  width:2px;               /* si a cierto zoom se ve â€œflojoâ€, pon 2px */
+  height:calc(100% + 2px);
+  background:var(--line);
+  pointer-events:none;
+  z-index:30;              /* sobre el vecino no-sticky */
+}
+.detail-opt-wrap { margin-top: 16px; }
+.detail-opt-block { margin-top: 12px; }
+.detail-opt-block .opt-title { font-weight: 600; margin: 8px 0; }
+/* SubtÃ­tulo de bloque dentro de la misma tabla */
+.detail-table .opt-sub th{
+  text-align:left;
+  background:#fff;          /* como las filas normales */
+  text-transform:none;
+  font-weight:600;
+  color:#374151;
+  border-top:1px solid var(--line);
+  padding:8px 10px;
+}
+
+/* 1Âª columna (Statut) consistente */
+.detail-table thead th:first-child,
+.detail-table tbody td:first-child{ width:80px; text-align:center; }
+
+.da-table td[data-opt="1"]{ cursor: pointer; }

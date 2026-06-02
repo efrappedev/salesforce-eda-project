@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <description>Calculadora Final: Filtro por Notations (R, EQV, Transfer) + Credits Earned.</description>
+    <label>PE Optional Groups Cap Subflow</label>
+    <processType>AutoLaunchedFlow</processType>
+
+    <assignments>
+        <name>Extract_Parent_Check_Var</name>
+        <label>Extract Parent ID</label>
+        <locationX>176</locationX>
+        <locationY>450</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_ParentID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Scan_Parents.hed__Plan_Requirement__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Decision_Is_Parent</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Extract_Child_Check_Var</name>
+        <label>Extract Child ParentID</label>
+        <locationX>400</locationX>
+        <locationY>950</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_ParentID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Scan_Children.hed__Plan_Requirement__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Decision_Is_Child</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Extract_Direct_Course_ID</name>
+        <label>Extract Direct Course</label>
+        <locationX>300</locationX>
+        <locationY>1300</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_TargetCourseID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Main_Groups.hed__Course__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Direct_Enrollments</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Extract_Child_Target_Course</name>
+        <label>Extract Child Target</label>
+        <locationX>600</locationX>
+        <locationY>1500</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_TargetCourseID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Children_Reqs.hed__Course__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Spec_Enrollments</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Extract_Enr_Course_Direct</name>
+        <label>Extract Enr Course</label>
+        <locationX>400</locationX>
+        <locationY>1400</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_EnrCourseID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Direct_Enrollments.hed__Course_Offering__r.hed__Course__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Decision_Match_Direct</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Extract_Enr_Course_Spec</name>
+        <label>Extract Enr Course</label>
+        <locationX>800</locationX>
+        <locationY>1600</locationY>
+        <assignmentItems>
+            <assignToReference>val_Temp_EnrCourseID</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Spec_Enrollments.hed__Course_Offering__r.hed__Course__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Decision_Match_Spec</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Add_To_Parent_Collection</name>
+        <label>Add to Parents</label>
+        <locationX>600</locationX>
+        <locationY>600</locationY>
+        <assignmentItems>
+            <assignToReference>col_Parents</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Scan_Parents</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Scan_Parents</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Reset_Group_Vars</name>
+        <label>Reset Group Vars</label>
+        <locationX>400</locationX>
+        <locationY>800</locationY>
+        <assignmentItems>
+            <assignToReference>var_GroupSum</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <numberValue>0.0</numberValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>col_Current_Children</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>col_Empty_Template</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>bool_HasChildren</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Scan_Children</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Add_To_Children</name>
+        <label>Add To Children</label>
+        <locationX>800</locationX>
+        <locationY>1100</locationY>
+        <assignmentItems>
+            <assignToReference>col_Current_Children</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Scan_Children</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>bool_HasChildren</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Scan_Children</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Assign_Used_Direct</name>
+        <label>Mark Used Direct</label>
+        <locationX>500</locationX>
+        <locationY>1500</locationY>
+        <assignmentItems>
+            <assignToReference>var_GroupSum</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Direct_Enrollments.hed__Credits_Earned__c</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <stringValue>;</stringValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Direct_Enrollments.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Apply_Final_Cap</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Assign_Used_Spec</name>
+        <label>Mark Used Spec</label>
+        <locationX>1200</locationX>
+        <locationY>1700</locationY>
+        <assignmentItems>
+            <assignToReference>var_GroupSum</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Spec_Enrollments.hed__Credits_Earned__c</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <stringValue>;</stringValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Spec_Enrollments.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Children_Reqs</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Assign_Used_Free</name>
+        <label>Mark Used Free</label>
+        <locationX>1000</locationX>
+        <locationY>2100</locationY>
+        <assignmentItems>
+            <assignToReference>var_GroupSum</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Free_Enrollments.hed__Credits_Earned__c</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <stringValue>;</stringValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>txt_UsedEnrollmentIDs</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Free_Enrollments.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Free_Enrollments</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>Apply_Final_Cap</name>
+        <label>Apply Cap</label>
+        <locationX>400</locationX>
+        <locationY>2300</locationY>
+        <assignmentItems>
+            <assignToReference>var_TotalCredits</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>form_CappedGroupTotal</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Main_Groups</targetReference>
+        </connector>
+    </assignments>
+
+    <decisions>
+        <name>Decision_Is_Parent</name>
+        <label>Is Parent?</label>
+        <locationX>400</locationX>
+        <locationY>500</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Scan_Parents</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Parent</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>val_Temp_ParentID</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Add_To_Parent_Collection</targetReference>
+            </connector>
+            <label>Yes Parent</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Decision_Is_Child</name>
+        <label>Is Child of Current?</label>
+        <locationX>600</locationX>
+        <locationY>1000</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Scan_Children</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Child</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>val_Temp_ParentID</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <elementReference>Loop_Main_Groups.Id</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Add_To_Children</targetReference>
+            </connector>
+            <label>Yes Child</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Decision_Strategy</name>
+        <label>Requirement Type</label>
+        <locationX>400</locationX>
+        <locationY>1200</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Free_Enrollments</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Free Group</defaultConnectorLabel>
+        <rules>
+            <name>Is_Direct_Course</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Main_Groups.hed__Course__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Extract_Direct_Course_ID</targetReference>
+            </connector>
+            <label>Direct Course</label>
+        </rules>
+        <rules>
+            <name>Specific_List_Group</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>bool_HasChildren</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Loop_Children_Reqs</targetReference>
+            </connector>
+            <label>Specific List Group</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Decision_Match_Direct</name>
+        <label>Match Direct?</label>
+        <locationX>500</locationX>
+        <locationY>1450</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Direct_Enrollments</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Match_Direct</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>val_Temp_EnrCourseID</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <elementReference>val_Temp_TargetCourseID</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>formula_IsNotUsed_Direct</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Used_Direct</targetReference>
+            </connector>
+            <label>Yes Match</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Decision_Match_Spec</name>
+        <label>Match Child?</label>
+        <locationX>1000</locationX>
+        <locationY>1650</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Spec_Enrollments</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Match_Spec</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>val_Temp_EnrCourseID</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <elementReference>val_Temp_TargetCourseID</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>formula_IsNotUsed_Specific</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Used_Spec</targetReference>
+            </connector>
+            <label>Yes Match</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Decision_Match_Free</name>
+        <label>Available?</label>
+        <locationX>800</locationX>
+        <locationY>2000</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Free_Enrollments</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Available</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>formula_IsNotUsed_Free</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Used_Free</targetReference>
+            </connector>
+            <label>Yes Available</label>
+        </rules>
+    </decisions>
+
+    <formulas>
+        <name>form_CappedGroupTotal</name>
+        <dataType>Number</dataType>
+        <scale>2</scale>
+        <expression>IF({!Loop_Main_Groups.hed__Credits__c} > 0, MIN({!var_GroupSum}, {!Loop_Main_Groups.hed__Credits__c}), {!var_GroupSum})</expression>
+    </formulas>
+    <formulas>
+        <name>formula_IsNotUsed_Direct</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(CONTAINS({!txt_UsedEnrollmentIDs}, {!Loop_Direct_Enrollments.Id}))</expression>
+    </formulas>
+    <formulas>
+        <name>formula_IsNotUsed_Specific</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(CONTAINS({!txt_UsedEnrollmentIDs}, {!Loop_Spec_Enrollments.Id}))</expression>
+    </formulas>
+    <formulas>
+        <name>formula_IsNotUsed_Free</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(CONTAINS({!txt_UsedEnrollmentIDs}, {!Loop_Free_Enrollments.Id}))</expression>
+    </formulas>
+
+    <loops>
+        <name>Loop_Scan_Parents</name>
+        <label>Scan for Parents</label>
+        <locationX>176</locationX>
+        <locationY>400</locationY>
+        <collectionReference>Get_All_Plan_Requirements</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Extract_Parent_Check_Var</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Loop_Main_Groups</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Main_Groups</name>
+        <label>Loop Groups</label>
+        <locationX>176</locationX>
+        <locationY>700</locationY>
+        <collectionReference>col_Parents</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Reset_Group_Vars</targetReference>
+        </nextValueConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Scan_Children</name>
+        <label>Scan Children</label>
+        <locationX>400</locationX>
+        <locationY>900</locationY>
+        <collectionReference>Get_All_Plan_Requirements</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Extract_Child_Check_Var</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Decision_Strategy</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Direct_Enrollments</name>
+        <label>Check Direct Match</label>
+        <locationX>300</locationX>
+        <locationY>1350</locationY>
+        <collectionReference>Get_Student_Enrollments</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Extract_Enr_Course_Direct</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Apply_Final_Cap</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Children_Reqs</name>
+        <label>Loop Children</label>
+        <locationX>600</locationX>
+        <locationY>1300</locationY>
+        <collectionReference>col_Current_Children</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Extract_Child_Target_Course</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Apply_Final_Cap</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Spec_Enrollments</name>
+        <label>Check Match Spec</label>
+        <locationX>800</locationX>
+        <locationY>1550</locationY>
+        <collectionReference>Get_Student_Enrollments</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Extract_Enr_Course_Spec</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Loop_Children_Reqs</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_Free_Enrollments</name>
+        <label>Loop Free Enr</label>
+        <locationX>600</locationX>
+        <locationY>1900</locationY>
+        <collectionReference>Get_Student_Enrollments</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Decision_Match_Free</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Apply_Final_Cap</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+
+    <recordLookups>
+        <name>Get_All_Plan_Requirements</name>
+        <label>Get All Plan Requirements</label>
+        <locationX>176</locationX>
+        <locationY>158</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Student_Enrollments</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>hed__Program_Plan__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>var_PlanID</elementReference>
+            </value>
+        </filters>
+        <object>hed__Plan_Requirement__c</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+        <sortField>hed__Sequence__c</sortField>
+        <sortOrder>Asc</sortOrder>
+    </recordLookups>
+
+    <recordLookups>
+        <name>Get_Student_Enrollments</name>
+        <label>Get Student Enrollments</label>
+        <locationX>176</locationX>
+        <locationY>278</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_Scan_Parents</targetReference>
+        </connector>
+        <filterLogic>1 AND (2 OR 3 OR 4)</filterLogic>
+        <filters>
+            <field>hed__Program_Enrollment__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>var_PEID</elementReference>
+            </value>
+        </filters>
+        <filters>
+             <field>Notations__c</field>
+             <operator>EqualTo</operator>
+             <value>
+                 <stringValue>R</stringValue>
+             </value>
+        </filters>
+        <filters>
+             <field>Notations__c</field>
+             <operator>EqualTo</operator>
+             <value>
+                 <stringValue>EQV</stringValue>
+             </value>
+        </filters>
+        <filters>
+             <field>Notations__c</field>
+             <operator>EqualTo</operator>
+             <value>
+                 <stringValue>Transfer</stringValue>
+             </value>
+        </filters>
+        <object>hed__Course_Enrollment__c</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Get_All_Plan_Requirements</targetReference>
+        </connector>
+    </start>
+
+    <variables>
+        <name>var_PlanID</name>
+        <dataType>String</dataType>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>var_PEID</name>
+        <dataType>String</dataType>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>var_TotalCredits</name>
+        <dataType>Number</dataType>
+        <scale>2</scale>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+
+    <variables>
+        <name>val_Temp_ParentID</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+    </variables>
+    <variables>
+        <name>val_Temp_TargetCourseID</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+    </variables>
+    <variables>
+        <name>val_Temp_EnrCourseID</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+    </variables>
+
+    <variables>
+        <name>col_Parents</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <objectType>hed__Plan_Requirement__c</objectType>
+    </variables>
+    <variables>
+        <name>col_Current_Children</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <objectType>hed__Plan_Requirement__c</objectType>
+    </variables>
+    <variables>
+        <name>col_Empty_Template</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <objectType>hed__Plan_Requirement__c</objectType>
+    </variables>
+
+    <variables>
+        <name>txt_UsedEnrollmentIDs</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <value>
+            <stringValue>;</stringValue>
+        </value>
+    </variables>
+    <variables>
+        <name>var_GroupSum</name>
+        <dataType>Number</dataType>
+        <scale>2</scale>
+    </variables>
+    <variables>
+        <name>bool_HasChildren</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <value>
+            <booleanValue>false</booleanValue>
+        </value>
+    </variables>
+
+</Flow>

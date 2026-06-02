@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Merge Manager — Production Deployment Manifest
+  ================================================
+  Deploy ONLY this application. Nothing else in the org is touched.
+
+  Usage:
+    sf project deploy start \
+      --manifest manifest/merge-manager-package.xml \
+      --target-org <prod-alias>
+
+  What this deploys (and ONLY this):
+    - 10 Apex classes + 5 test classes
+    - 5 Lightning Web Components
+    - 3 Custom Objects (with all their fields and validation rules)
+    - 1 Permission Set
+    - 1 Lightning App
+    - 1 Custom Tab
+    - 1 FlexiPage (the Merge Manager app page only)
+
+  Excluded intentionally — these are NOT touched in production:
+    - Contact_Record_Page, Account_Record_Page, and ALL other FlexiPages
+    - All Utility Bar pages
+    - AccountIdGeneratorBatch, ContactIdGeneratorBatch, ContactPostInsertHandler,
+      DegreeAuditMatrixController, PlanCreditCalculator, StudentRecordsController (other features)
+    - registroHyperlink LWC (other feature)
+    - Email_Address__c object (already in production, not ours to manage)
+    - Matrice_d_audit_des_dipl_mes tab (other feature)
+-->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <!-- ── Apex Classes: 10 production + 5 test ──────────────────────────── -->
+    <types>
+        <members>DataNormalizationUtil</members>
+        <members>EDARelatedRecordsService</members>
+        <members>MergeAuditService</members>
+        <members>MergeController</members>
+        <members>MergeExecutionService</members>
+        <members>MergeScanBatch</members>
+        <members>MergeScanService</members>
+        <members>MergeTicketService</members>
+        <members>MergeWrappers</members>
+        <members>SnapshotService</members>
+        <members>EDAServiceCoverageTest</members>
+        <members>MergeCoverageBoostTest</members>
+        <members>MergeExecutionControllerTest</members>
+        <members>MergeScanServiceTest</members>
+        <members>MergeUtilityTest</members>
+        <name>ApexClass</name>
+    </types>
+
+    <!-- ── Lightning Web Components: 5 ──────────────────────────────────── -->
+    <types>
+        <members>mergeComparisonMatrix</members>
+        <members>mergeManager</members>
+        <members>mergeScanModal</members>
+        <members>mergeTicketList</members>
+        <members>mergeWizard</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+    <!-- ── Custom Objects: 3 (fields + validation rules included) ─────────── -->
+    <types>
+        <members>Merge_Ticket__c</members>
+        <members>Merge_Candidate__c</members>
+        <members>Merge_Log__c</members>
+        <name>CustomObject</name>
+    </types>
+
+    <!-- ── Lightning App ─────────────────────────────────────────────────── -->
+    <types>
+        <members>Merge_Manager</members>
+        <name>CustomApplication</name>
+    </types>
+
+    <!-- ── Custom Tab ────────────────────────────────────────────────────── -->
+    <types>
+        <members>Merge_Manager</members>
+        <name>CustomTab</name>
+    </types>
+
+    <!-- ── FlexiPage: ONLY the Merge Manager app page ────────────────────── -->
+    <!-- Contact_Record_Page, Account_Record_Page, etc. are NOT included     -->
+    <types>
+        <members>Merge_Manager</members>
+        <name>FlexiPage</name>
+    </types>
+
+    <version>64.0</version>
+</Package>

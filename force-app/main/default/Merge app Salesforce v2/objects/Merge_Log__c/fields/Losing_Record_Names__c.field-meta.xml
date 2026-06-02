@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Losing_Record_Names__c</fullName>
+    <label>Losing Record Names</label>
+    <description>Names of all records that were merged into the master and deleted. One name per line. Stored for readability after the records no longer exist in Salesforce.</description>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>TextArea</type>
+</CustomField>

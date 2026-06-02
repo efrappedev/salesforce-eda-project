@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Merge Manager — Deployment Manifest (Sandbox)
+    Deploy command:
+        sf project deploy start --manifest manifest/package-merge.xml
+
+    Scope: only the components created for the Safe Merge Management System.
+    Does NOT touch any existing classes, flows, objects, or LWC.
+-->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <!-- ── Apex Classes ───────────────────────────────────────────────────── -->
+    <types>
+        <members>MergeWrappers</members>
+        <members>DataNormalizationUtil</members>
+        <members>SnapshotService</members>
+        <members>EDARelatedRecordsService</members>
+        <members>MergeAuditService</members>
+        <members>MergeScanService</members>
+        <members>MergeTicketService</members>
+        <members>MergeExecutionService</members>
+        <members>MergeController</members>
+        <members>MergeScanBatch</members>
+        <name>ApexClass</name>
+    </types>
+
+    <!-- ── Custom Objects (includes all fields + validation rules) ────────── -->
+    <types>
+        <members>Merge_Ticket__c</members>
+        <members>Merge_Candidate__c</members>
+        <members>Merge_Log__c</members>
+        <name>CustomObject</name>
+    </types>
+
+    <!-- ── LWC Components ─────────────────────────────────────────────────── -->
+    <types>
+        <members>mergeManager</members>
+        <members>mergeTicketList</members>
+        <members>mergeScanModal</members>
+        <members>mergeWizard</members>
+        <members>mergeComparisonMatrix</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+    <!-- ── App Page + Tab + App ──────────────────────────────────────────── -->
+    <types>
+        <members>Merge_Manager</members>
+        <name>FlexiPage</name>
+    </types>
+    <types>
+        <members>Merge_Manager</members>
+        <name>CustomTab</name>
+    </types>
+    <types>
+        <members>Merge_Manager</members>
+        <name>CustomApplication</name>
+    </types>
+    <types>
+        <members>Merge_Manager_Access</members>
+        <name>PermissionSet</name>
+    </types>
+
+    <version>64.0</version>
+</Package>

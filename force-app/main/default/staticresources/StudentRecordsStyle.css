@@ -1,0 +1,327 @@
+.page {
+  background: white;
+  width: 816px;
+  height: 1056px;
+  padding: 40px;
+  padding-bottom: 80px;
+  position: relative;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 30px; /* Espacio entre logo y t�tulo */
+  margin-bottom: 0;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 30px;
+  margin-bottom: 4px;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0px;
+}
+
+.logo-block {
+  margin-bottom: 6px;
+}
+
+.logo-block img {
+  height: 60px;
+}
+
+.student-code-date-block {
+  margin-top: 15px;  /* Sube este valor para bajar ambos campos */
+  margin-left: 0;
+  /* cualquier otro ajuste que quieras */
+}
+
+.student-name {
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 40px; /* Súbelo para bajarlo más (ej. 40px) */
+  text-align: left;
+}
+
+.student-address {
+  font-size: 12px;
+  margin-top: 5px;     /* Puedes ajustar esto también */
+  text-align: left;
+  max-width: 350px;    /* Limita el ancho para forzar salto */
+  word-break: break-word;
+  white-space: normal;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 340px;
+}
+
+.releve-title {
+  font-weight: bold;
+  font-size: 18px;
+  text-align: right;
+  position: absolute;
+  top: 48px;    /* Ajusta este valor para alinearlo exactamente con LÉGENDE */
+  right: 95px;
+  margin: 0;
+  width: 340px; /* Igual que .legend-block para que queden exactamente alineados */
+  z-index: 12;
+}
+
+/* Bloque leyenda y tabla más anchos y ajustados */
+.legend-block {
+  position: absolute;
+  top: 121px;
+  right: 40px;
+  max-width: 390px;      /* Aumenta el ancho de la tabla y bloque */
+  background: white;
+  padding: 0;
+  text-align: left;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.legend-label {
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 2px;
+  margin-left: 0px;
+  padding-left: 4px;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.legend-compact {
+  font-size: 9px;
+  background: white;
+  width: 100%;
+  max-width: 390px;   /* Igual que arriba */
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.legend-compact table {
+  border-collapse: collapse;
+  font-size: 11px;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.legend-compact td {
+  border: none;
+  padding: 2px 6px 2px 4px;
+  white-space: normal !important;
+  word-break: break-word;
+  text-align: left;
+  font-weight: normal;
+  font-size: 9px;
+}
+
+.legend-compact td strong {
+  font-weight: bold !important;
+}
+
+.legend-compact td:last-child {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controls-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  padding: 80px;
+  background-color: #f4f4f4;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.right-column {
+  align-items: flex-start;
+}
+
+select.program-select {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  min-width: 220px;
+}
+
+.pdf-options-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.pdf-options-radio label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.pdf-options-radio label:hover {
+  background-color: #eaeaea;
+}
+
+.pdf-options-radio input[type="radio"] {
+  accent-color: #0070d2;
+}
+
+.pdf-download-button {
+  padding: 10px 18px;
+  font-size: 14px;
+  background-color: #0070d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+  font-weight: 500;
+}
+
+.pdf-download-button:hover {
+  background-color: #005fb2;
+}
+
+.program-info {
+  margin-top: 40px;
+  margin-bottom: 40px;
+  page-break-inside: avoid;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.course-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.course-table th,
+.course-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.course-table th:nth-child(1),
+.course-table td:nth-child(1),
+.course-table th:nth-child(2),
+.course-table td:nth-child(2),
+.course-table th:nth-child(3),
+.course-table td:nth-child(3) {
+  text-align: left !important;
+}
+
+.course-table th:nth-child(4),
+.course-table td:nth-child(4),
+.course-table th:nth-child(5),
+.course-table td:nth-child(5),
+.course-table th:nth-child(6),
+.course-table td:nth-child(6) {
+  text-align: center !important;
+}
+
+.course-table tr:last-child td {
+  border-bottom: 2px solid #000;
+}
+
+.credit-total {
+  text-align: right;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.footer {
+  position: absolute;
+  bottom: 60px;
+  left: 40px;
+  right: 40px;
+  font-size: 11px;
+  text-align: center;
+  border-top: 1px solid #ccc;
+  padding-top: 5px;
+  min-height: 20px;
+  visibility: visible;
+}
+
+.watermark {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-40deg);
+  font-size: 60px;
+  color: rgba(0, 181, 153, 0.20);
+  font-weight: bold;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.signature-seal {
+  position: absolute;
+  bottom: 100px;
+  right: 80px;
+  width: 320px;
+  opacity: 0.8;
+}
+
+.program-first-in-page {
+  margin-top: 80px !important;
+}
+
+.content {
+  margin-top: 45px;
+}

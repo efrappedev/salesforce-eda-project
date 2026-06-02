@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Before_Snapshot_JSON__c</fullName>
+    <label>Before Snapshot (JSON)</label>
+    <description>JSON map of { recordId: { fieldName: value } } for ALL candidates captured immediately before the merge DML. This is the primary forensic record. Never overwrite after creation.</description>
+    <length>131072</length>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

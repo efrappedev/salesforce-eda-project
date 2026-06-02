@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <description>Trigger Principal: Al actualizar un Course Enrollment (Nota/Créditos), recalcula el total del Program Enrollment usando la lógica de Jerarquía y IDs Usados.</description>
+    <label>PE Credits Calculator Validated by Plan RT</label>
+    <processType>AutoLaunchedFlow</processType>
+    
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Get_Program_Enrollment</targetReference>
+        </connector>
+        <filterFormula>OR(ISCHANGED({!$Record.hed__Program_Enrollment__c}), ISCHANGED({!$Record.hed__Credits_Attempted__c}), ISCHANGED({!$Record.Notations__c}))</filterFormula>
+        <object>hed__Course_Enrollment__c</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+
+    <variables>
+        <name>var_TotalCreditsCalculated</name>
+        <dataType>Number</dataType>
+        <scale>2</scale>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <recordLookups>
+        <name>Get_Program_Enrollment</name>
+        <label>Get Program Enrollment</label>
+        <locationX>176</locationX>
+        <locationY>150</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Call_Calculator_Subflow</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.hed__Program_Enrollment__c</elementReference>
+            </value>
+        </filters>
+        <object>hed__Program_Enrollment__c</object>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <subflows>
+        <name>Call_Calculator_Subflow</name>
+        <label>Call Calculator Subflow</label>
+        <locationX>176</locationX>
+        <locationY>270</locationY>
+        <connector>
+            <targetReference>Update_Program_Enrollment</targetReference>
+        </connector>
+        <flowName>PE_Optional_Groups_Cap_Subflow</flowName>
+        <inputAssignments>
+            <name>var_PlanID</name>
+            <value>
+                <elementReference>Get_Program_Enrollment.hed__Program_Plan__c</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <name>var_PEID</name>
+            <value>
+                <elementReference>Get_Program_Enrollment.Id</elementReference>
+            </value>
+        </inputAssignments>
+        <outputAssignments>
+            <assignToReference>var_TotalCreditsCalculated</assignToReference>
+            <name>var_TotalCredits</name>
+        </outputAssignments>
+    </subflows>
+
+    <recordUpdates>
+        <name>Update_Program_Enrollment</name>
+        <label>Update PE Totals</label>
+        <locationX>176</locationX>
+        <locationY>390</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>Get_Program_Enrollment.Id</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>hed__Credits_Earned__c</field> 
+            <value>
+                <elementReference>var_TotalCreditsCalculated</elementReference>
+            </value>
+        </inputAssignments>
+        <object>hed__Program_Enrollment__c</object>
+    </recordUpdates>
+</Flow>

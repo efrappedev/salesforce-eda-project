@@ -1,0 +1,263 @@
+<template>
+    <div class="matrix-wrapper">
+
+        <!-- ── Comparison table ─────────────────────────────────────────────── -->
+        <div class="matrix-scroll slds-scrollable_x">
+            <table class="matrix-table slds-table slds-table_bordered slds-table_cell-buffer">
+
+                <!-- THEAD: master selector row -->
+                <thead>
+                    <tr class="matrix-table__header-row">
+                        <!-- Field label column -->
+                        <th class="matrix-table__label-col" scope="col">
+                            <div class="slds-text-body_small slds-text-color_weak">
+                                Enregistrement principal
+                                <lightning-helptext
+                                    content="Sélectionnez l'enregistrement qui sera conservé comme master. Les valeurs de champ ci-dessous seront pré-sélectionnées depuis ce master."
+                                    class="slds-m-left_xx-small">
+                                </lightning-helptext>
+                            </div>
+                        </th>
+                        <!-- One header per candidate -->
+                        <template for:each={columns} for:item="col">
+                            <th key={col.recordId} class={col.headerClass} scope="col">
+                                <div class="slds-text-align_center">
+                                    <!-- Master radio selector -->
+                                    <label class="matrix-master-radio">
+                                        <input
+                                            type="radio"
+                                            name="master-select"
+                                            value={col.recordId}
+                                            checked={col.isMaster}
+                                            onchange={handleMasterChange}
+                                            class="slds-assistive-text">
+                                        <span class="matrix-master-radio__faux"></span>
+                                    </label>
+                                    <!-- Record name -->
+                                    <p class="slds-text-heading_small slds-truncate slds-m-top_x-small"
+                                        title={col.recordName}>
+                                        {col.recordName}
+                                    </p>
+                                    <!-- Master badge -->
+                                    <template if:true={col.isMaster}>
+                                        <span class="slds-badge slds-badge_success slds-m-top_xx-small">
+                                            &#10003; Master
+                                        </span>
+                                    </template>
+                                    <!-- Active enrollments warning -->
+                                    <template if:true={col.hasActiveEnrollments}>
+                                        <span class="slds-badge badge-warning slds-m-top_xx-small">
+                                            <lightning-icon icon-name="utility:warning"
+                                                size="xx-small" class="slds-m-right_xx-small">
+                                            </lightning-icon>
+                                            Inscriptions actives
+                                        </span>
+                                    </template>
+                                </div>
+                            </th>
+                        </template>
+                    </tr>
+                </thead>
+
+                <!-- TBODY: field rows -->
+                <tbody>
+                    <template for:each={tableRows} for:item="row">
+                        <tr key={row.fieldApiName} class={row.rowClass}>
+                            <!-- Field label -->
+                            <td class="matrix-table__label-col">
+                                <div class="slds-grid slds-grid_vertical-align-center">
+                                    <span class="slds-text-body_small matrix-field-label">{row.fieldLabel}</span>
+                                    <template if:true={row.isEdaField}>
+                                        <span class="slds-badge badge-eda slds-m-left_x-small">EDA</span>
+                                    </template>
+                                    <!-- Conflict warning only on selectable (updateable) rows -->
+                                    <template if:true={row.hasConflict}>
+                                        <lightning-icon icon-name="utility:warning"
+                                            size="xx-small"
+                                            class="slds-m-left_x-small conflict-icon"
+                                            title="Valeurs différentes">
+                                        </lightning-icon>
+                                    </template>
+                                    <!-- Lock badge for read-only / non-updateable fields -->
+                                    <template if:true={row.isReadOnly}>
+                                        <span class="slds-badge badge-readonly slds-m-left_x-small"
+                                            title="Champ calculé — non modifiable">
+                                            <lightning-icon icon-name="utility:lock"
+                                                size="xx-small" class="slds-m-right_xx-small">
+                                            </lightning-icon>lecture seule
+                                        </span>
+                                    </template>
+                                </div>
+                            </td>
+                            <!-- Value cells -->
+                            <template for:each={row.cells} for:item="cell">
+                                <td key={cell.recordId} class={cell.cellClass}>
+                                    <!-- Read-only: plain value, no radio -->
+                                    <template if:true={row.isReadOnly}>
+                                        <span class="matrix-cell-value matrix-cell-value_readonly">
+                                            {cell.displayValue}
+                                        </span>
+                                    </template>
+                                    <!-- Updateable: radio selector -->
+                                    <template if:false={row.isReadOnly}>
+                                        <label class="matrix-cell-label">
+                                            <input
+                                                type="radio"
+                                                name={row.radioGroupName}
+                                                value={cell.recordId}
+                                                checked={cell.isSelected}
+                                                data-field={row.fieldApiName}
+                                                onchange={handleFieldDecisionChange}
+                                                class="slds-assistive-text">
+                                            <span class="matrix-cell-radio__faux"></span>
+                                            <span class="matrix-cell-value">{cell.displayValue}</span>
+                                        </label>
+                                    </template>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Related Contacts section (Account merges) ────────────────────── -->
+        <template if:true={showRelatedContactsSection}>
+            <div class="related-contacts-section slds-border_top slds-p-around_medium slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">
+                    <lightning-icon icon-name="standard:contact" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    Contacts associés par compte
+                </h3>
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <template for:each={relatedContactColumns} for:item="col">
+                        <div key={col.recordId} class="slds-col slds-size_1-of-1
+                            slds-medium-size_1-of-2 slds-p-bottom_small">
+                            <div class={col.colHeaderClass}>
+                                <div class="slds-grid slds-grid_vertical-align-center
+                                    slds-m-bottom_x-small">
+                                    <p class="slds-text-body_small slds-col">
+                                        <strong>{col.recordName}</strong>
+                                    </p>
+                                    <template if:true={col.isMaster}>
+                                        <span class="slds-badge slds-badge_success">Master</span>
+                                    </template>
+                                    <span class="slds-badge slds-m-left_x-small
+                                        related-contacts-count">
+                                        {col.contactCount} contact(s)
+                                    </span>
+                                </div>
+
+                                <template if:true={col.activeCount}>
+                                    <div class="slds-notify related-contacts-active-alert
+                                        slds-m-bottom_x-small" role="alert">
+                                        <lightning-icon icon-name="utility:warning"
+                                            size="xx-small" class="slds-m-right_xx-small">
+                                        </lightning-icon>
+                                        <small>{col.activeCount} contact(s) avec inscriptions actives</small>
+                                    </div>
+                                </template>
+
+                                <table class="slds-table slds-table_cell-buffer
+                                    slds-table_bordered related-contacts-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="slds-text-body_small" scope="col">Contact</th>
+                                            <th class="slds-text-body_small slds-text-align_center"
+                                                scope="col">Cours</th>
+                                            <th class="slds-text-body_small slds-text-align_center"
+                                                scope="col">Prog.</th>
+                                            <th class="slds-text-body_small slds-text-align_center"
+                                                scope="col">Affil.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={col.contacts} for:item="c">
+                                            <tr key={c.contactId} class={c.rowClass}>
+                                                <td class="slds-truncate related-contacts-name"
+                                                    title={c.contactName}>
+                                                    {c.contactName}
+                                                    <template if:true={c.hasActive}>
+                                                        <lightning-icon
+                                                            icon-name="utility:warning"
+                                                            size="xx-small"
+                                                            class="slds-m-left_xx-small"
+                                                            title="Inscriptions actives">
+                                                        </lightning-icon>
+                                                    </template>
+                                                </td>
+                                                <td class="slds-text-align_center">{c.courses}</td>
+                                                <td class="slds-text-align_center">{c.programs}</td>
+                                                <td class="slds-text-align_center">{c.affiliations}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- ── EDA Counts section ────────────────────────────────────────────── -->
+        <template if:true={showEdaSection}>
+            <div class="eda-section slds-border_top slds-p-around_medium slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">
+                    <lightning-icon icon-name="standard:education" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    Données EDA par enregistrement
+                </h3>
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <template for:each={edaColumns} for:item="col">
+                        <div key={col.recordId} class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2
+                            slds-large-size_1-of-3 slds-p-bottom_small">
+                            <div class={col.edaCardClass}>
+                                <p class="slds-text-body_small slds-text-align_center slds-m-bottom_small">
+                                    <strong>{col.recordName}</strong>
+                                    <template if:true={col.isMaster}>
+                                        <span class="slds-badge slds-badge_success slds-m-left_x-small">
+                                            Master
+                                        </span>
+                                    </template>
+                                </p>
+                                <!-- EDA count grid -->
+                                <div class="slds-grid slds-gutters_x-small slds-grid_align-center">
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class={col.courseClass}>{col.edaCounts.courseConnections}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Cours</p>
+                                        <p class="slds-text-body_small eda-active-count">
+                                            {col.edaCounts.activeCourseConnections} actifs
+                                        </p>
+                                    </div>
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class={col.programClass}>{col.edaCounts.programEnrollments}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Programmes</p>
+                                        <p class="slds-text-body_small eda-active-count">
+                                            {col.edaCounts.activeProgramEnrollments} actifs
+                                        </p>
+                                    </div>
+                                    <div class="slds-col slds-text-align_center">
+                                        <p class="slds-text-heading_medium">{col.edaCounts.affiliations}</p>
+                                        <p class="slds-text-body_small slds-text-color_weak">Affiliations</p>
+                                    </div>
+                                </div>
+                                <!-- Active enrollment alert within EDA card -->
+                                <template if:true={col.showLoserWarning}>
+                                    <div class="slds-notify eda-loser-warning slds-m-top_small" role="alert">
+                                        <lightning-icon icon-name="utility:error" size="xx-small"
+                                            class="slds-m-right_xx-small">
+                                        </lightning-icon>
+                                        <small>Inscriptions actives — ne pas marquer comme perdant</small>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

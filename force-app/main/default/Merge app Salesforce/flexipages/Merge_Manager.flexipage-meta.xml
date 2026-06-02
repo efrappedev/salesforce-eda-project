@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Split-view console for detecting and safely merging duplicate Contacts and Accounts. Includes EDA data insights and full audit trail.</description>
+    <masterLabel>Merge Manager</masterLabel>
+    <template>
+        <name>flexipage:defaultAppHomeTemplate</name>
+    </template>
+    <type>AppPage</type>
+    <flexiPageRegions>
+        <itemInstances>
+            <componentInstance>
+                <componentName>c:mergeManager</componentName>
+                <identifier>c_mergeManager</identifier>
+            </componentInstance>
+        </itemInstances>
+        <name>main</name>
+        <type>Region</type>
+    </flexiPageRegions>
+</FlexiPage>

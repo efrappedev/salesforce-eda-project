@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>ContactPostInsertHandler</members>
+        <members>DynamicIdDeployDummyTests</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>Contact_GenerateID</members>
+        <name>ApexTrigger</name>
+    </types>
+    <types>
+        <members>Field_Sync_Mapping.*</members>
+        <name>CustomMetadata</name>
+    </types>
+    <version>59.0</version>
+</Package>
+```
+
+**¿Qué hace este archivo?**
+* Le pide las dos clases de Apex que necesitamos.
+* Le pide el trigger de Contacto.
+* Y lo más importante, con `Field_Sync_Mapping.*`, le pide **tanto la definición del Custom Metadata como TODOS sus registros** de una sola vez.
+
+#### **Paso B: Recupera Usando la "Lista de la Compra"**
+
+Ahora, en tu terminal, ejecuta este comando, que es mucho más simple y fiable:
+
+```bash
+sf project retrieve start --manifest manifest/package.xml

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Require_Master_When_Merged</fullName>
+    <active>true</active>
+    <description>Ensures a master record ID is always recorded when a ticket is marked Merged. Guards against partial saves that would leave the audit trail incomplete.</description>
+    <errorConditionFormula>AND(
+            ISPICKVAL(Status__c, &apos;Merged&apos;),
+            ISBLANK(Selected_Master_Id__c)
+        )</errorConditionFormula>
+    <errorDisplayField>Selected_Master_Id__c</errorDisplayField>
+    <errorMessage>Selected Master Record ID is required when Status is Merged. Do not update this field manually — use the Merge Wizard.</errorMessage>
+</ValidationRule>

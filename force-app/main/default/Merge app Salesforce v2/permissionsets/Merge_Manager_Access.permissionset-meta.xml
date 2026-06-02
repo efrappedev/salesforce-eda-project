@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Otorga acceso a la aplicación y tab Merge Manager para detección y fusión segura de duplicados.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Merge Manager Access</label>
+    <tabSettings>
+        <tab>Merge_Manager</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+</PermissionSet>

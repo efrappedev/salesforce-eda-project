@@ -1,0 +1,226 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true"
+        aria-labelledby="scan-modal-title" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+
+            <!-- Header -->
+            <header class="slds-modal__header">
+                <button class="slds-modal__close btn-modal-close"
+                    title="Fermer" onclick={handleClose}>&#x2715;</button>
+                <h2 id="scan-modal-title" class="slds-modal__title slds-hyphenate">
+                    <lightning-icon icon-name="utility:search" size="small"
+                        class="slds-m-right_x-small"
+                        style="--slds-c-icon-color-foreground: #fff">
+                    </lightning-icon>
+                    Nouveau scan de doublons
+                </h2>
+            </header>
+
+            <!-- Body -->
+            <div class="slds-modal__content slds-p-around_medium">
+
+                <!-- ── Async success state ─────────────────────────────────── -->
+                <template if:true={asyncSuccess}>
+                    <div class="slds-text-align_center slds-p-vertical_large">
+                        <lightning-icon
+                            icon-name="utility:success"
+                            size="large"
+                            style="--slds-c-icon-color-foreground: #2e844a; --slds-c-icon-color-foreground-default: #2e844a">
+                        </lightning-icon>
+                        <h3 class="slds-text-heading_medium slds-m-top_medium">
+                            Scan lancé en arrière-plan
+                        </h3>
+                        <p class="slds-m-top_small">
+                            Tous les enregistrements sont analysés par lots de 200.<br/>
+                            <strong>Rafraîchissez la liste dans 1–3 minutes</strong> pour voir les tickets détectés.
+                        </p>
+                        <p class="slds-m-top_x-small slds-text-body_small slds-text-color_weak">
+                            Job ID : {asyncBatchJobId}
+                        </p>
+                    </div>
+                </template>
+
+                <!-- ── Normal scan form ────────────────────────────────────── -->
+                <template if:true={showForm}>
+
+                    <!-- Object type -->
+                    <div class="slds-form-element slds-m-bottom_medium">
+                        <label class="slds-form-element__label">
+                            <abbr class="slds-required" title="required">*</abbr>
+                            Type d&apos;objet
+                        </label>
+                        <div class="slds-form-element__control">
+                            <lightning-radio-group
+                                name="objectType"
+                                options={objectTypeOptions}
+                                value={objectType}
+                                type="button"
+                                onchange={handleObjectTypeChange}>
+                            </lightning-radio-group>
+                        </div>
+                    </div>
+
+                    <!-- Match criteria checkboxes -->
+                    <fieldset class="slds-form-element slds-m-bottom_medium">
+                        <legend class="slds-form-element__label">
+                            <abbr class="slds-required" title="required">*</abbr>
+                            Critères de correspondance
+                        </legend>
+                        <div class="slds-form-element__control">
+                            <div class="slds-checkbox_button-group">
+                                <template for:each={matchFieldOptions} for:item="opt">
+                                    <span key={opt.value} class="slds-button slds-checkbox_button">
+                                        <input
+                                            type="checkbox"
+                                            name="matchField"
+                                            id={opt.inputId}
+                                            value={opt.value}
+                                            checked={opt.checked}
+                                            onchange={handleMatchFieldChange}>
+                                        <label class="slds-checkbox_button__label" for={opt.inputId}>
+                                            <span class="slds-checkbox_faux">
+                                                <lightning-icon
+                                                    icon-name={opt.icon}
+                                                    size="xx-small"
+                                                    class="slds-m-right_xx-small"
+                                                    variant={opt.iconVariant}>
+                                                </lightning-icon>
+                                                {opt.label}
+                                            </span>
+                                        </label>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Custom email object selector -->
+                    <lightning-input
+                        type="toggle"
+                        label="Utiliser un objet d'emails personnalisé"
+                        name="useEmailObject"
+                        checked={useEmailObject}
+                        onchange={handleUseEmailObjectChange}
+                        class="slds-m-bottom_small">
+                    </lightning-input>
+
+                    <template if:true={useEmailObject}>
+                        <div class="slds-box slds-box_x-small slds-m-bottom_small batch-info-box">
+                            <lightning-icon icon-name="utility:warning" size="xx-small"
+                                class="slds-m-right_x-small" style="vertical-align: middle">
+                            </lightning-icon>
+                            <span>Sélectionnez l'objet qui stocke les emails supplémentaires
+                                de vos enregistrements. Il doit contenir un champ de type email
+                                et un lien vers Contact ou Account. Le scan l'utilisera comme
+                                source complémentaire de détection.</span>
+                        </div>
+                    </template>
+
+                    <!-- Record limit (preview only) -->
+                    <template if:true={dryRun}>
+                        <lightning-input
+                            type="number"
+                            label="Limite d'enregistrements (aperçu seulement)"
+                            value={recordLimit}
+                            min="100"
+                            max="10000"
+                            step="100"
+                            onchange={handleLimitChange}
+                            class="slds-m-bottom_medium">
+                        </lightning-input>
+                    </template>
+
+                    <!-- Batch info (real scan) -->
+                    <template if:false={dryRun}>
+                        <div class="slds-box slds-box_x-small slds-m-bottom_medium batch-info-box">
+                            <lightning-icon icon-name="utility:info" size="xx-small"
+                                class="slds-m-right_x-small" style="vertical-align: middle">
+                            </lightning-icon>
+                            <span>Tous les enregistrements seront analysés par lots de 200.
+                                Les tickets apparaîtront dans la liste dans 1–3 minutes.</span>
+                        </div>
+                    </template>
+
+                    <!-- Dry run toggle -->
+                    <lightning-input
+                        type="toggle"
+                        label="Mode prévisualisation (ne crée pas de tickets)"
+                        name="dryRun"
+                        checked={dryRun}
+                        onchange={handleDryRunChange}
+                        class="slds-m-bottom_medium">
+                    </lightning-input>
+
+                    <!-- Validation error -->
+                    <template if:true={validationError}>
+                        <p class="slds-text-color_error slds-m-bottom_small">{validationError}</p>
+                    </template>
+
+                    <!-- Dry run preview results -->
+                    <template if:true={hasPreviewResults}>
+                        <div class="slds-box slds-m-top_medium">
+                            <h3 class="slds-text-heading_small slds-m-bottom_small">
+                                Aperçu — {previewResults.duplicateGroupsFound} groupe(s) détecté(s)
+                            </h3>
+                            <template for:each={previewResults.previews} for:item="preview">
+                                <div key={preview.matchKey} class="slds-m-bottom_x-small">
+                                    <span class="slds-badge slds-m-right_x-small">{preview.matchType}</span>
+                                    <span class="slds-text-body_small">{preview.matchKey}</span>
+                                    <span class="slds-text-body_small slds-text-color_weak">
+                                        &nbsp;&bull; {preview.candidateCount} enregistrements
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Spinner during scan -->
+                    <template if:true={isScanning}>
+                        <div class="scan-spinner slds-p-around_medium slds-text-align_center">
+                            <lightning-spinner size="medium" alternative-text="Scan en cours..."></lightning-spinner>
+                            <p class="slds-m-top_small slds-text-color_weak">Analyse des enregistrements...</p>
+                        </div>
+                    </template>
+
+                </template>
+            </div>
+
+            <!-- Footer -->
+            <footer class="slds-modal__footer">
+                <!-- Async success: only close button -->
+                <template if:true={asyncSuccess}>
+                    <lightning-button
+                        label="Fermer et rafraîchir"
+                        variant="brand"
+                        onclick={handleAsyncClose}>
+                    </lightning-button>
+                </template>
+
+                <!-- Normal form footer -->
+                <template if:false={asyncSuccess}>
+                    <lightning-button label="Annuler" onclick={handleClose}></lightning-button>
+                    <template if:true={dryRun}>
+                        <lightning-button
+                            label="Prévisualiser"
+                            variant="neutral"
+                            icon-name="utility:preview"
+                            onclick={runScan}
+                            disabled={isScanDisabled}>
+                        </lightning-button>
+                    </template>
+                    <template if:false={dryRun}>
+                        <lightning-button
+                            label="Lancer le scan"
+                            variant="brand"
+                            icon-name="utility:search"
+                            onclick={runScan}
+                            disabled={isScanDisabled}>
+                        </lightning-button>
+                    </template>
+                </template>
+            </footer>
+
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

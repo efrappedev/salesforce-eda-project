@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Account__c</fullName>
+    <label>Account</label>
+    <description>Lookup to the Account that owns this email address. Mutually exclusive with Contact__c.</description>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <referenceTo>Account</referenceTo>
+    <relationshipLabel>Email Addresses</relationshipLabel>
+    <relationshipName>Email_Addresses_Account</relationshipName>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>Lookup</type>
+</CustomField>

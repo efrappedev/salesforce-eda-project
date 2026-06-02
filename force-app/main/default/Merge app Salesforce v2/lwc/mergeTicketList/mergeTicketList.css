@@ -1,0 +1,131 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ticket-list__items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.ticket-list__item {
+    border-bottom: 1px solid #e8e7e6;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.ticket-list__item:hover {
+    background-color: #f3f2f2;
+}
+
+.ticket-list__item_selected {
+    background-color: #e8f4fd !important;
+    border-left: 3px solid #0176d3;
+}
+
+.ticket-list__body {
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Container that holds the stacked names — shrinks to leave room for badge */
+.ticket-list__names-block {
+    min-width: 0;
+    flex: 1;
+    margin-right: 0.375rem;
+}
+
+/* Each individual candidate name line */
+.ticket-list__name {
+    display: block;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: #080707;
+    line-height: 1.35;
+}
+
+.ticket-list__name + .ticket-list__name {
+    margin-top: 2px;
+}
+
+/* Confidence badges — outlined style, soft colors */
+.ticket-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-weight: 500;
+    border: 1px solid;
+    display: inline-block;
+    line-height: 1.4;
+}
+
+.ticket-badge_high   { background: #e8f4fd; color: #0176d3; border-color: #9dcaf0; }
+.ticket-badge_medium { background: #fff8ec; color: #9a5000; border-color: #f0b96d; }
+.ticket-badge_low    { background: #f3f2f2; color: #706e6b; border-color: #c9c7c5; }
+
+/* Status badges */
+.ticket-badge_new     { background: #eaf5ee; color: #2e844a; border-color: #8dc99f; }
+.ticket-badge_review  { background: #f5eeff; color: #7033b5; border-color: #c4a0e8; }
+.ticket-badge_ready   { background: #e8f4fd; color: #0176d3; border-color: #9dcaf0; }
+.ticket-badge_merged  { background: #f3f2f2; color: #444;    border-color: #c9c7c5; }
+.ticket-badge_ignored { background: #f3f2f2; color: #706e6b; border-color: #c9c7c5; }
+.ticket-badge_error   { background: #fde8e8; color: #ba0517; border-color: #f0a0a0; }
+
+.ticket-list__filters {
+    background-color: #fafaf9;
+}
+
+/* Match value (email/phone) — small, secondary */
+.ticket-list__match {
+    font-size: 0.75rem;
+    color: #706e6b;
+    min-width: 0;
+    flex: 1;
+}
+
+/* Date/time — right-aligned in the phone row */
+.ticket-list__date {
+    white-space: nowrap;
+    margin-left: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Search box */
+.ticket-list__search {
+    position: relative;
+}
+
+.ticket-list__search-input {
+    width: 100%;
+    height: 1.875rem;
+    padding-left: 1.75rem;
+    font-size: 0.8125rem;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    background: #fff;
+    color: #3e3e3c;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ticket-list__search-input:focus {
+    border-color: #0176d3;
+    box-shadow: 0 0 0 1px #0176d3;
+}
+
+.ticket-list__search-icon {
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    --slds-c-icon-color-foreground: #706e6b;
+}

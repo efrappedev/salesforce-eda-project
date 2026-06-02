@@ -1,0 +1,122 @@
+<template>
+    <!-- Filter bar -->
+    <div class="ticket-list__filters slds-p-horizontal_small slds-p-vertical_x-small slds-border_bottom">
+        <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-end">
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    name="objectType"
+                    label="Objet"
+                    variant="label-hidden"
+                    value={objectTypeFilter}
+                    options={objectTypeOptions}
+                    onchange={handleObjectTypeChange}>
+                </lightning-combobox>
+            </div>
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    name="status"
+                    label="Statut"
+                    variant="label-hidden"
+                    value={statusFilter}
+                    options={statusOptions}
+                    onchange={handleStatusChange}>
+                </lightning-combobox>
+            </div>
+        </div>
+        <!-- Search box -->
+        <div class="slds-m-top_x-small ticket-list__search">
+            <div class="slds-input-has-icon slds-input-has-icon_left">
+                <lightning-icon icon-name="utility:search" size="xx-small"
+                    class="slds-input__icon slds-input__icon_left ticket-list__search-icon">
+                </lightning-icon>
+                <input type="search"
+                    class="slds-input ticket-list__search-input"
+                    placeholder="Rechercher par nom, email, téléphone..."
+                    value={searchTerm}
+                    oninput={handleSearchChange} />
+            </div>
+        </div>
+        <div class="slds-grid slds-grid_align-spread slds-m-top_x-small">
+            <span class="slds-text-body_small slds-text-color_weak">{countLabel}</span>
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                variant="bare"
+                size="small"
+                alternative-text="Actualiser"
+                onclick={handleRefresh}>
+            </lightning-button-icon>
+        </div>
+    </div>
+
+    <!-- Spinner -->
+    <template if:true={isLoading}>
+        <div class="slds-p-around_medium slds-text-align_center">
+            <lightning-spinner size="small" alternative-text="Chargement..."></lightning-spinner>
+        </div>
+    </template>
+
+    <!-- Error -->
+    <template if:true={hasError}>
+        <div class="slds-p-around_small slds-notify slds-notify_alert slds-theme_error" role="alert">
+            <p>{errorMessage}</p>
+        </div>
+    </template>
+
+    <!-- List -->
+    <template if:false={isLoading}>
+        <ul class="ticket-list__items">
+            <template for:each={enrichedTickets} for:item="ticket">
+                <li key={ticket.Id}
+                    class={ticket.rowClass}
+                    data-id={ticket.Id}
+                    data-label={ticket.matchValue}
+                    data-matchtype={ticket.Match_Type__c}
+                    onclick={handleTicketClick}>
+                    <div class="slds-media slds-media_center slds-p-around_small">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name={ticket.typeIcon} size="small"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body ticket-list__body">
+                            <!-- Names: one per line, bold; confidence badge top-right -->
+                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
+                                <div class="ticket-list__names-block">
+                                    <template for:each={ticket.candidateNamesItems} for:item="cname">
+                                        <p key={cname.id}
+                                           class="ticket-list__name slds-truncate"
+                                           title={cname.name}>{cname.name}</p>
+                                    </template>
+                                </div>
+                                <span class={ticket.confidenceClass}>{ticket.Match_Confidence__c}</span>
+                            </div>
+                            <!-- Phone left, time right -->
+                            <div class="slds-grid slds-grid_align-spread slds-m-top_xx-small">
+                                <span class="slds-text-body_small ticket-list__match slds-truncate"
+                                    title={ticket.matchValue}>{ticket.matchValue}</span>
+                                <span class="slds-text-body_small slds-text-color_weak ticket-list__date">
+                                    {ticket.relativeDate}
+                                </span>
+                            </div>
+                            <!-- Match type + count left, status badge right -->
+                            <div class="slds-grid slds-grid_align-spread slds-m-top_xx-small">
+                                <span class="slds-text-body_small slds-text-color_weak">
+                                    {ticket.matchTypeLabel} &bull; {ticket.Candidate_Count__c} enreg.
+                                </span>
+                                <span class={ticket.statusClass}>{ticket.Status__c}</span>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </template>
+        </ul>
+
+        <!-- Empty state -->
+        <template if:true={isEmpty}>
+            <div class="slds-p-around_medium slds-text-align_center">
+                <p class="slds-text-body_regular slds-text-color_weak">Aucun ticket trouvé</p>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                    Lancez un scan pour détecter les doublons.
+                </p>
+            </div>
+        </template>
+    </template>
+</template>

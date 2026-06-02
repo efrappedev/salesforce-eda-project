@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Require_Before_Snapshot</fullName>
+    <active>true</active>
+    <description>A Merge Log without a before-snapshot has no forensic value. This rule prevents accidental saves of incomplete log records, whether from code bugs or manual edits.</description>
+    <errorConditionFormula>ISBLANK(Before_Snapshot_JSON__c)</errorConditionFormula>
+    <errorDisplayField>Before_Snapshot_JSON__c</errorDisplayField>
+    <errorMessage>Before Snapshot JSON is required. This field is populated automatically by the merge process and must not be cleared manually.</errorMessage>
+</ValidationRule>

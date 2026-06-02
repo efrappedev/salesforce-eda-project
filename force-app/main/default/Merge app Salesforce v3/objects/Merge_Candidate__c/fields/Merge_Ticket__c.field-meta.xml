@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Merge_Ticket__c</fullName>
+    <label>Merge Ticket</label>
+    <referenceTo>Merge_Ticket__c</referenceTo>
+    <relationshipLabel>Merge Candidates</relationshipLabel>
+    <relationshipName>Merge_Candidates</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackHistory>false</trackHistory>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

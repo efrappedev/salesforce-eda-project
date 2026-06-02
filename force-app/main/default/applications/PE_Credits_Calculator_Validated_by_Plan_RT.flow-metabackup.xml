@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+
+    <label>PE Credits Calculator – Validated by Plan RT</label>
+    <interviewLabel>PE Credits Calculator – Validated by Plan RT {!$Flow.CurrentDateTime}</interviewLabel>
+
+    <!-- ASSIGNMENTS -->
+    <assignments>
+        <name>Reset_Total_Current</name>
+        <label>Reset_Total_Current</label>
+        <locationX>300</locationX>
+        <locationY>100</locationY>
+        <assignmentItems>
+            <assignToReference>varTotalCurrent</assignToReference>
+            <operator>Assign</operator>
+            <value><numberValue>0.0</numberValue></value>
+        </assignmentItems>
+        <connector><targetReference>Get_CC_Current</targetReference></connector>
+    </assignments>
+
+    <assignments>
+        <name>Add_Current</name>
+        <label>Add_Current</label>
+        <locationX>1020</locationX>
+        <locationY>100</locationY>
+        <assignmentItems>
+            <assignToReference>varTotalCurrent</assignToReference>
+            <operator>Add</operator>
+            <value><elementReference>varCCCurrent.hed__Credits_Attempted__c</elementReference></value>
+        </assignmentItems>
+        <connector><targetReference>Loop_CC_Current</targetReference></connector>
+    </assignments>
+
+    <assignments>
+        <name>Reset_Total_Prior</name>
+        <label>Reset_Total_Prior</label>
+        <locationX>1820</locationX>
+        <locationY>100</locationY>
+        <assignmentItems>
+            <assignToReference>varTotalPrior</assignToReference>
+            <operator>Assign</operator>
+            <value><numberValue>0.0</numberValue></value>
+        </assignmentItems>
+        <connector><targetReference>Get_CC_Prior</targetReference></connector>
+    </assignments>
+
+    <assignments>
+        <name>Add_Prior</name>
+        <label>Add_Prior</label>
+        <locationX>2140</locationX>
+        <locationY>100</locationY>
+        <assignmentItems>
+            <assignToReference>varTotalPrior</assignToReference>
+            <operator>Add</operator>
+            <value><elementReference>varCCPrior.hed__Credits_Attempted__c</elementReference></value>
+        </assignmentItems>
+        <connector><targetReference>Loop_CC_Prior</targetReference></connector>
+    </assignments>
+
+    <assignments>
+        <name>Cap_To_Free_Parent</name>
+        <label>Cap_To_Free_Parent</label>
+        <locationX>1520</locationX>
+        <locationY>220</locationY>
+        <assignmentItems>
+            <assignToReference>varTotalCurrent</assignToReference>
+            <operator>Assign</operator>
+            <value><elementReference>varFreeParentPR.hed__Credits__c</elementReference></value>
+        </assignmentItems>
+        <connector><targetReference>Update_PE_Current</targetReference></connector>
+    </assignments>
+
+    <!-- DECISIONS -->
+    <decisions>
+        <name>Changed_PE</name>
+        <label>Changed_PE</label>
+        <locationX>1520</locationX>
+        <locationY>100</locationY>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Changed</name>
+            <label>Yes_Changed</label>
+            <conditionLogic>1 AND 2</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record__Prior.hed__Program_Enrollment__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue><booleanValue>false</booleanValue></rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.hed__Program_Enrollment__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue><elementReference>$Record.hed__Program_Enrollment__c</elementReference></rightValue>
+            </conditions>
+            <connector><targetReference>Reset_Total_Prior</targetReference></connector>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Over_Free_Parent_Limit</name>
+        <label>Over_Free_Parent_Limit</label>
+        <locationX>1320</locationX>
+        <locationY>220</locationY>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <defaultConnector><targetReference>Update_PE_Current</targetReference></defaultConnector>
+        <rules>
+            <name>Yes_FreeCap</name>
+            <label>Yes_FreeCap</label>
+            <!-- FIX: logic for single condition -->
+            <conditionLogic>1</conditionLogic>
+            <conditions>
+                <leftValueReference>varTotalCurrent</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue><elementReference>varFreeParentPR.hed__Credits__c</elementReference></rightValue>
+            </conditions>
+            <connector><targetReference>Cap_To_Free_Parent</targetReference></connector>
+        </rules>
+    </decisions>
+
+    <!-- LOOPS -->
+    <loops>
+        <name>Loop_CC_Current</name>
+        <label>Loop_CC_Current</label>
+        <locationX>820</locationX>
+        <locationY>100</locationY>
+        <assignNextValueToReference>varCCCurrent</assignNextValueToReference>
+        <collectionReference>colCCCurrent</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector><targetReference>Add_Current</targetReference></nextValueConnector>
+        <noMoreValuesConnector><targetReference>Get_Free_Parent</targetReference></noMoreValuesConnector>
+    </loops>
+
+    <loops>
+        <name>Loop_CC_Prior</name>
+        <label>Loop_CC_Prior</label>
+        <locationX>2320</locationX>
+        <locationY>100</locationY>
+        <assignNextValueToReference>varCCPrior</assignNextValueToReference>
+        <collectionReference>colCCPrior</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector><targetReference>Add_Prior</targetReference></nextValueConnector>
+        <noMoreValuesConnector><targetReference>Update_PE_Prior</targetReference></noMoreValuesConnector>
+    </loops>
+
+    <!-- RECORD LOOKUPS -->
+    <recordLookups>
+        <name>Get_CC_Current</name>
+        <label>Get_CC_Current</label>
+        <locationX>600</locationX>
+        <locationY>100</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector><targetReference>Loop_CC_Current</targetReference></connector>
+        <filterLogic>1 AND (2 OR 3 OR 4)</filterLogic>
+        <filters>
+            <field>hed__Program_Enrollment__c</field>
+            <operator>EqualTo</operator>
+            <value><elementReference>$Record.hed__Program_Enrollment__c</elementReference></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>R</stringValue></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>EQV</stringValue></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>TRANSF</stringValue></value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>hed__Course_Enrollment__c</object>
+        <outputReference>colCCCurrent</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>hed__Credits_Attempted__c</queriedFields>
+    </recordLookups>
+
+    <recordLookups>
+        <name>Get_CC_Prior</name>
+        <label>Get_CC_Prior</label>
+        <locationX>2000</locationX>
+        <locationY>100</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector><targetReference>Loop_CC_Prior</targetReference></connector>
+        <filterLogic>1 AND (2 OR 3 OR 4)</filterLogic>
+        <filters>
+            <field>hed__Program_Enrollment__c</field>
+            <operator>EqualTo</operator>
+            <value><elementReference>$Record__Prior.hed__Program_Enrollment__c</elementReference></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>R</stringValue></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>EQV</stringValue></value>
+        </filters>
+        <filters>
+            <field>Notations__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>TRANSF</stringValue></value>
+        </filters>
+        <object>hed__Course_Enrollment__c</object>
+        <outputReference>colCCPrior</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>hed__Credits_Attempted__c</queriedFields>
+    </recordLookups>
+
+    <recordLookups>
+        <name>Get_Free_Parent</name>
+        <label>Get_Free_Parent</label>
+        <locationX>1120</locationX>
+        <locationY>220</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector><targetReference>Over_Free_Parent_Limit</targetReference></connector>
+        <filterLogic>1 AND 2 AND 3</filterLogic>
+        <filters>
+            <field>hed__Program_Plan__c</field>
+            <operator>EqualTo</operator>
+            <value><elementReference>$Record.hed__Program_Enrollment__r.hed__Program_Plan__c</elementReference></value>
+        </filters>
+        <filters>
+            <field>hed__Course__c</field>
+            <operator>IsNull</operator>
+            <value><booleanValue>true</booleanValue></value>
+        </filters>
+        <filters>
+            <field>hed__Credits__c</field>
+            <operator>IsNull</operator>
+            <value><booleanValue>false</booleanValue></value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>hed__Plan_Requirement__c</object>
+        <outputReference>varFreeParentPR</outputReference>
+    </recordLookups>
+
+    <!-- UPDATES -->
+    <recordUpdates>
+        <name>Update_PE_Current</name>
+        <label>Update_PE_Current</label>
+        <locationX>1320</locationX>
+        <locationY>100</locationY>
+        <connector><targetReference>Changed_PE</targetReference></connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value><elementReference>$Record.hed__Program_Enrollment__c</elementReference></value>
+        </filters>
+        <inputAssignments>
+            <field>hed__Credits_Earned__c</field>
+            <value><elementReference>varTotalCurrent</elementReference></value>
+        </inputAssignments>
+        <object>hed__Program_Enrollment__c</object>
+    </recordUpdates>
+
+    <recordUpdates>
+        <name>Update_PE_Prior</name>
+        <label>Update_PE_Prior</label>
+        <locationX>2480</locationX>
+        <locationY>100</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value><elementReference>$Record__Prior.hed__Program_Enrollment__c</elementReference></value>
+        </filters>
+        <inputAssignments>
+            <field>hed__Credits_Earned__c</field>
+            <value><elementReference>varTotalPrior</elementReference></value>
+        </inputAssignments>
+        <object>hed__Program_Enrollment__c</object>
+    </recordUpdates>
+
+    <!-- START -->
+    <start>
+        <locationX>100</locationX>
+        <locationY>20</locationY>
+        <connector><targetReference>Reset_Total_Current</targetReference></connector>
+        <object>hed__Course_Enrollment__c</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+
+    <status>Active</status>
+    <processType>AutoLaunchedFlow</processType>
+
+    <!-- VARIABLES -->
+    <variables>
+        <name>colCCCurrent</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>hed__Course_Enrollment__c</objectType>
+    </variables>
+    <variables>
+        <name>colCCPrior</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>hed__Course_Enrollment__c</objectType>
+    </variables>
+    <variables>
+        <name>varCCCurrent</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>hed__Course_Enrollment__c</objectType>
+    </variables>
+    <variables>
+        <name>varCCPrior</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>hed__Course_Enrollment__c</objectType>
+    </variables>
+    <variables>
+        <name>varTotalCurrent</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>3</scale>
+    </variables>
+    <variables>
+        <name>varTotalPrior</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>3</scale>
+    </variables>
+    <variables>
+        <name>varFreeParentPR</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>hed__Plan_Requirement__c</objectType>
+    </variables>
+</Flow>

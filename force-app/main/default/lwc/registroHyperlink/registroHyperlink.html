@@ -1,0 +1,8 @@
+<template>
+  <template if:true={hasUrl}>
+    <a href={url} target="_blank">{number}</a>
+  </template>
+  <template if:false={hasUrl}>
+    <span>{number}</span>
+  </template>
+</template>

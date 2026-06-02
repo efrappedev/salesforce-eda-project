@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Closed_Reason__c</fullName>
+    <description>Reason why the ticket was dismissed without merging. Required when Status = Ignored.</description>
+    <label>Closed Reason</label>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>False Positive - Same Household</fullName>
+                <default>false</default>
+                <label>False Positive — Same Household (different people)</label>
+            </value>
+            <value>
+                <fullName>False Positive - Same Organization</fullName>
+                <default>false</default>
+                <label>False Positive — Same Organization (different contacts)</label>
+            </value>
+            <value>
+                <fullName>False Positive - Shared Phone</fullName>
+                <default>false</default>
+                <label>False Positive — Shared Phone Number</label>
+            </value>
+            <value>
+                <fullName>False Positive - Shared Email</fullName>
+                <default>false</default>
+                <label>False Positive — Shared Email Address</label>
+            </value>
+            <value>
+                <fullName>Already Resolved</fullName>
+                <default>false</default>
+                <label>Already Resolved Manually</label>
+            </value>
+            <value>
+                <fullName>Out of Scope</fullName>
+                <default>false</default>
+                <label>Out of Scope</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other (see Notes)</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

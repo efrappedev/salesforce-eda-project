@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Field_Decisions_JSON__c</fullName>
+    <label>Field Decisions (JSON)</label>
+    <description>Initially: the reviewer choices { fieldApiName: sourceRecordId }. After merge completes: overwritten with the actual diff { fieldName: { before: X, after: Y } } computed by SnapshotService.diffSnapshots().</description>
+    <length>32768</length>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>4</visibleLines>
+</CustomField>

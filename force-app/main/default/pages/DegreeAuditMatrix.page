@@ -1,0 +1,1551 @@
+<apex:page controller="DegreeAuditMatrixController" sidebar="false" showHeader="false" docType="html-5.0">
+  <!-- CSS global -->
+  <apex:stylesheet value="{!URLFOR($Resource.DegreeAuditCSS)}"/>
+
+  <!-- Librerías para PDF en el navegador -->
+  <apex:includeScript value="{!URLFOR($Resource.html2canvas_min)}"/>
+  <apex:includeScript value="{!URLFOR($Resource.jsPDF, 'jspdf.umd.min.js')}"/>
+
+  <!-- actionFunction para cerrar modal en servidor -->
+  <apex:form id="modalForm">
+  <apex:actionFunction name="closeDetail" action="{!closeStudentDetail}" rerender="studentModal"/>
+  <apex:actionFunction name="reRun" action="{!runAudit}" rerender="tblPanel,csvPanel,filterPanel,notePanel" status="stGlobal" oncomplete="applyStickyOffsets(); initTableSorters(); initBtnRipple();"/>
+    </apex:form>
+    
+  <div class="da-container">
+    <div class="da-title">Degree Audit (EDA) — Matrice par Plan de Programme</div>
+
+    <!-- Toolbar -->
+    <div class="da-toolbar">
+    <div class="group">
+    <apex:form styleClass="inline-form">
+      <span class="muted">Statut du plan</span>
+      <apex:selectList id="planStatus" value="{!planStatusFilter}" size="1" styleClass="da-select">
+        <apex:selectOptions value="{!planStatusOptions}"/>
+      </apex:selectList>
+
+      <span class="muted">Inscriptions (PE)</span>
+      <apex:selectList id="peStatus" value="{!peStatusFilter}" size="1" styleClass="da-select" style="max-width:280px;">
+        <apex:selectOptions value="{!peStatusOptions}"/>
+      </apex:selectList>
+
+      <apex:commandButton value="Appliquer filtres" styleClass="da-btn-secondary"
+                          action="{!updatePlanOptions}"
+                          rerender="pp"
+                          status="stGlobal"
+                          oncomplete="if(typeof reRun==='function'){ reRun(); }"/>
+
+      <span class="ico-help" onclick="showHelpFilters(event)" title="Aide">i</span>
+    </apex:form>
+      </div>
+      <div class="group">
+        <apex:form styleClass="inline-form">
+          <apex:outputLabel value="Programme" for="pp" styleClass="muted"/>
+          <apex:selectList id="pp" value="{!selectedProgramPlanId}" size="1" styleClass="da-select" disabled="{!isPortalView}">
+            <apex:selectOptions value="{!programPlanOptions}"/>
+          </apex:selectList>
+
+          <apex:commandButton value="Générer matrice" styleClass="da-btn"
+                              action="{!runAudit}"
+                              rerender="tblPanel,csvPanel,filterPanel,notePanel"
+                              status="stGlobal"
+                              oncomplete="applyStickyOffsets(); initTableSorters(); initBtnRipple(); initStickyStabilizer();"
+                              rendered="{!NOT(isPortalView)}"/>
+
+          <!-- === Filtro de curso === -->
+                      <apex:outputPanel id="filterPanel"
+                              layout="inline"
+                              styleClass="{!IF(hasData,'','is-disabled')}"
+                              style="margin-left:10px;">
+              <span class="muted">Cours</span>
+            
+              <apex:selectList id="reqFilter"
+                               value="{!selectedRequirementId}"
+                               size="1"
+                               styleClass="da-select"
+                               disabled="{!NOT(hasData)}">
+                <apex:selectOptions value="{!requirementPicklist}"/>
+              </apex:selectList>
+            
+              <apex:commandButton value="Filtrer"
+                                  styleClass="da-btn-secondary"
+                                  rerender="tblPanel"
+                                  disabled="{!NOT(hasData)}"
+                                  status="stGlobal"
+                                  oncomplete="applyStickyOffsets(); initTableSorters(); initBtnRipple(); initStickyStabilizer();"/>
+            </apex:outputPanel>
+        </apex:form>
+      </div>
+
+      <div class="group">
+        <a href="javascript:void(0)" class="da-export" onclick="exportCsvSmart()">Exporter CSV</a>
+      </div>
+    </div>
+
+    <!-- Nota de tooltips -->
+    <apex:outputPanel rendered="{!NOT(isPortalView)}" layout="block">
+      <div class="note-fr mt-16" rendered="{!hasData}">
+        Astuce : survolez ✔/✖ pour voir le statut, la note et la période. /// Cliquez sur l’en-tête d’une colonne pour trier (▲/▼).
+      </div>
+      <div class="note-fr mt-16" rendered="{!NOT(hasData)}">
+        Sélectionnez un programme puis cliquez sur “Générer matrice”.
+      </div>
+    </apex:outputPanel>
+
+    <!-- Matriz -->
+    <apex:outputPanel id="tblPanel" layout="block">
+      <apex:outputPanel id="notePanel" rendered="{!NOT(isPortalView)}" layout="block">
+        <apex:outputPanel rendered="{!OR(hasData, NOT(ISBLANK(selectedProgramPlanId)))}" layout="block">
+          <div class="da-table-wrap" id="daTableWrap" style="max-height: calc(100vh - 240px); overflow:auto;">
+            <table class="da-table">
+              <thead>
+                <tr>
+                  <th class="da-col-idx sortable" data-type="num">#</th>
+                  <th class="da-col-student sortable" data-type="text">ÉTUDIANT</th>
+                  <th class="da-col-email sortable" data-type="text">EMAIL</th>
+                  <th class="sortable" data-type="text">ID CONTACT</th>
+
+                  <th class="sortable" data-type="num">MANQUANTS</th>
+                  <th class="sortable" data-type="num">% AVANCEMENT</th>
+                  <th class="sortable" data-type="date">DERNIER COURS</th>
+
+                  <th class="sortable" data-type="bool7">
+                    7+ ANS
+                    <span class="ico-help" onclick="showHelp7ans(event)">i</span>
+                  </th>
+
+                  <!-- Repetición de cursos AL FINAL (sortable bool) -->
+                  <apex:repeat value="{!requirements}" var="r">
+                    <apex:outputPanel layout="none" rendered="{!OR(ISBLANK(selectedRequirementId), r.Id = selectedRequirementId)}">
+                      <th class="sortable" data-type="bool">
+                        {!r.Name}
+                        <br/>
+                        <span class="muted">(
+                          <apex:outputText value="{!reqOkCountsSafe[r.Id]}"/>
+                          /{!studentsCount}
+                        )</span>
+                      </th>
+                    </apex:outputPanel>
+                  </apex:repeat>
+                  
+                  <!-- === BLOQUES OPTATIVOS AL FINAL (ocultos si hay filtro de curso) === -->
+                <apex:outputPanel layout="none" rendered="{!AND(ISBLANK(selectedRequirementId), hasOptBlocks)}">
+                      <apex:repeat value="{!optBlocks}" var="block">
+                        <th class="sortable" data-type="num" data-opt="1">
+                          {!block.name}
+                          <br/>
+                          <span class="muted">(
+                              <apex:outputText value="{0, number, 0.0}">
+                                <apex:param value="{!block.requiredCredits}"/>
+                              </apex:outputText>
+                              u.)
+                            </span>
+                        </th>
+                      </apex:repeat>
+                    </apex:outputPanel>                
+                </tr>
+              </thead>
+
+              <tbody>
+                <apex:variable var="rowNum" value="{!0}"/>
+                <apex:repeat value="{!rows}" var="row">
+                  <apex:variable var="rowNum" value="{!rowNum + 1}"/>
+                  <tr>
+                    <td class="da-col-idx">{!rowNum}</td>
+
+                    <td class="da-col-student da-stu">
+                  <apex:form styleClass="inline-form">
+                    <div class="student-name">
+                          <apex:commandLink value="{!row.DisplayName}"
+                                            action="{!openStudentDetailAction}"
+                                            rerender="studentModal"
+                                            status="stGlobal"
+                                            oncomplete="openModal()"
+                                            style="display:block; text-align:left;">
+                            <apex:param name="contactId" value="{!row.ContactId}"/>
+                          </apex:commandLink>
+                        </div>
+                      </apex:form>
+                    </td>
+
+                    <td class="da-col-email">
+                      <span class="student-email">{!row.Email}</span>
+                    </td>
+
+                    <!-- ID CONTACT como hyperlink a la ficha del Contact -->
+                        <td>
+                          <apex:outputPanel rendered="{!NOT(ISBLANK(row.ContactExternalId))}" layout="none">
+                            <a href="javascript:;" 
+                               onclick="openContactRecord('{!row.ContactId}')"
+                               title="Ouvrir fiche Contact"
+                               style="color:#1b66e3; text-decoration:underline;">
+                              {!row.ContactExternalId}
+                            </a>
+                          </apex:outputPanel>
+                          <apex:outputPanel rendered="{!ISBLANK(row.ContactExternalId)}" layout="none">—</apex:outputPanel>
+                        </td>
+
+                    <td>{!row.MissingCount}</td>
+                    <td>{!row.ProgressPercentText}</td>
+                    <td>{!row.LastCourseDateText}</td>
+
+                    <!-- 7+ ans -->
+                    <td>
+                      <apex:outputText rendered="{!row.OlderThan7Years}"
+                                       value="&#x26D4;" styleClass="ico miss" escape="false"
+                                       title="Dernier cours: 7 ans ou plus"/>
+                      <apex:outputText rendered="{!NOT(row.OlderThan7Years)}"
+                                       value="&#x2705;" styleClass="ico ok" escape="false"
+                                       title="Dernier cours: moins de 7 ans"/>
+                    </td>
+
+                
+
+                    <!-- ✔/✖ por requirement con tooltip (filtrado) — AL FINAL -->
+                    <apex:repeat value="{!requirements}" var="r">
+                      <apex:outputPanel layout="none" rendered="{!OR(ISBLANK(selectedRequirementId), r.Id = selectedRequirementId)}">
+                        <td>
+                          <apex:outputText rendered="{!row.mapReqToOk[r.Id]}"
+                                             value="&#10003;" styleClass="ico ok"
+                                             title="{!row.mapReqToTip[r.Id]}" escape="false"/>
+                            <apex:outputText rendered="{!NOT(row.mapReqToOk[r.Id])}"
+                                             value="&#10005;" styleClass="ico miss"
+                                             title="{!row.mapReqToTip[r.Id]}" escape="false"/>
+                        </td>
+                      </apex:outputPanel>
+                    </apex:repeat>
+                    
+                    <!-- === Celdas por alumno de bloques optativos (DENTRO del <tr>) === -->
+                    <apex:outputPanel layout="none" rendered="{!AND(ISBLANK(selectedRequirementId), hasOptBlocks)}">
+                      <apex:repeat value="{!optBlocks}" var="block">
+                        <td data-opt="1"
+                            title="{!row.mapOptTipByPrId[block.prId]} — {!row.mapOptEarnByPrId[block.prId]} / {!IF(AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits>0), block.requiredCredits, '—')}">
+                        
+                          <!-- Créditos GANADOS: SIN tope, 1 decimal -->
+                          <apex:outputText value="{0, number, 0.0}">
+                            <apex:param value="{!row.mapOptEarnByPrId[block.prId]}"/>
+                          </apex:outputText>
+                        
+                          <apex:outputText value=" / "/>
+                        
+                          <!-- Créditos REQUERIDOS: 1 decimal si aplica -->
+                          <apex:outputText rendered="{!AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits > 0)}"
+                                           value="{0, number, 0.0}">
+                            <apex:param value="{!block.requiredCredits}"/>
+                          </apex:outputText>
+                          <apex:outputText rendered="{!OR(ISNULL(block.requiredCredits), block.requiredCredits = 0)}" value="—"/>
+                        </td>
+                      </apex:repeat>
+                    </apex:outputPanel>
+                  </tr>
+                </apex:repeat>
+                
+                <!-- Empty states (colspan ajustado al filtro) -->
+                <apex:outputPanel rendered="{!AND(NOT(hasData), NOT(ISBLANK(selectedProgramPlanId)))}">
+                  <tr>
+                    <td colspan="{!4 + (IF(ISBLANK(selectedRequirementId), requirementsCount, 1)) + 4 + IF(AND(hasOptBlocks, ISBLANK(selectedRequirementId)), optBlocks.size, 0)}" class="da-empty">
+                      Aucun résultat. Vérifiez que le plan sélectionné possède des exigences (cours) et des inscriptions d’étudiants.
+                    </td>
+                  </tr>
+                </apex:outputPanel>
+
+                <apex:outputPanel rendered="{!ISBLANK(selectedProgramPlanId)}">
+                  <tr>
+                    <td colspan="{!4 + (IF(ISBLANK(selectedRequirementId), requirementsCount, 1)) + 4 + IF(AND(hasOptBlocks, ISBLANK(selectedRequirementId)), optBlocks.size, 0)}" class="da-empty">
+                      Sélectionnez d’abord un programme.
+                    </td>
+                  </tr>
+                </apex:outputPanel>
+              </tbody>
+            </table>
+          </div>
+        </apex:outputPanel>
+
+        <!-- Mensaje para portal (solo detalle) -->
+        <apex:outputPanel rendered="{!isPortalView}" layout="block">
+          <div class="note-fr">Vue portail: la matrice n’est pas affichée. Ouvrez le détail de l’étudiant.</div>
+        </apex:outputPanel>
+      </apex:outputPanel>
+    </apex:outputPanel>
+
+    <!-- CSV oculto -->
+    <apex:outputPanel id="csvPanel" layout="block">
+      <pre id="csvData" class="csv-hidden">{!csvContent}</pre>
+    </apex:outputPanel>
+
+    <!-- ===== Modal: Détail Étudiant ===== -->
+    <apex:outputPanel id="studentModal" layout="block">
+      <div id="modalOverlay" class="modal-overlay" style="display:{!IF(showDetail,'block','none')}"></div>
+      <div id="modalPanel" class="modal-panel" style="display:{!IF(showDetail,'block','none')}">
+        <div class="modal-header">
+          <div class="modal-title">Détail de l’étudiant</div>
+          <div class="spacer"></div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+
+        <div class="modal-body" style="max-height: calc(100vh - 220px); overflow:auto; padding-bottom:0;">
+          <apex:outputPanel rendered="{!showDetail}">
+            <!-- CAPTURA PDF -->
+            <div id="studentDetailCapture">
+              <div class="detail-grid">
+                <div><span class="muted">Nom:</span> <strong>{!studentDetail.DisplayName}</strong></div>
+                <div><span class="muted">Plan:</span> <strong>{!studentDetail.PlanName}</strong></div>
+                <div><span class="muted">Avancement:</span> <strong>{!studentDetail.ProgressPercentText}</strong></div>
+                <div><span class="muted">Dernier cours:</span> <strong>{!studentDetail.LastCourseDateText}</strong></div>
+                <div>
+                  <span class="muted">7+ ans:</span>
+                  <strong>
+                    <apex:outputText rendered="{!studentDetail.OlderThan7Years}" value="&#x26D4;" styleClass="ico miss" escape="false"/>
+                    <apex:outputText rendered="{!NOT(studentDetail.OlderThan7Years)}" value="&#x2705;" styleClass="ico ok" escape="false"/>
+                  </strong>
+                </div>
+                <div><span class="muted">Manquants:</span> <strong>{!studentDetail.MissingCount}</strong></div>
+                <div><span class="muted">Email:</span> <strong>{!studentDetail.Email}</strong></div>
+                <!-- ID Contact en modal -->
+                <div><span class="muted">ID Contact:</span> <strong id="contactExternalId">{!studentDetail.ContactExternalId}</strong></div>
+              </div>
+
+              <div class="detail-columns">
+              <div class="col-main">
+                <div class="detail-table-wrap">
+                  <table class="detail-table" id="detailTable">
+                    <thead>
+                      <tr>
+                        <th style="width:80px;text-align:center;">Statut</th>
+                        <th>Nom du cours</th>
+                      </tr>
+                    </thead>
+                    <tbody id="detailTbody">
+                      <apex:repeat value="{!studentDetail.Courses}" var="c">
+                        <tr>
+                          <td style="text-align:center;">
+                            <apex:outputText rendered="{!c.IsOk}" value="&#10003;" styleClass="ico ok"
+                                             title="{!c.Tooltip}" escape="false"/>
+                            <apex:outputText rendered="{!NOT(c.IsOk)}" value="&#10005;" styleClass="ico miss"
+                                             title="{!c.Tooltip}" escape="false"/>
+                          </td>
+                          <td>{!c.CourseName}</td>
+                        </tr>
+                      </apex:repeat>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div> <!-- /detail-columns -->
+            
+            </div> <!-- /#studentDetailCapture -->
+            </apex:outputPanel> <!-- /rendered="{!showDetail}" -->
+            </div> <!-- /.modal-body -->
+
+        <!-- CSV oculto del modal -->
+        <pre id="detailCsv" class="csv-hidden">{!detailCsvContent}</pre>
+
+        <!-- Barra de acciones -->
+        <div class="modal-actions">
+          <a href="javascript:void(0)" class="da-btn-secondary" onclick="exportCsvSmart()">Exporter CSV (Étudiant)</a>
+          <a href="javascript:void(0)" class="da-btn" onclick="exportPdfSmart()">Exporter PDF</a>
+
+          <!-- Solo mostrar a usuarios internes -->
+          <apex:outputLink value="/lightning/r/Contact/{!studentDetail.ContactId}/view"
+                           styleClass="da-btn-secondary"
+                           target="_blank" rel="noopener"
+                           rendered="{!NOT(isPortalView)}">
+            Voir fiche Contact
+          </apex:outputLink>
+
+          <a href="javascript:void(0)" class="da-btn" onclick="closeModal()">Fermer</a>
+        </div>
+      </div>
+    </apex:outputPanel>
+  </div>
+
+  <!-- ==================== CSV & HELPERS ==================== -->
+  <script>
+          // Devuelve "Nombre del bloque (N u.)" sin arrastres como "(3.000 u.) (3.000 u.)"
+        function buildOptTitleFromTH(th){
+          if (!th) return '';
+        
+          // 1) base: primer nodo de texto del TH (sin muteds ni otras partes)
+          var base = '';
+          if (th.childNodes && th.childNodes.length && th.childNodes[0].nodeType === 3){
+            base = (th.childNodes[0].nodeValue || '').trim();
+          } else {
+            base = ((th.textContent || '').split('\n')[0] || '').trim();
+          }
+          // quita cualquier "(...)" ya pegado al final del base
+          base = base.replace(/\s*\(.*?\)\s*$/, '');
+        
+          // 2) créditos desde el <span class="muted">…</span>
+          var muted = th.querySelector('.muted');
+          var creditsText = muted ? (muted.textContent || '') : '';
+          // extrae el primer número (soporta "3.000", "12", "12,0", etc.)
+          var m = creditsText.match(/[\d\.]+/);
+          var creditsNum = m ? m[0].replace(/\./g,'') : '';   // "3.000" -> "3000"
+          if (creditsNum){
+            // si venía "3000" pero conceptualmente son "3 u.", ajusta según tu caso.
+            // Aquí lo tratamos como entero simple (3, 12, etc.)
+            try { creditsNum = String(parseInt(creditsNum,10)); } catch(_e){}
+            return base + ' (' + creditsNum + ' u.)';
+          }
+          return base;
+        }
+        
+        // Limpia prefijos de término/código y banderas como (R), (EQV), etc.
+        function cleanCourseName(s){
+          if(!s) return '';
+          s = String(s).replace(/&nbsp;/gi, ' ');
+        
+          // Quita viñetas/checks/dashes al inicio
+          s = s.replace(/^[\s\u2713\u2714\u2705\u2022•\-]+/, '');
+        
+          // Quita banderas en cualquier parte
+          s = s.replace(/\s*\((?:R|EQV|TR\/?EX?|EXV?)\)\s*/gi, ' ');
+        
+          // Quita prefijos acumulados: A/H/P 20xx, rangos 019-20/2020-21, año suelto 2021, etc.
+          const rePrefix = /^\s*(?:[AHP]\s*20\d{2}|[AHP]\d{4}|\d{4}\s*-\s*\d{2}|\d{3}\s*-\s*\d{2}|\d{2}\s*-\s*\d{2}|\d{4})\s*/i;
+          while (rePrefix.test(s)) s = s.replace(rePrefix, '');
+        
+          return s.replace(/\s{2,}/g, ' ').trim();
+        }
+        
+        // Normaliza y extrae la lista de cursos desde el title del <td data-opt="1">
+        // Funciona tanto si vienen con saltos de línea como si todo está en una sola línea.
+        function parseOptTooltip(ttl){
+          if (!ttl) return [];
+        
+            if (!ttl) return [];
+
+          // Normalizar entidades y saltos (si existieran)
+          ttl = ttl
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/&lt;br\s*\/?&gt;|<br\s*\/?>/gi, '\n')
+            .replace(/&#10;|&NewLine;|\\n/g, '\n')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .trim();
+        
+          // Quitar el total a la derecha “— 12.000 / 12.000”
+          var left = ttl.split(' — ')[0] || ttl;
+        
+          // 1) Primer intento: separar por saltos/viñetas/; | ,
+          var items = left.split(/[\n\u2022•;|,]+/g)
+            .map(function(s){ return (s||'').trim(); })
+            .filter(Boolean);
+        
+          function onlyName(s){
+            var ix = s.indexOf(' · ');
+            var raw = (ix >= 0 ? s.substring(0, ix) : s).trim();
+            return cleanCourseName(raw);
+          }
+          if (items.length > 1){
+            var seen1 = Object.create(null), out1 = [];
+            items.forEach(function(s){
+              var name = onlyName(s);
+              if (name && !seen1[name]){ seen1[name] = 1; out1.push(name); }
+            });
+            if (out1.length) return out1;
+          }
+        
+          // 2) Fallback robusto para una sola línea:
+          // Busca patrones repetidos: "<curso> · <n>u · <algo...>" y extrae <curso>
+          var re = /(.+?)\s*·\s*[\d.,]+u\s*·\s*(?:[^—]+?)(?=(?:\s*.+?\s*·\s*[\d.,]+u\s*·)|\s*$|\s*—)/g;
+          var m, seen = Object.create(null), out = [];
+          while ((m = re.exec(left)) !== null){
+            var name = cleanCourseName((m[1] || '').trim());
+            if (name && !seen[name]){ seen[name] = 1; out.push(name); }
+          }
+          if (out.length) return out;
+        
+          // 3) Último recurso: si no pudo reconocer el patrón, sacar el primer “nombre · …”
+          var ix = left.indexOf(' · ');
+          return (ix > 0) ? [ cleanCourseName(left.substring(0, ix).trim()) ] : [];
+        }
+
+        
+        // NUEVO: deja el title de los bloques optativos solo con nombres (y conserva el " — X / Y")
+        function sanitizeOptTitles(){
+          try{
+            var tds = document.querySelectorAll('.da-table td[data-opt="1"]');
+            tds.forEach(function(td){
+              var raw = td.getAttribute('title') || '';
+              td.dataset.rawtitle = raw;                      
+            
+              var names = parseOptTooltip(raw);
+              var right = '';
+              var ix = raw.indexOf(' — ');
+              if (ix >= 0) right = raw.substring(ix);
+              var clean = (names && names.length ? names.join('\n') : '');
+              td.setAttribute('title', clean + right);
+            });
+            } catch(e){ console.warn('sanitizeOptTitles error', e); }
+            }
+
+
+        
+        // Mapa índiceColumna -> título limpio del bloque (para usarlo como cabecera del popover)
+        function mapOptBlockTitles(){
+          var map = {};
+          var thead = document.querySelector('.da-table thead');
+          if (!thead) return map;
+          var ths = thead.querySelectorAll('th[data-opt="1"]');
+          ths.forEach(function(th){
+            var idx = th.cellIndex;
+            var title = (function(th){
+              if (!th) return '';
+              var base = (th.childNodes && th.childNodes[0] && th.childNodes[0].nodeType === 3)
+                ? (th.childNodes[0].nodeValue || '').trim()
+                : ((th.textContent || '').split('\n')[0] || '').trim();
+              base = base.replace(/\s*\(.*?\)\s*$/, '');
+              var muted = th.querySelector('.muted');
+              var credits = muted ? (muted.textContent || '').trim() : '';
+              return credits ? (base + ' ' + credits) : base;
+            })(th);
+            map[idx] = title;
+          });
+          return map;
+        }
+        
+        // Muestra el popover con la lista de cursos en la posición del click
+            function showOptCoursesPopover(ev, blockTitle, courses){
+              var pop = document.getElementById('optPopover');
+              if (!pop) return;
+            
+              // Cierra el de ayuda si quedó abierto
+              try{
+                var help = document.getElementById('helpPopover');
+                if (help) help.style.display = 'none';
+              }catch(_e){}
+            
+              // Contenido
+              var html = '<div style="font-weight:600;margin-bottom:6px;">' +
+                           (blockTitle || 'Cours au choix') +
+                         '</div>';
+              if (courses && courses.length){
+                html += '<ul style="margin:0;padding-left:16px;">' +
+                  courses.map(function(c){ return '<li>'+c+'</li>'; }).join('') +
+                  '</ul>';
+              } else {
+                html += '<div class="muted">Aucun cours listé.</div>';
+              }
+              pop.innerHTML = html;
+              pop.setAttribute('role','dialog');
+              pop.setAttribute('aria-hidden','false');
+            
+              // Mostrar para poder medir
+              pop.style.display = 'block';
+              pop.style.left = '0px';
+              pop.style.top  = '0px';
+            
+              // Medidas/viewport
+              var vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+              var vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+              var pw = pop.offsetWidth, ph = pop.offsetHeight;
+            
+              // Posición preferida: debajo del cursor
+              var margin = 10;
+              var x = ev.clientX + 8;
+              var y = ev.clientY + margin;
+              var showBelow = true;
+            
+              // Si no cabe abajo, muévelo arriba y marca .above
+              if (y + ph + 8 > vh){
+                y = ev.clientY - ph - margin;
+                showBelow = false;
+              }
+              // Ajustes laterales
+              if (x + pw + 8 > vw) x = Math.max(8, vw - pw - 8);
+              if (x < 8) x = 8;
+            
+              // Aplica clases iguales que el popover de 7+ años
+              pop.classList.remove('below','above');
+              pop.classList.add(showBelow ? 'below' : 'above');
+            
+              // Fija posición
+              pop.style.left = x + 'px';
+              pop.style.top  = y + 'px';
+            
+              // Cerrar al click fuera / Escape / scroll
+              function hide(ev2){
+                if (pop.contains(ev2.target)) return;
+                pop.style.display = 'none';
+                pop.setAttribute('aria-hidden','true');
+                document.removeEventListener('click', hide, true);
+                window.removeEventListener('scroll', hide, true);
+                document.removeEventListener('keydown', onKey, true);
+              }
+              function onKey(e){ if (e.key === 'Escape') hide(e); }
+            
+              setTimeout(function(){
+                document.addEventListener('click', hide, true);
+                window.addEventListener('scroll', hide, true);
+                document.addEventListener('keydown', onKey, true);
+              }, 0);
+            }
+       
+        // Escanea la tabla y conecta el click a cada <td data-opt="1">
+        function initOptBlockClickReveal(){
+          try{
+            var table = document.querySelector('.da-table');
+            if (!table) return;
+        
+            var titleByIdx = mapOptBlockTitles();
+        
+            // Delegación por rendimiento: click en tbody
+            var tbody = table.tBodies && table.tBodies[0];
+            if (!tbody) return;
+        
+            // Evita duplicar listeners
+            if (tbody.dataset.optRevealAttached === '1') return;
+        
+            tbody.addEventListener('click', function(ev){
+              var td = ev.target.closest('td[data-opt="1"]');
+              if (!td) return;
+        
+              // Título del bloque por índice de columna
+              var colIdx = td.cellIndex;
+              var blockTitle = titleByIdx[colIdx] || '';
+        
+              // Lista de cursos desde el title ORIGINAL (antes de sanear)
+              var raw = td.dataset.rawtitle || td.getAttribute('title') || '';
+              var courses = parseOptTooltip(raw);
+              showOptCoursesPopover(ev, blockTitle, courses);
+        
+              showOptCoursesPopover(ev, blockTitle, courses);
+            }, false);
+        
+            tbody.dataset.optRevealAttached = '1';
+          }catch(e){ console.warn('initOptBlockClickReveal error', e); }
+        }
+
+  
+        function exportCsvSmart(){
+          try{
+        // 1) ¿Modal abierto?
+        var modalOpen = (function(){
+          var p = document.getElementById('modalPanel');
+          return p && p.style.display === 'block';
+        })();
+    
+        // Helpers CSV
+        // --- Delimitador dinámico para CSV (Numbers en Mac FR -> ';', resto -> ',') ---
+        var CSV_DELIM = (function getCsvDelimiter(){
+          try{
+            var lang = (navigator.language || '').toLowerCase();
+            var isMac = /mac/i.test(navigator.platform || '');
+            var commaDecimal = (1.1).toLocaleString().indexOf(',') > -1;
+            if (isMac && (lang.startsWith('fr') || commaDecimal)) return ';';
+          }catch(e){}
+          return ',';
+        })();
+    
+        // Pista para hojas de cálculo (solo cuando usamos ';')
+        function csvSepHint(){
+          // No añadir pista en Mac/Numbers ni cuando usamos ';'
+          try{
+            var ua = navigator.userAgent || '';
+            var isMac = /Mac/i.test(navigator.platform || '') || /Macintosh|Mac OS X/.test(ua);
+            if (isMac || CSV_DELIM === ';') return '';
+          }catch(e){}
+          // Mantener pista solo para Excel (coma)
+          return 'sep=,\r\n';
+        }
+    
+        function splitCSVLine(s){
+          var out=[], cur='', q=false;
+          for (var i=0;i<s.length;i++){
+            var ch=s[i];
+            if (ch === '"'){
+              if (q && s[i+1] === '"'){ cur+='"'; i++; }
+              else { q=!q; }
+            } else if (ch === ',' && !q){
+              out.push(cur); cur='';
+            } else { cur+=ch; }
+          }
+          out.push(cur);
+          return out;
+        }
+        function joinCSVLine(arr){
+          return arr.map(function(v){
+            v = v==null ? '' : String(v);
+            return '"' + v.replace(/"/g,'""') + '"';
+          }).join(CSV_DELIM);
+        }
+        function download(name, text){
+          // 1) BOM para Excel + 2) forzar CRLF
+          var BOM = '\uFEFF';
+          var normalized = (text || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .replace(/\n/g, '\r\n');
+    
+          var dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + normalized);
+    
+          var a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = dataUrl;
+          a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function(){ document.body.removeChild(a); }, 0);
+    
+          // Safari/iOS fallback (mismo dataUrl con BOM+CRLF)
+          var ua = navigator.userAgent || '';
+          var isIOS = /iP(ad|hone|od)/.test(ua);
+          var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+          if (isSafari || isIOS){
+            try{
+              var iframe = document.createElement('iframe');
+              iframe.style.display = 'none';
+              iframe.src = dataUrl;
+              document.body.appendChild(iframe);
+              setTimeout(function(){ document.body.removeChild(iframe); }, 1500);
+            }catch(e){}
+          }
+        }
+    
+        // 2) Si modal: exporta CSV de detalle (ID solo en primera fila)
+        if (modalOpen){
+          var elDet = document.getElementById('detailCsv');
+          var det   = elDet ? (elDet.textContent || elDet.innerText || '') : '';
+          if (!det || !det.trim()){ alert('Aucun contenu CSV pour l’étudiant.'); return; }
+    
+          var lines = det.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+          if (lines.length && !lines[lines.length-1].trim()) lines.pop();
+    
+          function idxOfCI(arr, names){
+            var lower = arr.map(function(h){ return (h||'').toLowerCase(); });
+            for (var i=0;i<names.length;i++){
+              var k = lower.indexOf((names[i]||'').toLowerCase());
+              if (k >= 0) return k;
+            }
+            return -1;
+          }
+    
+          var header = splitCSVLine(lines[0]);
+          var idxFirst = idxOfCI(header, ['Prénom','Prenom']);
+          var idxLast  = idxOfCI(header, ['Nom']);
+          var idxEt    = idxOfCI(header, ['Étudiant','Etudiant']);
+    
+          if ((idxFirst < 0 || idxLast < 0) && idxEt >= 0){
+            header.splice(idxEt, 1, 'Prénom', 'Nom');
+            lines[0] = joinCSVLine(header);
+            for (var r=1; r<lines.length; r++){
+              if (!lines[r]) continue;
+              var cols = splitCSVLine(lines[r]);
+              if (cols.length > idxEt){
+                var full  = cols[idxEt] || '';
+                var parts = full.trim().split(/\s+/);
+                var first = '', last = '';
+                if (parts.length === 1){ first = parts[0]; }
+                else if (parts.length > 1){ last = parts.pop(); first = parts.join(' '); }
+                cols.splice(idxEt, 1, first, last);
+                lines[r] = joinCSVLine(cols);
+              }
+            }
+            header  = splitCSVLine(lines[0]);
+          }
+    
+          var idxEmail = idxOfCI(header, ['Email','Courriel']);
+          var idxIdCol = idxOfCI(header, ['ID Contact','ID_Contact__c','ContactExternalId']);
+    
+          var idVal = '';
+          var idEl  = document.getElementById('contactExternalId');
+          if (idEl && idEl.textContent) idVal = idEl.textContent.trim();
+    
+          if (idxEmail >= 0){
+            if (idxIdCol < 0){
+              header.splice(idxEmail + 1, 0, 'ID Contact');
+              lines[0] = joinCSVLine(header);
+              for (var r=1; r<lines.length; r++){
+                if (!lines[r]) continue;
+                var cols = splitCSVLine(lines[r]);
+                cols.splice(idxEmail + 1, 0, (r === 1 ? (idVal || '') : ''));
+                lines[r] = joinCSVLine(cols);
+              }
+            } else {
+              for (var r=1; r<lines.length; r++){
+                if (!lines[r]) continue;
+                var cols = splitCSVLine(lines[r]);
+                if (r === 1){
+                  if (idVal) cols[idxIdCol] = idVal;
+                } else {
+                  if (cols.length > idxIdCol) cols[idxIdCol] = '';
+                }
+                lines[r] = joinCSVLine(cols);
+              }
+            }
+          }
+      
+      // === APÉNDICE: Bloques optativos del alumno (si están visibles en la matriz) ===
+        try{
+          // 1) Tomar el nombre mostrado en el modal
+          var modalNameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+          var modalName = (modalNameEl && modalNameEl.textContent) ? modalNameEl.textContent.trim() : '';
+        
+          // 2) Buscar en la tabla la fila del mismo alumno
+          //    (usa el texto del link en la columna "ÉTUDIANT")
+          var rowsDom = document.querySelectorAll('.da-table tbody tr');
+          var rowDom = null;
+          for (var i=0;i<rowsDom.length;i++){
+            var a = rowsDom[i].querySelector('.student-name a, .da-col-student a');
+            var nm = a ? a.textContent.trim() : '';
+            if (nm === modalName){ rowDom = rowsDom[i]; break; }
+          }
+        
+          // 3) Si no hay fila o no hay columnas optativas visibles (p.ej. filtraste por curso), no añadimos nada
+          var optHeaders = document.querySelectorAll('.da-table thead th[data-opt="1"]');
+          if (rowDom && optHeaders && optHeaders.length){
+            var optCells = rowDom.querySelectorAll('td[data-opt="1"]');
+        
+            // separador visual entre la sección de "Statut, Nom du cours" y optativos
+            lines.push('');
+        
+            // Recorre cada bloque optativo (header -> celda correspondiente)
+            for (var k=0; k<optHeaders.length && k<optCells.length; k++){
+              var th = optHeaders[k];
+              var td = optCells[k];
+        
+              // Título limpio: "Nombre del bloque (N u.)"
+                var blockTitle = buildOptTitleFromTH(th);
+                lines.push(joinCSVLine(['', blockTitle]));
+        
+              // 4) Del tooltip de la celda (td.title) extraemos los cursos usados para ese bloque
+              //    El mapa que ya imprimes trae una lista (una por línea) en la primera parte del title.
+              //    Ej: "Curso 1 · 3u\nCurso 2 · 3u — 6 / 12"
+              var ttl = td.getAttribute('title') || '';
+              // Tomar solo la parte izquierda antes del " — " (cursos por línea)
+              var left = ttl.split(' — ')[0] || '';
+              var linesTip = left.split('\n');
+        
+              linesTip.forEach(function(L){
+                var s = (L || '').trim();
+                if (!s) return;
+                // Quitar adornos a la derecha (tomar solo el nombre antes de " · ")
+               var ix = s.indexOf(' · ');
+                var courseName = (ix >= 0) ? s.substring(0, ix) : s;
+                courseName = cleanCourseName(courseName);
+                lines.push(joinCSVLine(['✔', courseName]));
+              });
+        
+              // separador entre bloques
+              lines.push('');
+            }
+          }
+        }catch(_e){}
+
+      var nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+      var stu  = (nameEl && nameEl.textContent) ? nameEl.textContent.trim() : 'etudiant';
+      var slug = stu.replace(/[^\w\-]+/g,'_');
+      var d = new Date(), y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
+      var fileName = 'Degree_audit_' + slug + '_' + y + m + day + '.csv';
+
+      download(fileName, csvSepHint() + lines.join('\n'));
+      return;
+    }
+
+    // 3) MATRIZ: reordenar columnas
+    var el = document.getElementById('csvData');
+    var raw = (el && el.textContent) ? el.textContent : '';
+    if(!raw){ alert('Aucun contenu CSV.'); return; }
+
+    var rows = [];
+    (function(){
+      var line='', inQ=false;
+      for (var ch of raw){
+        if (ch === '"'){ inQ = !inQ; line += ch; }
+        else if (ch === '\n' && !inQ){ rows.push(line); line=''; }
+        else { line += ch; }
+      }
+      if (line) rows.push(line);
+    })();
+    if (!rows.length){ alert('CSV vide.'); return; }
+
+    var header = splitCSVLine(rows[0]);
+    var headerLower = header.map(function(h){ return (h||'').toLowerCase(); });
+    function findIdxCI(names){
+      for (var i=0;i<names.length;i++){
+        var idx = headerLower.indexOf((names[i]||'').toLowerCase());
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+
+    var idxFirstH = findIdxCI(['Prénom']);
+    var idxLastH  = findIdxCI(['Nom']);
+    var idxEtH    = findIdxCI(['Étudiant']);
+    var idxEmail  = findIdxCI(['Email']);
+    var idxIdCt   = findIdxCI(['ID Contact','ID_Contact__c','ContactExternalId']);
+    var idxManq   = findIdxCI(['Manquants','MANQUANTS']);
+    var idxPct    = findIdxCI(['% Avancement','AVANCEMENT','% AVANCEMENT']);
+    var idxDern   = findIdxCI(['Dernier cours','DERNIER COURS']);
+    var idx7ans   = findIdxCI(['7+ ans','7+ ANS']);
+
+    var fixedSet = {};
+    [
+      'Étudiant','Prénom','Nom','Email','ID Contact','ID_Contact__c','ContactExternalId',
+      'Manquants','% Avancement','AVANCEMENT','Dernier cours','7+ ans'
+    ].forEach(function(n){ fixedSet[n.toLowerCase()] = true; });
+
+    function getFirstLast(cols){
+      var first = '', last = '';
+      if (idxFirstH >= 0 || idxLastH >= 0){
+        first = (idxFirstH>=0 && cols.length>idxFirstH) ? cols[idxFirstH] : '';
+        last  = (idxLastH >=0 && cols.length>idxLastH ) ? cols[idxLastH ] : '';
+      } else if (idxEtH >= 0 && cols.length > idxEtH){
+        var full = cols[idxEtH] || '';
+        var parts = full.trim().split(/\s+/);
+        if (parts.length === 1){ first = parts[0]; }
+        else if (parts.length > 1){ last = parts.pop(); first = parts.join(' '); }
+      }
+      return [first, last];
+    }
+
+    var reqSelect = document.querySelector('select[id$="reqFilter"]');
+    var selectedReqId = reqSelect ? (reqSelect.value || '') : '';
+    var reqLabel = '';
+    if (reqSelect) {
+      var opt = reqSelect.options[reqSelect.selectedIndex];
+      reqLabel = opt ? opt.text : '';
+    }
+
+    if (selectedReqId){
+      var idxReqCol = -1;
+      for (var i=0;i<header.length;i++){
+        if ((header[i]||'').trim().toLowerCase() === (reqLabel||'').trim().toLowerCase()){
+          idxReqCol = i; break;
+        }
+      }
+      var newHeader = ['Prénom','Nom','Email','ID Contact','Manquants','% Avancement','Dernier cours','7+ ans', reqLabel];
+      var out = [ joinCSVLine(newHeader) ];
+      for (var r=1; r<rows.length; r++){
+        var cols = splitCSVLine(rows[r]); if (!cols.length) continue;
+        var fl    = getFirstLast(cols);
+        var email = (idxEmail>=0 && cols.length>idxEmail) ? cols[idxEmail] : '';
+        var idc   = (idxIdCt>=0 && cols.length>idxIdCt)   ? cols[idxIdCt]   : '';
+        var manq  = (idxManq>=0 && cols.length>idxManq)   ? cols[idxManq]   : '';
+        var pct   = (idxPct >=0 && cols.length>idxPct )   ? cols[idxPct ]   : '';
+        var derr  = (idxDern>=0 && cols.length>idxDern)   ? cols[idxDern]   : '';
+        var y7    = (idx7ans>=0 && cols.length>idx7ans)   ? cols[idx7ans]   : '';
+        var reqv  = (idxReqCol>=0 && cols.length>idxReqCol)? cols[idxReqCol] : '';
+        out.push(joinCSVLine([fl[0], fl[1], email, idc, manq, pct, derr, y7, reqv]));
+      }
+      download('Degree_audit_matrice_filtre.csv', csvSepHint() + out.join('\n'));
+      return;
+    }
+
+    var reqLabels = [], reqIndices = [];
+    for (var i=0;i<header.length;i++){
+      var name = header[i] || '';
+      if (!fixedSet[name.toLowerCase()]){
+        reqLabels.push(name);
+        reqIndices.push(i);
+      }
+    }
+    var newHeader = ['Prénom','Nom','Email','ID Contact','Manquants','% Avancement','Dernier cours','7+ ans'].concat(reqLabels);
+    var out = [ joinCSVLine(newHeader) ];
+    for (var r=1; r<rows.length; r++){
+      var cols = splitCSVLine(rows[r]); if (!cols.length) continue;
+      var fl    = getFirstLast(cols);
+      var email = (idxEmail>=0 && cols.length>idxEmail) ? cols[idxEmail] : '';
+      var idc   = (idxIdCt>=0 && cols.length>idxIdCt)   ? cols[idxIdCt]   : '';
+      var manq  = (idxManq>=0 && cols.length>idxManq)   ? cols[idxManq]   : '';
+      var pct   = (idxPct >=0 && cols.length>idxPct )   ? cols[idxPct ]   : '';
+      var derr  = (idxDern>=0 && cols.length>idxDern)   ? cols[idxDern]   : '';
+      var y7    = (idx7ans>=0 && cols.length>idx7ans)   ? cols[idx7ans]   : '';
+      var reqVals = reqIndices.map(function(i){ return (cols.length>i) ? cols[i] : ''; });
+      out.push(joinCSVLine([fl[0], fl[1], email, idc, manq, pct, derr, y7].concat(reqVals)));
+    }
+    download('Degree_audit_matrice.csv', csvSepHint() + out.join('\n'));
+
+  }catch(err){
+    console.error(err);
+    alert('Erreur lors de la génération du CSV. Voir la console (F12).');
+  }
+}
+
+// Popover "7+ ans" sólido, sin leaks
+function showHelp7ans(evt){
+  try{
+    var pop = document.getElementById('helpPopover');
+    if (!pop) return;
+
+    pop.innerHTML =
+      'Indique si la date du dernier cours de l’étudiant remonte à '+
+      '<strong>7 ans ou plus</strong> (≥ <strong>2557 jours</strong>) '+
+      'par rapport à aujourd’hui.';
+
+    pop.style.display = 'block';
+
+    var t = evt.currentTarget || evt.target;
+    var r = t.getBoundingClientRect();
+    var vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+    var vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    var margin = 10;
+
+    pop.style.left = '0px';
+    pop.style.top  = '0px';
+    var pw = pop.offsetWidth, ph = pop.offsetHeight;
+
+    var x = r.left;
+    var y = r.bottom + margin;
+    var showBelow = true;
+
+    if (x + pw + 8 > vw) x = Math.max(8, vw - pw - 8);
+    if (y + ph + 8 > vh){
+      y = r.top - ph - margin;
+      showBelow = false;
+    }
+    pop.classList.toggle('below', showBelow);
+    pop.classList.toggle('above', !showBelow);
+
+    pop.style.left = x + 'px';
+    pop.style.top  = y + 'px';
+
+    function hide(ev){
+      if (pop.contains(ev.target)) return;
+      pop.style.display = 'none';
+      document.removeEventListener('click', hide, true);
+      window.removeEventListener('scroll', hide, true);
+      document.removeEventListener('keydown', onKey, true);
+    }
+    function onKey(ev){ if (ev.key === 'Escape') hide(ev); }
+
+    setTimeout(function(){
+      document.addEventListener('click', hide, true);
+      window.addEventListener('scroll', hide, true);
+      document.addEventListener('keydown', onKey, true);
+    }, 0);
+  }catch(e){}
+}
+
+// NUEVO: Popover para los filtros (Statut/PE)
+function showHelpFilters(evt){
+  try{
+    var pop = document.getElementById('helpPopover');
+    if (!pop) return;
+    pop.innerHTML =
+      '<strong>Statut du plan</strong> : limite la liste de programmes (ex. <em>Current</em>, <em>Archived</em>).<br/>'+
+      '<strong>Inscriptions (PE)</strong> : filtre les étudiants inclus dans la matrice. '+
+      'Choisissez <em>Tous</em> pour tout voir. Par défaut, seules les inscriptions en statut <em>Current</em> sont incluses.';
+    pop.style.display = 'block';
+
+    var t = evt.currentTarget || evt.target;
+    var r = t.getBoundingClientRect();
+    var vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+    var vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    var margin = 10;
+
+    pop.style.left = '0px'; pop.style.top = '0px';
+    var pw = pop.offsetWidth, ph = pop.offsetHeight;
+
+    var x = r.left, y = r.bottom + margin, showBelow = true;
+    if (x + pw + 8 > vw) x = Math.max(8, vw - pw - 8);
+    if (y + ph + 8 > vh){ y = r.top - ph - margin; showBelow = false; }
+    pop.classList.toggle('below', showBelow);
+    pop.classList.toggle('above', !showBelow);
+    pop.style.left = x + 'px';
+    pop.style.top  = y + 'px';
+
+    function hide(ev){
+      if (pop.contains(ev.target)) return;
+      pop.style.display = 'none';
+      document.removeEventListener('click', hide, true);
+      window.removeEventListener('scroll', hide, true);
+      document.removeEventListener('keydown', onKey, true);
+    }
+    function onKey(ev){ if (ev.key === 'Escape') hide(ev); }
+    setTimeout(function(){
+      document.addEventListener('click', hide, true);
+      window.addEventListener('scroll', hide, true);
+      document.addEventListener('keydown', onKey, true);
+    }, 0);
+  }catch(e){}
+}
+
+
+</script>
+
+  <!-- ==================== Sticky & Sorting ==================== -->
+  <script>
+    function applyStickyOffsets(){
+            try {
+                var wrap  = document.getElementById('daTableWrap');
+                var table = document.querySelector('.da-table');
+                if(!wrap || !table) return;
+
+                let parent = wrap.parentElement;
+                if (parent) parent.style.overflow = 'visible';
+                let grandparent = parent ? parent.parentElement : null;
+                if (grandparent) grandparent.style.overflow = 'visible';
+                
+                var thIdx = table.querySelector('thead th.da-col-idx');
+                var thStu = table.querySelector('thead th.da-col-student');
+                if(!(thIdx && thStu)) return;
+
+                var leftStudent = Math.round(thIdx.getBoundingClientRect().width);
+                var leftEmail   = Math.round(leftStudent + thStu.getBoundingClientRect().width);
+
+                wrap.style.setProperty('--left-student', leftStudent + 'px');
+                wrap.style.setProperty('--left-email',   leftEmail   + 'px');
+            } catch(e) { console.warn('applyStickyOffsets error', e); }
+        }
+        
+        // ======================= FUNCIÓN FINAL Y CORRECTA =======================
+        function initStickyStabilizer() {
+            const wrap = document.querySelector('.da-table-wrap');
+            if (!wrap) return;
+            
+            if (wrap.dataset.stabilizerAttached) return;
+
+            let ticking = false;
+            wrap.addEventListener('scroll', function(e) {
+                if (!ticking) {
+                    window.requestAnimationFrame(function() {
+                        const stickyElements = wrap.querySelectorAll('thead th, tbody .da-col-idx, tbody .da-col-student, tbody .da-col-email');
+                        stickyElements.forEach(el => {
+                            el.style.transform = 'translateZ(0)';
+                        });
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+            wrap.dataset.stabilizerAttached = 'true';
+        }
+
+            function initTableSorters(){
+              var table = document.querySelector('.da-table');
+              if(!table || !table.tHead || !table.tBodies.length) return;
+        
+              var ths = table.tHead.rows[0].cells;
+              for (var i=0;i<ths.length;i++){
+                var th = ths[i];
+                if (!th.classList.contains('sortable')) continue;
+        
+                th.onclick = null;
+                th.onkeydown = null;
+        
+                th.setAttribute('title','Cliquez pour trier');
+                th.setAttribute('tabindex','0');
+                th.setAttribute('role','button');
+        
+                th.onkeydown = function(e){
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+                };
+        
+                th.onclick = (function(th){
+                  return function(){
+                    var table = th.closest('table');
+                    var idx   = th.cellIndex;
+                    var type  = th.getAttribute('data-type') || 'text';
+                    var dir   = th.classList.contains('sort-asc') ? 'desc' : 'asc';
+        
+                    Array.prototype.forEach.call(th.parentNode.children, function(h){
+                      h.classList.remove('sort-asc','sort-desc');
+                    });
+                    th.classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        
+                    sortTableBy(table, idx, type, dir);
+                  };
+                })(th);
+              }
+            }
+        
+            function sortTableBy(table, colIndex, type, dir){
+              var tbody = table.tBodies[0];
+              var rows = Array.prototype.slice.call(tbody.rows);
+              var mult = (dir === 'desc') ? -1 : 1;
+        
+              rows.sort(function(a,b){
+                var va = getCellVal(a.cells[colIndex], type);
+                var vb = getCellVal(b.cells[colIndex], type);
+        
+                if (va == null && vb == null) return 0;
+                if (va == null) return -1 * mult;
+                if (vb == null) return  1 * mult;
+        
+                if (typeof va === 'number' && typeof vb === 'number'){
+                  return (va - vb) * mult;
+                }
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                return (va < vb ? -1 : va > vb ? 1 : 0) * mult;
+              });
+        
+              rows.forEach(function(r){ tbody.appendChild(r); });
+              renumberRows(tbody);
+            }
+        
+            function getCellVal(td, type){
+              if (!td) return null;
+              var txt = (td.textContent || '').trim();
+        
+              switch(type){
+                case 'num':
+                  var m = txt.match(/-?\d+(?:\.\d+)?/);
+                  return m ? parseFloat(m[0]) : null;
+                case 'date':
+                  if (!txt) return null;
+                  var t = Date.parse(txt);
+                  return isNaN(t) ? null : t;
+                case 'bool':
+                  if (td.querySelector('.ico.ok'))   return 1;
+                  if (td.querySelector('.ico.miss')) return 0;
+                  if (/[✓✔]/.test(txt)) return 1;
+                  if (/[✗✖]/.test(txt)) return 0;
+                  return 0;
+                case 'bool7':
+                  if (td.querySelector('.ico.miss')) return 1;
+                  if (td.querySelector('.ico.ok'))   return 0;
+                  if (/[⛔]/.test(txt)) return 1;
+                  if (/[✅]/.test(txt)) return 0;
+                  return 0;
+                default:
+                  return txt;
+              }
+            }
+        
+            function renumberRows(tbody){
+              var n = 1;
+              Array.prototype.forEach.call(tbody.rows, function(tr){
+                var idxCell = tr.querySelector('td.da-col-idx');
+                if (idxCell) idxCell.textContent = n++;
+              });
+            }
+        
+            function wireUpUI(){
+              try{ applyStickyOffsets(); }catch(e){}
+              try{ initTableSorters(); }catch(e){}
+              try{ sanitizeOptTitles(); }catch(e){}          
+              try{ initOptBlockClickReveal(); }catch(e){}     
+            }
+
+        // Mostrar “Tous” en ambos combos al cargar (solo UI)
+        function forceToolbarDefaults(){
+          try{
+            var selPlan = document.querySelector('select[id$="planStatus"]');
+            if (selPlan) selPlan.value = 'Current';
+
+            var selPe = document.querySelector('select[id$="peStatus"]');
+            if (selPe) selPe.value = 'Current';
+        
+            var req = document.querySelector('select[id$="reqFilter"]');
+            if (req) req.value = '';  // deja el placeholder seleccionado
+          }catch(e){}
+        }
+
+        window.addEventListener('load', function(){
+          forceToolbarDefaults();
+          setTimeout(wireUpUI,0);
+        });
+        
+        // Recalcular offsets cuando cambie el ancho de la página/viewport
+        let _rzTO;
+        window.addEventListener('resize', function(){
+          clearTimeout(_rzTO);
+          _rzTO = setTimeout(applyStickyOffsets, 60);
+        });
+        
+        // Observar cambios de tamaño del contenedor
+        const wrap = document.getElementById('daTableWrap');
+        if (wrap && 'ResizeObserver' in window){
+          const ro = new ResizeObserver(() => applyStickyOffsets());
+          ro.observe(wrap);
+        }
+
+  </script>
+
+  <!-- Logo para PDF (fuente estable) -->
+  <img id="pdfLogo" src="{!URLFOR($Resource.logo)}" alt="logo" style="display:none;" />
+
+  <!-- Busy Overlay (pantalla completa) -->
+  <apex:outputPanel id="busyHost" layout="block">
+    <apex:actionStatus id="stGlobal" onstop="wireUpUI()">
+      <apex:facet name="start">
+        <div class="busy-overlay" style="position:fixed;inset:0;z-index:4000;background:rgba(255,255,255,.68);display:flex;align-items:center;justify-content:center;">
+          <div class="da-status"><span class="spin"></span> Chargement…</div>
+        </div>
+      </apex:facet>
+      <apex:facet name="stop"></apex:facet>
+    </apex:actionStatus>
+  </apex:outputPanel>
+
+<script>
+  // === Modal helpers (déjalos igual) ===
+  function openModal(){
+      var ov = document.getElementById('modalOverlay');
+      var pn = document.getElementById('modalPanel');
+      if (ov) ov.style.display = 'block';
+      if (pn) pn.style.display = 'block';
+      document.body.classList.add('modal-open');
+    
+      // NUEVO: pintar bloques optativos dentro del modal
+      try { buildStudentOptionalBlocks(); } catch(e){}
+    }
+  function closeModal(){
+        try { if (typeof closeDetail === 'function') closeDetail(); } catch(e){}
+        var ov = document.getElementById('modalOverlay');
+        var pn = document.getElementById('modalPanel');
+        if (ov) ov.style.display = 'none';
+        if (pn) pn.style.display = 'none';
+        document.body.classList.remove('modal-open');
+      }
+  
+  function buildStudentOptionalBlocks(){
+          try{
+            // tbody de la tabla del modal
+            var tbody = document.getElementById('detailTbody') || document.querySelector('#detailTable tbody');
+            if (!tbody) return;
+        
+            // Limpia inyecciones previas
+            Array.from(tbody.querySelectorAll('.js-opt-row')).forEach(function(tr){ tr.parentNode.removeChild(tr); });
+        
+            // Si no hay columnas optativas visibles en la matriz, salimos
+            var optHeaders = document.querySelectorAll('.da-table thead th[data-opt="1"]');
+            if (!optHeaders.length) return;
+        
+            // Nombre del alumno
+            var nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+            var modalName = nameEl ? nameEl.textContent.trim() : '';
+            if (!modalName) return;
+        
+            // Busca la fila del alumno en la matriz
+            var rows = document.querySelectorAll('.da-table tbody tr');
+            var rowDom = null;
+            for (var i=0; i<rows.length; i++){
+              var a = rows[i].querySelector('.student-name a, .da-col-student a');
+              if (a && a.textContent.trim() === modalName){ rowDom = rows[i]; break; }
+            }
+            if (!rowDom) return;
+        
+            var optCells = rowDom.querySelectorAll('td[data-opt="1"]');
+        
+            // Recorre cada bloque optativo y lo inserta al final del tbody
+            for (var k=0; k<Math.min(optHeaders.length, optCells.length); k++){
+              var th = optHeaders[k];
+              var td = optCells[k];
+        
+              // --- Título limpio del bloque como en el encabezado ---
+              var title = (function(th){
+                if (!th) return '';
+                var base = (th.childNodes && th.childNodes[0] && th.childNodes[0].nodeType === 3)
+                  ? (th.childNodes[0].nodeValue || '').trim()
+                  : ((th.textContent || '').split('\n')[0] || '').trim();
+                base = base.replace(/\s*\(.*?\)\s*$/, '');
+                var muted = th.querySelector('.muted');
+                var credits = muted ? (muted.textContent || '').trim() : '';
+                return credits ? (base + ' ' + credits) : base;
+              })(th);
+        
+              var sub = document.createElement('tr');
+              sub.className = 'opt-sub js-opt-row';
+              var thSub = document.createElement('th');
+              thSub.colSpan = 2;
+              thSub.textContent = title;
+              sub.appendChild(thSub);
+              tbody.appendChild(sub);
+        
+              // ===== Cursos que aportan créditos (desde el tooltip del td) =====
+                var ttl = td.getAttribute('title') || '';
+                var courses = parseOptTooltip(ttl);  // ⬅️ reutiliza el mismo parser del popover
+                
+                courses.forEach(function(course){
+                  var tr = document.createElement('tr');
+                  tr.className = 'js-opt-row';
+                
+                  var td1 = document.createElement('td');
+                  td1.style.textAlign = 'center';
+                  td1.className = 'ico ok';
+                  td1.innerHTML = '&#10003;';
+                
+                  var td2 = document.createElement('td');
+                  td2.textContent = course;
+                
+                  tr.appendChild(td1);
+                  tr.appendChild(td2);
+                  tbody.appendChild(tr);
+                });
+            }
+          }catch(e){
+            console.warn('buildStudentOptionalBlocks error', e);
+          }
+        }
+ 
+  /* === NUEVO: convertir <img id="pdfLogo"> a DataURL para dibujarlo en el PDF === */
+  async function getLogoDataUrl(){
+    try{
+      const img = document.getElementById('pdfLogo');
+      if (!img) return null;
+
+      // Esperar carga si hiciera falta
+      if (!img.complete || img.naturalWidth === 0){
+        await new Promise(res => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        });
+      }
+
+      const c = document.createElement('canvas');
+      c.width  = img.naturalWidth || 300;
+      c.height = img.naturalHeight || 80;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    }catch(e){
+      console.warn('getLogoDataUrl error', e);
+      return null;
+    }
+  }
+
+      // === PDF inteligente (detalle vs matriz) — ahora añade el logo en cada página ===
+        async function exportPdfSmart(){
+          try{
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+        
+            // --- prepara el logo (dataURL)
+            const logoDataUrl = await getLogoDataUrl();
+        
+            // ¿modal (detalle) o matriz principal?
+            const modalOpen = !!(document.getElementById('studentDetailCapture'));
+            const target = modalOpen
+              ? document.getElementById('studentDetailCapture')
+              : document.getElementById('daTableWrap');
+        
+            if (!target){ alert('Aucun contenu à exporter.'); return; }
+        
+            // Márgenes/medidas
+            const marginX = 40, topFirst = 80, topNext = 40, bottom = 40;
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const usableWpt = pageW - marginX * 2;
+        
+            // Render a canvas
+            const SCALE = 2.6;
+            const canvas = await html2canvas(target, {
+              scale: SCALE, backgroundColor:'#ffffff', useCORS:true, letterRendering:true
+            });
+        
+            // Conversión px → pt y alturas disponibles
+            const ptPerPx = usableWpt / canvas.width;
+            const availFirstPt = pageH - topFirst - bottom;
+            const availNextPt  = pageH - topNext  - bottom;
+            const availFirstPx = Math.floor(availFirstPt / ptPerPx);
+            const availNextPx  = Math.floor(availNextPt  / ptPerPx);
+        
+            // Canvas temporal para “rebanadas”
+            const tmp = document.createElement('canvas');
+            const ctx = tmp.getContext('2d', { willReadFrequently: true });
+            ctx.imageSmoothingEnabled = false;
+            ctx.imageSmoothingQuality = 'high';
+        
+            // ——— Logo SOLO en la página 1 ———
+            function drawLogoOnceOnFirstPage(){
+              if (!logoDataUrl) return;
+              const logoW = 120, logoH = 32;  // ajusta si quieres
+              const logoX = marginX, logoY = 16;
+              pdf.addImage(logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+            }
+            drawLogoOnceOnFirstPage(); // ← una sola vez, antes del bucle
+        
+            // ——— Paginado ———
+            let sy = 0;
+            let first = true;
+        
+            while (sy < canvas.height) {
+              const slicePx = first ? availFirstPx : availNextPx;
+              const hPx = Math.min(slicePx, canvas.height - sy);
+        
+              tmp.width  = canvas.width;
+              tmp.height = hPx;
+              ctx.clearRect(0,0,tmp.width,tmp.height);
+              ctx.drawImage(canvas, 0, sy, canvas.width, hPx, 0, 0, tmp.width, hPx);
+        
+              const dataUrl = tmp.toDataURL('image/jpeg', 0.70);
+              const targetHpt = hPx * ptPerPx;
+        
+              pdf.addImage(
+                dataUrl, 'JPEG',
+                marginX, first ? topFirst : topNext,
+                usableWpt, targetHpt, undefined, 'FAST'
+              );
+        
+              sy += hPx;
+              first = false;
+        
+              if (sy < canvas.height) {
+                pdf.addPage();  // páginas siguientes SIN logo
+                // (no vuelvas a llamar al logo aquí)
+              }
+            }
+        
+            // Nombre del archivo
+            let nameBase = 'Degree_audit';
+            if (modalOpen){
+              const nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+              if (nameEl && nameEl.textContent) nameBase += '_' + nameEl.textContent.trim().replace(/\s+/g,'_');
+            } else {
+              const reqSelect = document.querySelector('select[id$="reqFilter"]');
+              if (reqSelect && reqSelect.value){
+                const txt = reqSelect.options[reqSelect.selectedIndex]?.text || 'filtre';
+                nameBase += '_' + txt.replace(/\s+/g,'_');
+              } else {
+                nameBase += '_matrice';
+              }
+            }
+            const d = new Date(), y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
+            pdf.save(`${nameBase}_${y}${m}${day}.pdf`);
+        
+          }catch(e){
+            console.error(e);
+            alert('Impossible de générer le PDF. Voir la console (F12).');
+          }
+        }
+
+</script>
+
+  <script>
+    /* Inicializa ripple para <input class="da-btn|da-btn-secondary"> */
+    function initBtnRipple(){
+      try{
+        var sel = 'input.da-btn, input.da-btn-secondary';
+        document.querySelectorAll(sel).forEach(function(btn){
+          if (btn.closest('.btn-visual')) return;
+          var wrap = document.createElement('span');
+          wrap.className = 'btn-visual';
+          btn.parentNode.insertBefore(wrap, btn);
+          wrap.appendChild(btn);
+          wrap.addEventListener('mouseenter', function(){ wrap.classList.add('hover'); });
+          wrap.addEventListener('mouseleave', function(){ wrap.classList.remove('hover'); wrap.classList.remove('pressed'); });
+          wrap.addEventListener('mousedown', function(){ wrap.classList.add('pressed'); });
+          wrap.addEventListener('mouseup', function(){ wrap.classList.remove('pressed'); });
+          wrap.addEventListener('keydown', function(e){ if(e.key===' '||e.key==='Enter'){ wrap.classList.add('pressed'); }});
+          wrap.addEventListener('keyup', function(){ wrap.classList.remove('pressed'); });
+        });
+      }catch(e){ console.warn('initBtnRipple error', e); }
+    }
+    window.addEventListener('load', initBtnRipple);
+    </script>
+
+<script>
+  function openContactRecord(id){
+    try{
+      var origin = window.location.origin || '';
+      var path   = window.location.pathname || '';
+      // Si es Experience Cloud, conserva el prefijo del sitio (antes de '/s/')
+      var sitePrefix = (path.indexOf('/s/') > -1) ? path.split('/s/')[0] : '';
+      var url = origin + sitePrefix + '/lightning/r/Contact/' + id + '/view';
+      window.open(url, '_blank', 'noopener');
+    }catch(e){
+      // Fallback absoluto
+      window.open('/' + id, '_blank', 'noopener');
+    }
+  }
+</script>
+
+
+  <!-- Popover contenedor -->
+  <div id="helpPopover" class="help-popover" aria-hidden="true"></div>
+  <div id="optPopover" class="help-popover" aria-hidden="true"></div>
+  
+</apex:page>

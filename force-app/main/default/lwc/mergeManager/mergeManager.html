@@ -1,0 +1,163 @@
+<template>
+    <div class="merge-manager">
+        <div class="slds-grid slds-grid_vertical-stretch merge-manager__layout">
+
+            <!-- ── LEFT PANEL: ticket list ─────────────────────────────────── -->
+            <div class="merge-manager__left slds-col slds-size_1-of-3 slds-border_right">
+                <div class="slds-panel__header">
+                    <div class="slds-media slds-media_center">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="standard:merge" size="x-small"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <h2 class="slds-text-heading_small">Fusion des doublons</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan + Reset buttons -->
+                <div class="slds-p-horizontal_small slds-p-vertical_x-small slds-border_bottom
+                    slds-grid slds-gutters_x-small slds-grid_vertical-align-center">
+                    <div class="slds-col">
+                        <lightning-button
+                            label="Nouveau scan"
+                            icon-name="utility:search"
+                            variant="brand"
+                            class="slds-button_stretch"
+                            onclick={openScanModal}>
+                        </lightning-button>
+                    </div>
+                    <template if:true={showResetButton}>
+                        <div class="slds-col slds-shrink">
+                            <lightning-button-icon
+                                icon-name="utility:delete"
+                                variant="border"
+                                size="medium"
+                                alternative-text="Supprimer tous les tickets"
+                                title="Réinitialiser — supprime tickets, candidats et journaux"
+                                onclick={openResetModal}>
+                            </lightning-button-icon>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Ticket list -->
+                <c-merge-ticket-list
+                    selected-ticket-id={activeTabId}
+                    onticketselect={handleTicketSelect}>
+                </c-merge-ticket-list>
+            </div>
+
+            <!-- ── RIGHT PANEL: tabs + wizards ────────────────────────────── -->
+            <div class="merge-manager__right slds-col slds-size_2-of-3">
+
+                <!-- Tab bar (only when at least one tab is open) -->
+                <template if:false={hasNoTabs}>
+                    <div class="mm-tabs">
+                        <template for:each={enrichedTabs} for:item="tab">
+                            <div key={tab.ticketId}
+                                 class={tab.tabClass}
+                                 data-id={tab.ticketId}
+                                 onclick={handleTabActivate}
+                                 title={tab.label}>
+                                <lightning-icon
+                                    icon-name={tab.icon}
+                                    size="xx-small"
+                                    class="mm-tab__icon">
+                                </lightning-icon>
+                                <span class="mm-tab__label">{tab.label}</span>
+                                <button class="mm-tab__close"
+                                        data-id={tab.ticketId}
+                                        onclick={handleTabClose}
+                                        title="Fermer">&#x2715;</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- One wizard per open tab; active = visible, others = slds-hide -->
+                <template for:each={enrichedTabs} for:item="tab">
+                    <div key={tab.ticketId} class={tab.panelClass}>
+                        <c-merge-wizard
+                            ticket-id={tab.ticketId}
+                            onmergecomplete={handleMergeComplete}
+                            ondismissed={handleDismissed}>
+                        </c-merge-wizard>
+                    </div>
+                </template>
+
+                <!-- Empty state when no tabs are open -->
+                <template if:true={hasNoTabs}>
+                    <div class="merge-manager__empty">
+                        <div class="slds-text-align_center">
+                            <lightning-icon icon-name="utility:merge" size="large"
+                                class="slds-m-bottom_medium"
+                                style="--slds-c-icon-color-foreground:#dddbda">
+                            </lightning-icon>
+                            <h3 class="slds-text-heading_medium slds-m-bottom_x-small">
+                                Sélectionnez un cas de duplication
+                            </h3>
+                            <p class="slds-text-body_regular slds-text-color_weak">
+                                Choisissez un ticket dans la liste pour comparer<br>
+                                les enregistrements et prendre une décision.
+                            </p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan modal -->
+    <template if:true={showScanModal}>
+        <c-merge-scan-modal
+            default-object-type={_scanModalObjectType}
+            onclosescan={closeScanModal}
+            onscancomplete={handleScanComplete}>
+        </c-merge-scan-modal>
+    </template>
+
+    <!-- Reset confirmation modal -->
+    <template if:true={showResetModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_error">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        variant="bare-inverse"
+                        class="slds-modal__close"
+                        alternative-text="Fermer"
+                        onclick={closeResetModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        Réinitialiser tous les tickets
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_small">
+                        Cette action supprimera <strong>tous les tickets, candidats et journaux de fusion</strong>
+                        de l&apos;organisation.
+                    </p>
+                    <p class="slds-text-color_error slds-text-body_small">
+                        &#x26A0;&#xFE0F; Action irréversible — à utiliser uniquement en sandbox pour les tests.
+                    </p>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Annuler" onclick={closeResetModal}></lightning-button>
+                    <lightning-button
+                        label="Supprimer tout"
+                        variant="destructive"
+                        icon-name="utility:delete"
+                        onclick={confirmReset}
+                        disabled={isResetting}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

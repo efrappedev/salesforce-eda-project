@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prevent_Reopen_After_Merge</fullName>
+    <active>true</active>
+    <description>A Merged ticket cannot be re-opened or changed to any other status. The merge DML is irreversible — the ticket state must reflect that.</description>
+    <errorConditionFormula>AND(
+            NOT(ISNEW()),
+            ISPICKVAL(PRIORVALUE(Status__c), &apos;Merged&apos;),
+            NOT(ISPICKVAL(Status__c, &apos;Merged&apos;))
+        )</errorConditionFormula>
+    <errorDisplayField>Status__c</errorDisplayField>
+    <errorMessage>A Merged ticket cannot be re-opened. The merge operation is permanent.</errorMessage>
+</ValidationRule>

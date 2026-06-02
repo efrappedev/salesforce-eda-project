@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <defaultLandingTab>Merge_Manager</defaultLandingTab>
+    <description>Detección y fusión segura de duplicados de Contactos y Cuentas (EDA).</description>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isServiceCloudConsole>false</isServiceCloudConsole>
+    <label>Merge Manager</label>
+    <navType>Standard</navType>
+    <tabs>Merge_Manager</tabs>
+    <uiType>Lightning</uiType>
+    <setupExperience>all</setupExperience>
+</CustomApplication>
