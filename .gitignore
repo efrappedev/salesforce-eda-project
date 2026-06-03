@@ -44,13 +44,13 @@ $RECYCLE.BIN/
 **/.venv/
 **/venv/
 
-# Manuals and sensitive documents — keep local only
-force-app/main/default/Merge app Salesforce/*.pdf
-force-app/main/default/Merge app Salesforce/*.md
+# Manuals, SOWs, and sensitive documents — keep LOCAL only, NEVER push to GitHub
+*.pdf
+*.docx
+*.doc
 force-app/main/default/Merge app Salesforce/generate_pdfs.py
 force-app/main/default/Merge app Salesforce/DIAGNOSTIC_ACCOUNT_SCAN.apex
 force-app/main/default/Screenshots Merge/
 force-app/main/default/Merge app Salesforce v2/
 
 .claude/
-force-app/main/default/Merge app Salesforce/DIAGNOSTIC_ACCOUNT_SCAN.apex

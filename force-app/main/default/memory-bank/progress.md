@@ -1,15 +1,15 @@
 # Progress — Safe Merge Management System
 
-## ✅ Estado producción (2026-06-02)
+## ✅ Estado producción V3 (2026-06-03) — CURRENT
 
-### Deploy producción COMPLETO
+### Deploy producción COMPLETO — V3
 | Clase | Cobertura |
 |---|---|
 | DataNormalizationUtil | 100% |
 | EDARelatedRecordsService | 100% |
 | MergeAuditService | 100% |
-| MergeController | 100% |
-| MergeExecutionService | 100% (producción) / 96% (sandbox — fix en progreso) |
+| MergeController | 100% (incl. getTicketPreview — nuevo en V3) |
+| MergeExecutionService | 100% |
 | MergeScanBatch | 100% |
 | MergeScanService | 100% |
 | MergeTicketService | 100% |
@@ -36,7 +36,7 @@
 
 **Fix EDA config sandbox:** `hed__Affiliation_Record_Type_Enforced__c = false`
 
-**Estado:** ✅ Resuelto en sandbox — dry-run producción: 70/70 tests, Succeeded
+**Estado:** ✅ Desplegado en producción (2026-06-03) — 72/72 tests, 100% cobertura MergeExecutionService + MergeController
 
 ---
 
@@ -70,10 +70,20 @@
 
 ---
 
+## ✅ Feature: Ojito — Ver ficha completa en Step 1 del wizard (2026-06-03)
+
+- `mergeWizard` LWC — botón 👁 en header de cada tarjeta de candidato
+- Click en 👁 → modal con `lightning-record-form layout-type="Full" mode="view"`
+- `MergeController.getTicketPreview()` — método Apex nuevo (+ 2 tests en MergeExecutionControllerTest)
+- Dry-run en producción: 47/47 ✅ — listo para deploy con el comando del usuario
+- GitHub actualizado con estos cambios (sin SOW ni documentos sensibles)
+
+## ✅ SOW V3 generado (2026-06-03) — LOCAL ONLY
+
+- `Merge app Salesforce v3/MERGE_MANAGER_SOW_V3.docx` — Word bilingüe (EN + FR), no va a GitHub
+- Script generador: `/tmp/generate_sow_v3.py`
+
 ## ⏳ Pendiente
 
-1. **Confirmar fix francés** — usuario prueba merge en sandbox con org en francés
-2. **Cobertura** — agregar tests para `fixEdaPreferenceFields` + `clearIfInvalid` (líneas 96% → 100%)
-3. **Deploy producción** — usuario corre `./manifest/deploy-production.sh production`
-4. **Actualizar V2** — solo después de confirmar en producción (V2 = checkpoint estable)
-5. **Borrar tickets de prueba** — usando Anonymous Apex en producción (ver activeContext sesión anterior)
+1. **Tooltip de error en badge** — `mergeTicketList.html/js` — mostrar `Error_Message__c` al hacer hover sobre badge "Error"
+2. **Borrar tickets de prueba** — usando Anonymous Apex en producción si es necesario

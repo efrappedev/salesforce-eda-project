@@ -562,6 +562,81 @@ private class MergeExecutionControllerTest {
     }
 
     @IsTest
+    static void ctrl_getTicketPreview_returnsTicketCandidatesAndLog() {
+        // Arrange — ticket with two candidates
+        Contact master = new Contact(LastName = 'PreviewMaster');
+        Contact loser  = new Contact(LastName = 'PreviewLoser');
+        insert new List<Contact>{ master, loser };
+
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Merged',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|preview@test.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Selected_Master_Id__c = master.Id,  // required by Require_Master_When_Merged validation
+            Final_Action__c = 'MERGED'
+        );
+        insert ticket;
+
+        Merge_Candidate__c cMaster = new Merge_Candidate__c(
+            Merge_Ticket__c = ticket.Id, Record_Id__c = master.Id,
+            Record_Name__c = 'PreviewMaster', Is_Master__c = true,
+            Is_Losing_Record__c = false,
+            Snapshot_JSON__c = '{"Email":"m@t.com","Phone":"514-000-0001"}',
+            Related_Info_JSON__c = '{"totalCourses":2,"activeCourses":1,"totalPrograms":0,"activePrograms":0,"totalAffiliations":1}'
+        );
+        Merge_Candidate__c cLoser = new Merge_Candidate__c(
+            Merge_Ticket__c = ticket.Id, Record_Id__c = loser.Id,
+            Record_Name__c = 'PreviewLoser', Is_Master__c = false,
+            Is_Losing_Record__c = true,
+            Snapshot_JSON__c = '{"Email":"l@t.com"}',
+            Related_Info_JSON__c = '{"totalCourses":0,"activeCourses":0,"totalPrograms":0,"activePrograms":0,"totalAffiliations":0}'
+        );
+        insert new List<Merge_Candidate__c>{ cMaster, cLoser };
+
+        Merge_Log__c lg = new Merge_Log__c(
+            Merge_Ticket__c = ticket.Id, Action_Type__c = 'MERGE_COMPLETED',
+            Object_Type__c = 'Contact',
+            Master_Record_Id__c = master.Id, Master_Record_Name__c = 'PreviewMaster',
+            Losing_Record_Ids__c = loser.Id, Losing_Record_Names__c = 'PreviewLoser',
+            Performed_By__c = UserInfo.getUserId(),
+            Performed_Date__c = DateTime.now(),
+            Before_Snapshot_JSON__c = '{}', After_Snapshot_JSON__c = '{}'
+        );
+        insert lg;
+
+        // Act
+        Map<String, Object> result = MergeController.getTicketPreview(ticket.Id);
+
+        // Assert
+        System.assertNotEquals(null, result, 'Result should not be null');
+        System.assertNotEquals(null, result.get('ticket'), 'ticket key expected');
+        System.assertNotEquals(null, result.get('candidates'), 'candidates key expected');
+        System.assertNotEquals(null, result.get('mergeLog'), 'mergeLog key expected for merged ticket');
+
+        @SuppressWarnings('PMD.ApexUnitTestClassShouldHaveAsserts')
+        List<Merge_Candidate__c> cands = (List<Merge_Candidate__c>) result.get('candidates');
+        System.assertEquals(2, cands.size(), 'Expected 2 candidates');
+
+        Map<String, Object> logData = (Map<String, Object>) result.get('mergeLog');
+        System.assertEquals('MERGE_COMPLETED', (String) logData.get('actionType'));
+        System.assertNotEquals(null, logData.get('masterName'));
+    }
+
+    @IsTest
+    static void ctrl_getTicketPreview_noLog_returnsNullMergeLog() {
+        // A ticket with no merge log should return mergeLog = null
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'New',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|nolog@test.com',
+            Match_Confidence__c = 'Low', Candidate_Count__c = 2
+        );
+        insert ticket;
+
+        Map<String, Object> result = MergeController.getTicketPreview(ticket.Id);
+        System.assertEquals(null, result.get('mergeLog'), 'mergeLog should be null when no log exists');
+    }
+
+    @IsTest
     static void ctrl_deleteAllTickets_productionGuard_throws() {
         // Simulate production (non-sandbox) to reach the throw branch
         MergeController.TEST_IS_SANDBOX = false;

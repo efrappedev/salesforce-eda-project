@@ -1,4 +1,4 @@
-# Active Context — Última sesión: 2026-06-02
+# Active Context — Última sesión: 2026-06-03
 
 ## INSTRUCCIONES PERMANENTES
 - **NUNCA deploy a producción** — usuario corre `./manifest/deploy-production.sh production`
@@ -51,30 +51,63 @@ El Flow sincroniza 4 campos (AEBEQ, SEMBEQ, ID_Prodon, Preferred_Language) de Co
 - Condición nueva: `(recordType != 'Administrative' AND recordType != 'HH_Account') AND (algún campo cambió)`
 - Desplegado en sandbox. **Falta deploy a producción** (misma fix aplica allá).
 
-## ✅ Estado listo para producción (2026-06-02)
+## ✅ Estado producción V3 — DEPLOYADO (2026-06-03)
 
 ### V3 = checkpoint estable
 - `Merge app Salesforce v3/` — snapshot completo del estado actual
 - `MergeExecutionService.cls` — versión con fix EDA phone/email dinámico + normalizeEdaKey()
 - Dry-run producción: **70/70 tests, Succeeded**
 
-### Pendiente antes de deploy a producción
-1. **Deploy `MergeExecutionService.cls`** — comando:
-   ```
-   sf deploy metadata \
-     --source-dir force-app/main/default/classes/MergeExecutionService.cls \
-     --target-org production \
-     --test-level RunSpecifiedTests \
-     --tests MergeCoverageBoostTest MergeExecutionControllerTest
-   ```
-2. **Cambiar EDA setting en producción** — Setup → EDA → Affiliations → desactivar "Enforce Affiliation Record Type"
-   o via Apex:
-   ```apex
-   hed__Hierarchy_Settings__c s = [SELECT Id FROM hed__Hierarchy_Settings__c LIMIT 1];
-   s.hed__Affiliation_Record_Type_Enforced__c = false;
-   update s;
-   ```
-3. **Actualizar V3** — después de confirmar en producción, V3 pasa a ser el nuevo checkpoint estable
+### Lo que se deployó a producción (2026-06-03)
+- `MergeExecutionService.cls` + `MergeController.cls` + `mergeTicketList` LWC + `MergeCoverageBoostTest.cls`
+- 72/72 tests, 100% cobertura, seguridad revisada
+- Deploy ID: `0AfON0000014RnR0AU`
+
+### Pendiente (decisión del usuario)
+- **EDA setting producción:** `hed__Affiliation_Record_Type_Enforced__c = false`
+  - Usuario decidió no aplicarlo por ahora (producción en inglés, no afecta actualmente)
+  - Necesario solo si producción cambia a francés o usuarios con locale francés hacen merges donde los 4 campos del Flow difieran
+
+### GitHub
+- Historial limpiado — 2 commits desde la limpieza
+- `.gitignore` bloquea PDFs, manuales, Screenshots, `.claude/`, `DIAGNOSTIC_ACCOUNT_SCAN.apex`
+
+## ✅ Feature: Ver ficha completa del candidato — mergeWizard Step 1 (2026-06-03)
+
+### Archivos modificados
+- `mergeWizard.html` — botón 👁 en header de cada tarjeta de candidato + modal con `lightning-record-form`
+- `mergeWizard.js` — `@track showRecordModal/recordModalId/recordModalName`, getter `objectApiName`, handlers `handleViewRecord` (stopPropagation) y `closeRecordModal`
+- `mergeWizard.css` — estilos `.candidate-view-btn` y `.record-view-modal__container`
+- `mergeTicketList` — revertido a versión original (sin ojito en tarjetas de tickets)
+
+### Comportamiento
+- Botón 👁 aparece en el header de cada tarjeta de candidato (Step 1), junto al badge Master/Fusionné
+- Click en 👁 → modal con `lightning-record-form layout-type="Full" mode="view"` del contacto/cuenta real
+- Vista idéntica al formulario nativo de Salesforce, con scroll, todos los campos
+- Click en backdrop o "Fermer" → cierra modal
+- Click en la tarjeta (fuera del 👁) → sigue funcionando normal (selección de master)
+
+## ✅ Feature: Quick Preview Modal en ticket list (2026-06-03)
+
+### Archivos modificados
+- `MergeController.cls` — nuevo método `getTicketPreview(ticketId)` → retorna `{ticket, candidates[], mergeLog}`
+- `mergeTicketList.html` — botón 👁 en cada tarjeta + modal SLDS completo
+- `mergeTicketList.js` — import `getTicketPreview`, estado `@track previewOpen/Loading/Data`, getters computed, handler `handlePreviewClick` (stopPropagation), `handlePreviewClose`
+- `mergeTicketList.css` — estilos para botón preview, modal, tarjetas de candidatos, EDA counts
+- `MergeExecutionControllerTest.cls` — 2 tests nuevos: `ctrl_getTicketPreview_returnsTicketCandidatesAndLog` y `ctrl_getTicketPreview_noLog_returnsNullMergeLog`
+
+### Comportamiento
+- Clic en tarjeta → sigue abriendo el wizard (comportamiento existente)
+- Clic en botón 👁 (preview) → abre modal: candidatos con nombre, email, teléfono, móvil, EDA counts (rojo si activo), badge Master/Fusionné, info merge (quién, cuándo, master)
+- Clic en backdrop → cierra modal
+- Pendiente deploy sandbox
+
+## ✅ SOW V3 generado (2026-06-03)
+- `Merge app Salesforce v3/MERGE_MANAGER_SOW_V3.docx` — Word bilingüe (EN + FR)
+- Versión 3.0, June 2026, SOW-MERGEMGR-2026-001
+- Generado con python-docx desde `/tmp/generate_sow_v3.py`
+- Cambios V3 documentados: fix cross-language EDA, Flow fix, nueva Sección 3.6, T-14 en criterios de aceptación
+- Nota sobre `hed__Affiliation_Record_Type_Enforced__c`: en producción se mantiene `true` (org en inglés)
 
 ---
 

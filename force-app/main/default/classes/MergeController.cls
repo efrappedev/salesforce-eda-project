@@ -19,6 +19,51 @@ public with sharing class MergeController {
 
     // ─── Ticket list ──────────────────────────────────────────────────────────
 
+    @AuraEnabled(cacheable=false)
+    public static Map<String, Object> getTicketPreview(String ticketId) {
+        Merge_Ticket__c ticket = [
+            SELECT Id, Name, Status__c, Object_Type__c, Match_Type__c,
+                   Match_Confidence__c, Match_Key__c, Error_Message__c,
+                   Notes__c, CreatedDate, LastModifiedDate
+            FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1
+        ];
+
+        List<Merge_Candidate__c> candidates = [
+            SELECT Id, Record_Name__c, Record_Id__c, Is_Master__c, Is_Losing_Record__c,
+                   Snapshot_JSON__c, Related_Info_JSON__c
+            FROM Merge_Candidate__c
+            WHERE Merge_Ticket__c = :ticketId
+            ORDER BY CreatedDate ASC
+        ];
+
+        List<Merge_Log__c> logs = [
+            SELECT Id, Performed_By__r.Name, Performed_Date__c, Action_Type__c,
+                   Master_Record_Name__c, Losing_Record_Names__c
+            FROM Merge_Log__c
+            WHERE Merge_Ticket__c = :ticketId
+              AND Action_Type__c = 'MERGE_COMPLETED'
+            ORDER BY CreatedDate DESC LIMIT 1
+        ];
+
+        Map<String, Object> mergeLogData = null;
+        if (!logs.isEmpty()) {
+            Merge_Log__c lg = logs[0];
+            mergeLogData = new Map<String, Object>{
+                'performedByName' => lg.Performed_By__r != null ? lg.Performed_By__r.Name : '—',
+                'performedDate'   => lg.Performed_Date__c,
+                'masterName'      => lg.Master_Record_Name__c,
+                'loserNames'      => lg.Losing_Record_Names__c,
+                'actionType'      => lg.Action_Type__c
+            };
+        }
+
+        return new Map<String, Object>{
+            'ticket'     => ticket,
+            'candidates' => candidates,
+            'mergeLog'   => mergeLogData
+        };
+    }
+
     @AuraEnabled
     public static List<Merge_Ticket__c> getTickets(
         String objectType,

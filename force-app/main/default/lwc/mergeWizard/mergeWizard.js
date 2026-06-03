@@ -69,6 +69,11 @@ export default class MergeWizard extends LightningElement {
     _wiredDeletedContacts;
     @track deletedContacts        = [];
 
+    // ── Record view modal state ───────────────────────────────────────────────
+    @track showRecordModal  = false;
+    @track recordModalId    = null;
+    @track recordModalName  = null;
+
     // ── Data ─────────────────────────────────────────────────────────────────
     @track _matrix  = null;
     @track _ticket  = null;
@@ -111,6 +116,10 @@ export default class MergeWizard extends LightningElement {
     get ticketTypeIcon() {
         return this._matrix?.objectType === 'Account'
             ? 'standard:account' : 'standard:contact';
+    }
+
+    get objectApiName() {
+        return this._matrix?.objectType === 'Account' ? 'Account' : 'Contact';
     }
 
     get ticketMatchValue() {
@@ -334,6 +343,21 @@ export default class MergeWizard extends LightningElement {
     }
 
     // ── Step-1: master selection via card click ────────────────────────────────
+
+    // ── Record view modal handlers ────────────────────────────────────────────
+
+    handleViewRecord(event) {
+        event.stopPropagation();   // don't trigger handleCardMasterSelect
+        this.recordModalId   = event.currentTarget.dataset.id;
+        this.recordModalName = event.currentTarget.dataset.name;
+        this.showRecordModal = true;
+    }
+
+    closeRecordModal() {
+        this.showRecordModal = false;
+        this.recordModalId   = null;
+        this.recordModalName = null;
+    }
 
     handleCardMasterSelect(event) {
         const newMasterId = event.currentTarget.dataset.id;

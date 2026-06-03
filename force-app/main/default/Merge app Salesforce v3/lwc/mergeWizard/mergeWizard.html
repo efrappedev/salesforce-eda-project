@@ -116,6 +116,14 @@
                                         {card.loserPillLabel}
                                     </button>
                                 </template>
+                                <!-- View full record button -->
+                                <button class="candidate-view-btn slds-button slds-button_icon"
+                                        data-id={card.recordId}
+                                        data-name={card.recordName}
+                                        onclick={handleViewRecord}
+                                        title="Voir la fiche complète">
+                                    <lightning-icon icon-name="utility:preview" size="x-small" alternative-text="Voir fiche"></lightning-icon>
+                                </button>
                             </div>
                             <!-- Card body: key field values -->
                             <div class="slds-card__body slds-card__body_inner">
@@ -508,6 +516,42 @@
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ── Full record view modal ───────────────────────────────────────── -->
+    <template if:true={showRecordModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 aria-labelledby="record-view-title"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container record-view-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                            title="Fermer" onclick={closeRecordModal}>&#x2715;</button>
+                    <h2 id="record-view-title" class="slds-modal__title slds-hyphenate">
+                        <lightning-icon icon-name={ticketTypeIcon} size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {recordModalName}
+                    </h2>
+                </header>
+                <div class="slds-modal__content record-view-modal__body">
+                    <lightning-record-form
+                        record-id={recordModalId}
+                        object-api-name={objectApiName}
+                        layout-type="Full"
+                        mode="view"
+                        columns="2">
+                    </lightning-record-form>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Fermer"
+                        onclick={closeRecordModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" onclick={closeRecordModal}></div>
     </template>
 
     <!-- ── Orphaned Account modal ────────────────────────────────────────── -->

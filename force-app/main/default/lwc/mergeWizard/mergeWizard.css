@@ -311,3 +311,39 @@
     letter-spacing: 0.02em;
     white-space: nowrap;
 }
+
+/* ── View record button on candidate cards ──────────────────────────────────── */
+
+.candidate-view-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 4px;
+    color: #706e6b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.12s, color 0.12s;
+    line-height: 1;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.candidate-view-btn:hover {
+    background-color: #e8f4fd;
+    color: #0176d3;
+}
+
+/* ── Full record view modal ──────────────────────────────────────────────────── */
+
+.record-view-modal__container {
+    max-width: 64rem;
+    width: 92vw;
+}
+
+.record-view-modal__body {
+    padding: 0;
+    max-height: 72vh;
+    overflow-y: auto;
+}
