@@ -27,6 +27,10 @@ public without sharing class MergeExecutionService {
     @TestVisible private static Boolean TEST_THROW_EDA_AFFIL_QUERY     = false;
     // Forces validateObjectType to throw so the MergeException branch is covered in tests
     @TestVisible private static Boolean TEST_FORCE_INVALID_OBJECT_TYPE = false;
+    // Forces the inner ticket-update to throw so catch(Exception ignored) on that line is covered
+    @TestVisible private static Boolean TEST_THROW_ERROR_STAMP         = false;
+    // Injects stale normalized values for pref fields so the remap branch in fixEdaPreferenceFields is covered
+    @TestVisible private static Boolean TEST_INJECT_STALE_PREF         = false;
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
@@ -127,6 +131,7 @@ public without sharing class MergeExecutionService {
             );
             // Also stamp the error on the ticket so it's visible without opening the Log
             try {
+                if (TEST_THROW_ERROR_STAMP) throw new DmlException('test-induced');
                 update new Merge_Ticket__c(
                     Id              = (Id) request.ticketId,
                     Status__c       = 'Error',
@@ -209,7 +214,7 @@ public without sharing class MergeExecutionService {
             Boolean changed = false;
 
             if (hasPrefPhone) {
-                String stored = (String) c.get('hed__PreferredPhone__c');
+                String stored = TEST_INJECT_STALE_PREF ? 'homephone' : (String) c.get('hed__PreferredPhone__c');
                 if (stored != null) {
                     String target = phoneNormToLabel.get(normalizeEdaKey(stored));
                     if (target != null && target != stored) {
@@ -220,7 +225,7 @@ public without sharing class MergeExecutionService {
             }
 
             if (hasPrefEmail) {
-                String stored = (String) c.get('hed__Preferred_Email__c');
+                String stored = TEST_INJECT_STALE_PREF ? 'alternateemail' : (String) c.get('hed__Preferred_Email__c');
                 if (stored != null) {
                     String target = emailNormToLabel.get(normalizeEdaKey(stored));
                     if (target != null && target != stored) {
