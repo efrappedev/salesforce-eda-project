@@ -117,11 +117,13 @@ public without sharing class MergeWrappers {
         @AuraEnabled public String                   mergedRecordId;
         @AuraEnabled public List<OrphanedAccountInfo> orphanedAccounts;
         @AuraEnabled public List<OrphanedContactInfo> orphanedContacts;
+        @AuraEnabled public Integer                  cleanedUpTicketCount;
 
         public MergeResult() {
-            success          = false;
-            orphanedAccounts = new List<OrphanedAccountInfo>();
-            orphanedContacts = new List<OrphanedContactInfo>();
+            success              = false;
+            orphanedAccounts     = new List<OrphanedAccountInfo>();
+            orphanedContacts     = new List<OrphanedContactInfo>();
+            cleanedUpTicketCount = 0;
         }
     }
 
@@ -190,6 +192,26 @@ public without sharing class MergeWrappers {
         @AuraEnabled public String accountId;
         @AuraEnabled public String accountName;
         @AuraEnabled public String deletedAt;
+    }
+
+    // ─── SNAPSHOT VIEW (merged loser records — eye icon on "Fusionné" cards) ──
+
+    public class SnapshotViewWrapper {
+        @AuraEnabled public String             recordId;
+        @AuraEnabled public String             recordName;
+        @AuraEnabled public String             capturedAt;
+        @AuraEnabled public String             objectType;
+        @AuraEnabled public List<SnapshotField> fields;
+
+        public SnapshotViewWrapper() {
+            fields = new List<SnapshotField>();
+        }
+    }
+
+    public class SnapshotField {
+        @AuraEnabled public String label;
+        @AuraEnabled public String apiName;
+        @AuraEnabled public String value;
     }
 
     // ─── EMAIL OBJECT CANDIDATE (scan modal combobox) ─────────────────────────

@@ -927,6 +927,275 @@ private class MergeExecutionControllerTest {
             MergeController.getDeletedContactsForTicket(String.valueOf(t.Id)).size());
     }
 
+    // ─── cleanupOrphanedTickets ───────────────────────────────────────────────
+
+    @IsTest
+    static void exec_merge_cleansUpOrphanedTickets_afterSuccessfulMerge() {
+        // Two extra tickets reference the same loser as the primary ticket.
+        // After merge the loser no longer exists → those tickets must be deleted.
+        Account acc = makeAccount('CleanupOrg');
+        Contact master = makeContact('CleanMaster', 'cleanup@exectest.com', acc.Id);
+        Contact loser  = makeContact('CleanLoser',  'cleanup@exectest.com', acc.Id);
+        Merge_Ticket__c primaryTicket = makeContactTicket(
+            master, loser, 'Contact|Email|cleanup@exectest.com'
+        );
+
+        Contact otherA = makeContact('OtherA', 'other_a_cleanup@exectest.com', acc.Id);
+        Contact otherB = makeContact('OtherB', 'other_b_cleanup@exectest.com', acc.Id);
+        Merge_Ticket__c extraTicket1 = makeContactTicket(
+            otherA, loser, 'Contact|Phone|5550001CL'
+        );
+        Merge_Ticket__c extraTicket2 = makeContactTicket(
+            otherB, loser, 'Contact|Name|CLEANLOSER'
+        );
+
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(
+            makeRequest(primaryTicket.Id, master.Id, new List<Id>{ loser.Id })
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, result.success, 'Merge failed: ' + result.errorMessage);
+        System.assertEquals(2, result.cleanedUpTicketCount,
+            'Expected 2 orphaned tickets to be deleted');
+        System.assertEquals(0, [SELECT COUNT() FROM Merge_Ticket__c WHERE Id = :extraTicket1.Id],
+            'Extra ticket 1 should be deleted');
+        System.assertEquals(0, [SELECT COUNT() FROM Merge_Ticket__c WHERE Id = :extraTicket2.Id],
+            'Extra ticket 2 should be deleted');
+        System.assertEquals(1, [SELECT COUNT() FROM Merge_Ticket__c WHERE Id = :primaryTicket.Id],
+            'Primary ticket must NOT be deleted');
+    }
+
+    @IsTest
+    static void exec_merge_noOrphanedTickets_cleanupCountIsZero() {
+        // When no other ticket references the loser, cleanedUpTicketCount must be 0.
+        Account acc = makeAccount('NoOrphanOrg');
+        Contact master = makeContact('NoOrpMaster', 'noorphan@exectest.com', acc.Id);
+        Contact loser  = makeContact('NoOrpLoser',  'noorphan@exectest.com', acc.Id);
+        Merge_Ticket__c ticket = makeContactTicket(
+            master, loser, 'Contact|Email|noorphan@exectest.com'
+        );
+
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(
+            makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id })
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, result.success, 'Merge failed: ' + result.errorMessage);
+        System.assertEquals(0, result.cleanedUpTicketCount,
+            'No orphaned tickets expected when loser appears in only one ticket');
+    }
+
+    // ─── MergeController.getLoserSnapshot ────────────────────────────────────
+
+    @IsTest
+    static void ctrl_getLoserSnapshot_returnsAllFieldTypes() {
+        // Covers the happy path of getLoserSnapshot and every field-type branch:
+        // Boolean (true→Oui, false→Non), Map with Name (relationship), Map without Name (skip),
+        // List (skip), blank string (skip), null (skip), skipFields (Id), custom field.
+        Account acc          = makeAccount('SnapOrg');
+        Contact loser        = makeContact('SnapLoser', 'snap@exectest.com', acc.Id);
+        Contact dummyMaster  = new Contact(LastName = 'SnapMaster');
+        insert dummyMaster;
+
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Merged',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|snap@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Selected_Master_Id__c = String.valueOf(dummyMaster.Id),
+            Final_Action__c = 'MERGED'
+        );
+        insert ticket;
+
+        String loserId = String.valueOf(loser.Id);
+
+        Map<String, Object> snap = new Map<String, Object>{
+            'Id'              => loserId,
+            'Name'            => 'Jean Dupont',
+            'Email'           => 'snap@exectest.com',
+            'Phone'           => '5141234567',
+            'DoNotCall'       => true,
+            'HasOptedOutOfEmail' => false,
+            'Account'         => new Map<String, Object>{ 'Name' => 'SnapOrg', 'Id' => acc.Id },
+            'ReportsTo'       => new Map<String, Object>{ 'Id' => '003000000000001AAA' },
+            'ActivityHistory' => new List<Object>{ 'item1' },
+            'Description'     => '',
+            'NullField__c'    => null,
+            'ID_Contact__c'   => 'ADAR0001',
+            '__meta_capturedAt'  => '2026-06-08T10:00:00.000Z',
+            '__meta_capturedBy'  => UserInfo.getUserId(),
+            '__meta_objectType'  => 'Contact'
+        };
+
+        Merge_Log__c lg = new Merge_Log__c(
+            Merge_Ticket__c           = ticket.Id,
+            Object_Type__c            = 'Contact',
+            Action_Type__c            = 'MERGE_COMPLETED',
+            Master_Record_Id__c       = String.valueOf(dummyMaster.Id),
+            Master_Record_Name__c     = 'SnapMaster',
+            Losing_Record_Ids__c      = loserId,
+            Losing_Record_Names__c    = 'Jean Dupont',
+            Before_Snapshot_JSON__c   = JSON.serialize(new Map<String, Object>{ loserId => snap }),
+            After_Snapshot_JSON__c    = '{}',
+            Field_Decisions_JSON__c   = '{}',
+            Performed_By__c           = UserInfo.getUserId(),
+            Performed_Date__c         = System.now()
+        );
+        insert lg;
+
+        Test.startTest();
+        MergeWrappers.SnapshotViewWrapper result =
+            MergeController.getLoserSnapshot(String.valueOf(ticket.Id), loserId);
+        Test.stopTest();
+
+        System.assertNotEquals(null, result, 'Wrapper should not be null');
+        System.assertEquals(loserId,       result.recordId);
+        System.assertEquals('Jean Dupont', result.recordName);
+        System.assertEquals('Contact',     result.objectType);
+        System.assert(!result.fields.isEmpty(), 'Fields list should not be empty');
+        System.assertNotEquals('', result.capturedAt, 'capturedAt should be populated');
+
+        Map<String, String> byApiName = new Map<String, String>();
+        for (MergeWrappers.SnapshotField f : result.fields) byApiName.put(f.apiName, f.value);
+
+        System.assertEquals('Oui',     byApiName.get('DoNotCall'),         'Boolean true → Oui');
+        System.assertEquals('Non',     byApiName.get('HasOptedOutOfEmail'), 'Boolean false → Non');
+        System.assertEquals('SnapOrg', byApiName.get('Account'),           'Relationship Name extracted');
+        System.assertEquals('ADAR0001',byApiName.get('ID_Contact__c'),     'Custom field present');
+        System.assertEquals(null, byApiName.get('Id'),             'Id filtered (skipFields)');
+        System.assertEquals(null, byApiName.get('ActivityHistory'), 'List value filtered');
+        System.assertEquals(null, byApiName.get('NullField__c'),   'Null value filtered');
+        System.assertEquals(null, byApiName.get('Description'),    'Blank string filtered');
+        System.assertEquals(null, byApiName.get('ReportsTo'),      'Map without Name filtered');
+    }
+
+    @IsTest
+    static void ctrl_getLoserSnapshot_noName_usesFirstLastName() {
+        // Covers the else branch (lines 250-252): no Name field → use FirstName + LastName
+        Contact loser       = new Contact(LastName = 'FNLNLoser');
+        Contact dummyMaster = new Contact(LastName = 'FNLNMaster');
+        insert new List<Contact>{ loser, dummyMaster };
+
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Merged',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|fnln@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Selected_Master_Id__c = String.valueOf(dummyMaster.Id),
+            Final_Action__c = 'MERGED'
+        );
+        insert ticket;
+
+        String loserId = String.valueOf(loser.Id);
+
+        Map<String, Object> snap = new Map<String, Object>{
+            'FirstName' => 'Marie',
+            'LastName'  => 'Dupont',
+            'Email'     => 'marie@exectest.com',
+            '__meta_capturedAt' => String.valueOf(System.now())
+        };
+
+        Merge_Log__c lg = new Merge_Log__c(
+            Merge_Ticket__c           = ticket.Id,
+            Object_Type__c            = 'Contact',
+            Action_Type__c            = 'MERGE_COMPLETED',
+            Master_Record_Id__c       = String.valueOf(dummyMaster.Id),
+            Master_Record_Name__c     = 'FNLNMaster',
+            Losing_Record_Ids__c      = loserId,
+            Losing_Record_Names__c    = 'Marie Dupont',
+            Before_Snapshot_JSON__c   = JSON.serialize(new Map<String, Object>{ loserId => snap }),
+            After_Snapshot_JSON__c    = '{}',
+            Field_Decisions_JSON__c   = '{}',
+            Performed_By__c           = UserInfo.getUserId(),
+            Performed_Date__c         = System.now()
+        );
+        insert lg;
+
+        MergeWrappers.SnapshotViewWrapper result =
+            MergeController.getLoserSnapshot(String.valueOf(ticket.Id), loserId);
+
+        System.assertNotEquals(null, result);
+        System.assertEquals('Marie Dupont', result.recordName,
+            'Name should be assembled from FirstName + LastName when Name field absent');
+    }
+
+    @IsTest
+    static void ctrl_getLoserSnapshot_noLog_returnsNull() {
+        // Covers early return on line 223: no Merge_Log__c for the ticket
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'New',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|nosnap@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2
+        );
+        insert ticket;
+
+        MergeWrappers.SnapshotViewWrapper result =
+            MergeController.getLoserSnapshot(String.valueOf(ticket.Id), '003000000000001AAA');
+
+        System.assertEquals(null, result, 'Should return null when no merge log exists');
+    }
+
+    @IsTest
+    static void ctrl_getLoserSnapshot_loserNotInSnapshot_returnsNull() {
+        // Covers early return on line 229: loserId absent from Before_Snapshot_JSON__c
+        Contact dummyMaster = new Contact(LastName = 'SnapMasterMM');
+        insert dummyMaster;
+
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Merged',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|mismatch@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Selected_Master_Id__c = String.valueOf(dummyMaster.Id),
+            Final_Action__c = 'MERGED'
+        );
+        insert ticket;
+
+        Map<String, Object> allSnaps = new Map<String, Object>{
+            '003000000000001AAA' => new Map<String, Object>{ 'Name' => 'OtherContact' }
+        };
+
+        Merge_Log__c lg = new Merge_Log__c(
+            Merge_Ticket__c           = ticket.Id,
+            Object_Type__c            = 'Contact',
+            Action_Type__c            = 'MERGE_COMPLETED',
+            Master_Record_Id__c       = String.valueOf(dummyMaster.Id),
+            Master_Record_Name__c     = 'SnapMasterMM',
+            Losing_Record_Ids__c      = '003000000000001AAA',
+            Losing_Record_Names__c    = 'OtherContact',
+            Before_Snapshot_JSON__c   = JSON.serialize(allSnaps),
+            After_Snapshot_JSON__c    = '{}',
+            Field_Decisions_JSON__c   = '{}',
+            Performed_By__c           = UserInfo.getUserId(),
+            Performed_Date__c         = System.now()
+        );
+        insert lg;
+
+        MergeWrappers.SnapshotViewWrapper result =
+            MergeController.getLoserSnapshot(
+                String.valueOf(ticket.Id),
+                '003000000000002AAA'  // not in snapshot → null
+            );
+
+        System.assertEquals(null, result, 'Should return null when loserId not in snapshot');
+    }
+
+    @IsTest
+    static void ctrl_sortSnapshotFields_swapsOutOfOrderLabels() {
+        // Directly covers the swap body (lines 313-315) in sortSnapshotFields (@TestVisible)
+        MergeWrappers.SnapshotField f1 = new MergeWrappers.SnapshotField();
+        f1.label = 'ZZZ'; f1.apiName = 'ZZZ__c'; f1.value = 'z-value';
+        MergeWrappers.SnapshotField f2 = new MergeWrappers.SnapshotField();
+        f2.label = 'AAA'; f2.apiName = 'AAA__c'; f2.value = 'a-value';
+
+        List<MergeWrappers.SnapshotField> fields =
+            new List<MergeWrappers.SnapshotField>{ f1, f2 };
+
+        MergeController.sortSnapshotFields(fields);
+
+        System.assertEquals('AAA', fields[0].label, 'AAA should come before ZZZ after sort');
+        System.assertEquals('ZZZ', fields[1].label, 'ZZZ should be second after sort');
+    }
+
     // ─── Extra coverage tests ─────────────────────────────────────────────────
 
     @IsTest

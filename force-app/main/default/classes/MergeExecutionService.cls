@@ -124,6 +124,12 @@ public without sharing class MergeExecutionService {
                 result.orphanedContacts = buildOrphanedContactInfo(losingAccountContacts);
             }
 
+            // ── 11. Delete other tickets whose candidates reference the losing records ──
+            // After a successful merge the losing records no longer exist in Salesforce.
+            // Any other ticket that listed one of those records as a candidate is now
+            // unresolvable — delete them to keep the ticket list clean.
+            result.cleanedUpTicketCount = cleanupOrphanedTickets(ticketId, losingIds);
+
         } catch (Exception e) {
             String errorMsg = e.getMessage() + '\n\nStack:\n' + e.getStackTraceString();
             MergeAuditService.recordMergeFailure(
@@ -523,6 +529,37 @@ public without sharing class MergeExecutionService {
             infos.add(info);
         }
         return infos;
+    }
+
+    // ─── Orphaned-ticket cleanup ──────────────────────────────────────────────
+
+    // After a successful merge the losing record IDs are deleted from Salesforce.
+    // This removes every other ticket (not the one just merged) that still lists
+    // any of those record IDs as a candidate — they can never be resolved.
+    // Record_Id__c is Text(18) so we bind a Set<String>, not Set<Id>.
+    private static Integer cleanupOrphanedTickets(Id currentTicketId, List<Id> losingIds) {
+        if (losingIds == null || losingIds.isEmpty()) return 0;
+
+        Set<String> losingIdStrings = new Set<String>();
+        for (Id lid : losingIds) losingIdStrings.add(String.valueOf(lid));
+
+        Set<Id> ticketsToDelete = new Set<Id>();
+        for (Merge_Candidate__c c : [
+            SELECT Merge_Ticket__c
+            FROM Merge_Candidate__c
+            WHERE Record_Id__c IN :losingIdStrings
+              AND Merge_Ticket__c != :currentTicketId
+        ]) {
+            ticketsToDelete.add(c.Merge_Ticket__c);
+        }
+
+        if (ticketsToDelete.isEmpty()) return 0;
+
+        List<Merge_Ticket__c> toDelete = [
+            SELECT Id FROM Merge_Ticket__c WHERE Id IN :ticketsToDelete
+        ];
+        delete toDelete;
+        return toDelete.size();
     }
 
     // ─── Custom exception ─────────────────────────────────────────────────────

@@ -474,6 +474,18 @@
                         et ont été déplacés vers le compte maître.
                         Supprimez-les s&apos;ils sont des doublons — vous pourrez les restaurer ensuite.
                     </p>
+                    <template if:true={cleanedUpMessage}>
+                        <div class="cleanup-banner slds-m-bottom_medium" role="status">
+                            <div class="cleanup-banner__icon">
+                                <lightning-icon icon-name="utility:check"
+                                    size="x-small" variant="inverse">
+                                </lightning-icon>
+                            </div>
+                            <div class="cleanup-banner__body">
+                                <p>{cleanedUpMessage}</p>
+                            </div>
+                        </div>
+                    </template>
                     <template for:each={orphanedContacts} for:item="ct">
                         <div key={ct.contactId}
                             class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
@@ -554,6 +566,81 @@
         <div class="slds-backdrop slds-backdrop_open" onclick={closeRecordModal}></div>
     </template>
 
+    <!-- ── Snapshot view modal (merged / deleted loser records) ──────────── -->
+    <template if:true={showSnapshotModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 aria-labelledby="snapshot-view-title"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container record-view-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                            title="Fermer" onclick={closeSnapshotModal}>&#x2715;</button>
+                    <h2 id="snapshot-view-title" class="slds-modal__title slds-hyphenate">
+                        <lightning-icon icon-name={ticketTypeIcon} size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {snapshotModalName}
+                    </h2>
+                </header>
+                <div class="slds-modal__content snapshot-modal__body">
+
+                    <!-- Loading spinner -->
+                    <template if:true={snapshotLoading}>
+                        <div class="wizard-loading">
+                            <lightning-spinner alternative-text="Chargement du journal…">
+                            </lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={snapshotLoading}>
+                        <!-- Warning banner -->
+                        <div class="snapshot-banner">
+                            <lightning-icon icon-name="utility:warning" size="x-small"
+                                class="snapshot-banner__icon">
+                            </lightning-icon>
+                            <div>
+                                <p class="snapshot-banner__title">Données du journal de fusion</p>
+                                <p class="snapshot-banner__text">
+                                    Cet enregistrement a été fusionné et n&apos;existe plus dans Salesforce.
+                                    Les informations ci-dessous proviennent du journal enregistré
+                                    <template if:true={snapshotModalCapturedAt}>
+                                        le {snapshotModalCapturedAt},
+                                    </template>
+                                    avant la fusion.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Fields grid — 2 columns, label above value (style: lightning-record-form) -->
+                        <template if:true={hasSnapshotFields}>
+                            <div class="snapshot-fields-grid">
+                                <template for:each={snapshotModalFields} for:item="f">
+                                    <div key={f.apiName} class="snapshot-field">
+                                        <p class="snapshot-field__label">{f.label}</p>
+                                        <p class="snapshot-field__value">{f.value}</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasSnapshotFields}>
+                            <p class="slds-text-body_small slds-text-color_weak slds-p-around_medium">
+                                Aucune donnée disponible dans le journal pour cet enregistrement.
+                            </p>
+                        </template>
+                    </template>
+
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Fermer"
+                        onclick={closeSnapshotModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" onclick={closeSnapshotModal}></div>
+    </template>
+
     <!-- ── Orphaned Account modal ────────────────────────────────────────── -->
     <template if:true={showOrphanModal}>
         <section role="dialog" tabindex="-1" aria-modal="true"
@@ -574,6 +661,18 @@
                         La fusion a réussi. Le(s) compte(s) ci-dessous n&apos;ont plus aucun contact associé.
                         Choisissez l&apos;action à effectuer pour chacun.
                     </p>
+                    <template if:true={cleanedUpMessage}>
+                        <div class="cleanup-banner slds-m-bottom_medium" role="status">
+                            <div class="cleanup-banner__icon">
+                                <lightning-icon icon-name="utility:check"
+                                    size="x-small" variant="inverse">
+                                </lightning-icon>
+                            </div>
+                            <div class="cleanup-banner__body">
+                                <p>{cleanedUpMessage}</p>
+                            </div>
+                        </div>
+                    </template>
                     <template for:each={orphanedAccounts} for:item="acc">
                         <div key={acc.accountId} class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
                             <div class="slds-grid slds-grid_vertical-align-center slds-gutters_small">

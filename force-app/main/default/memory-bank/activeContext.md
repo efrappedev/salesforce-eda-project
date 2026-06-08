@@ -1,10 +1,17 @@
-# Active Context — Última sesión: 2026-06-03
+# Active Context — Última sesión: 2026-06-05
 
 ## INSTRUCCIONES PERMANENTES
 - **NUNCA deploy a producción** — usuario corre `./manifest/deploy-production.sh production`
 - Sandbox: deploy con `NoTestRun` está permitido (Claude puede hacerlo directo)
 - **V2 = checkpoint estable** — NO tocar hasta que el fix esté confirmado en producción
 - Actualizar memory-bank al inicio de cada sesión y al final de cada respuesta importante
+
+## ⚠️ REGLA DE COBERTURA — DRY-RUN PRODUCCIÓN
+- **NO confiar en "Succeeded"** — Salesforce acepta desde 75%, no implica 100%
+- **SIEMPRE usar los 5 tests del deploy script** en el dry-run:
+  `--tests EDAServiceCoverageTest --tests MergeCoverageBoostTest --tests MergeExecutionControllerTest --tests MergeScanServiceTest --tests MergeUtilityTest`
+- **Leer el % real por clase** del JSON con python3 antes de reportar como listo
+- Si alguna clase < 100%: identificar líneas, agregar tests con @TestVisible si es necesario, volver a dry-run
 
 ---
 
@@ -108,6 +115,132 @@ El Flow sincroniza 4 campos (AEBEQ, SEMBEQ, ID_Prodon, Preferred_Language) de Co
 - Generado con python-docx desde `/tmp/generate_sow_v3.py`
 - Cambios V3 documentados: fix cross-language EDA, Flow fix, nueva Sección 3.6, T-14 en criterios de aceptación
 - Nota sobre `hed__Affiliation_Record_Type_Enforced__c`: en producción se mantiene `true` (org en inglés)
+
+---
+
+## ✅ Feature: Tooltip error en badge — HECHO (confirmado por usuario 2026-06-05)
+
+Implementado antes de esta sesión. Badge "Error" en mergeTicketList ya muestra el `Error_Message__c` en tooltip al hacer hover.
+
+---
+
+## ✅ Export Excel — Cruce de datos Contact + EDA (2026-06-05)
+
+### Script: `/tmp/sf_contact_export.py`
+- Queries 5 objetos en producción via SF CLI (read-only)
+- Genera Excel en `~/Desktop/sf_contacts_export_YYYYMMDD_HHMM.xlsx`
+- **Hoja "Consolidado"**: 1 fila por Contact, datos de todos los objetos concatenados
+- **Hojas detalle**: Contacts, CourseEnrollments, ProgramEnrollments, Affiliations, Relationships
+
+### Datos extraídos (2026-06-05, 10:52)
+| Objeto | Registros |
+|---|---|
+| Contact | 8,238 |
+| Course Enrollments | 23,884 |
+| Program Enrollments | 620 |
+| Affiliations | 1,237 |
+| Relationships | 1,060 |
+
+### Columnas base Contact
+`Contact_Id, FirstName, LastName, Name, AccountId, Account_Name, ID_Prodon_contact__c, Old_id__c, Email, Phone, MobilePhone, hed__AlternateEmail__c, hed__UniversityEmail__c`
+
+### Columnas consolidadas (sufijos por objeto)
+- CE_Count, CE_Cursos, CE_Statuses
+- PE_Count, PE_Programas, PE_Cuentas, PE_Statuses
+- Aff_Count, Aff_Cuentas, Aff_Roles, Aff_Statuses
+- Rel_Count, Rel_Contacts, Rel_Types
+
+### Notas técnicas
+- `hed__Program_Enrollment__c` no tiene campo `hed__Program__r` — el programa viene de `hed__Program_Plan__r.Name`
+- Múltiples valores del mismo objeto se concatenan con ` | ` como separador
+- Script es reutilizable: `python3 /tmp/sf_contact_export.py` cualquier momento
+
+---
+
+## ✅ Feature: Snapshot view para losers fusionados (2026-06-08) — LISTO PARA PRODUCCIÓN
+
+### Problema resuelto
+Ojito en tarjetas "✗ Fusionné" del Step 1 mostraba "The requested resource does not exist" porque el Contact/Account fue eliminado por el merge.
+
+### Solución implementada
+- Para losers fusionados (`isMergedLoser = true`): llama `MergeController.getLoserSnapshot()` que lee `Merge_Log__c.Before_Snapshot_JSON__c` y retorna los campos del snapshot
+- Para registros vivos (master, no-fusionados): comportamiento original (`lightning-record-form`)
+
+### Archivos modificados
+- `MergeWrappers.cls` — clases nuevas `SnapshotViewWrapper` y `SnapshotField`
+- `MergeController.cls` — método nuevo `getLoserSnapshot(ticketId, loserId)` con `@AuraEnabled(cacheable=true)` + helper privado `sortSnapshotFields()`
+- `mergeWizard.js` — import `getLoserSnapshotApex`, estado `@track showSnapshotModal/snapshotLoading/snapshotData`, `handleViewRecord` bifurcado, `closeSnapshotModal`, getters `snapshotModalName/Fields/CapturedAt/hasSnapshotFields`
+- `mergeWizard.html` — modal snapshot con banner ámbar + grid 2 columnas (label arriba, valor abajo — estilo `lightning-record-form`)
+- `mergeWizard.css` — `.snapshot-modal__body`, `.snapshot-banner`, `.snapshot-fields-grid`, `.snapshot-field`, `.snapshot-field__label/__value`
+
+### Comportamiento visual
+- Modal idéntico al ojito de cuentas vivas: mismo tamaño, mismo header con nombre
+- Banner ámbar: "Données du journal de fusion — cet enregistrement a été fusionné et n'existe plus..."
+- Campos en grid 2 col: estándar ordenados alfabéticamente primero, luego custom `__c` ordenados alfabéticamente
+- Campos boolean: "Oui"/"Non"; relaciones: extrae `.Name` si existe; nulos y vacíos excluidos; `Id`, `IsDeleted`, `MasterRecordId` excluidos
+
+### Tests agregados (MergeExecutionControllerTest.cls — 5 tests nuevos)
+- `ctrl_getLoserSnapshot_returnsAllFieldTypes` — happy path, todos los tipos de campo
+- `ctrl_getLoserSnapshot_noName_usesFirstLastName` — cubre else-branch de name
+- `ctrl_getLoserSnapshot_noLog_returnsNull` — early return sin log
+- `ctrl_getLoserSnapshot_loserNotInSnapshot_returnsNull` — early return loser ausente del snapshot
+- `ctrl_sortSnapshotFields_swapsOutOfOrderLabels` — cubre swap en líneas 313-315 (@TestVisible)
+
+### Estado deploy
+- ✅ Deploy sandbox `partialdev` — Deploy ID: `0AfSv00000KM0SVKA1`
+- ✅ Dry-run producción — **183/183 tests, 0 errores, MergeController 100%, MergeWrappers 100%, Status: Succeeded**
+- ✅ LISTO PARA DEPLOY PRODUCCIÓN — usuario corre `./manifest/deploy-production.sh production`
+
+---
+
+## ✅ V4 DEPLOYADO A PRODUCCIÓN (2026-06-08)
+
+### Qué se deployó
+1. **Limpieza automática de tickets huérfanos** — `MergeExecutionService.cleanupOrphanedTickets()` + `MergeWrappers.cleanedUpTicketCount`
+2. **Banner post-merge** — `mergeWizard` muestra mensaje verde con count de tickets eliminados
+3. **2 tests nuevos** — `MergeExecutionControllerTest` (178/178 tests, 100% cobertura)
+
+### Confirmación
+- Dry-run con 5 test classes: **MergeExecutionService 100%, MergeWrappers 100%**
+- Screenshot de la app funcionando guardado en conversación (2026-06-08)
+- Comportamiento: merge → modal orphan → banner verde "N ticket(s) associé(s) supprimé(s) automatiquement — Les tickets référençant «Nom» qui a été fusionné ont été retirés…"
+
+---
+
+## ✅ Feature: Banner post-merge "tickets huérfanos suprimidos" (2026-06-05)
+
+### Archivos modificados
+- `mergeWizard.js` — `@track cleanedUpTicketCount`, `@track _cleanedLoserNames`, getters `hasCleanedUpTickets` / `cleanedUpTitle` / `cleanedUpDetail`, captura en bloque de éxito del merge
+- `mergeWizard.html` — banner `<div class="cleanup-banner">` en ambos modales orphan (Account + Contact), condicionado por `hasCleanedUpTickets`
+- `mergeWizard.css` — clase `.cleanup-banner` (verde con borde izquierdo) + subclases `__icon`, `__title`, `__detail`
+
+### Comportamiento
+- Aparece SOLO si `cleanedUpTicketCount > 0`
+- Texto ejemplo (1 ticket): **"1 ticket associé supprimé automatiquement"** — Les tickets référençant « Jean Dupont » qui a été fusionné ont été retirés automatiquement…
+- Texto ejemplo (N tickets): **"3 tickets associés supprimés automatiquement"** — …
+- Se muestra en la pantalla donde el usuario gestiona las cuentas/contactos huérfanos post-merge
+- Deploy sandbox: `0AfSv00000KLfRFKA1` ✅
+- Dry-run producción: **49/49 tests, 0 fallos** ✅
+
+---
+
+## ✅ Feature: Limpieza automática de tickets huérfanos (2026-06-05)
+
+### Qué hace
+Después de un merge exitoso, busca todos los demás tickets que tengan al loser como candidato (`Merge_Candidate__c.Record_Id__c IN :losingIds`) y los elimina automáticamente (cascade delete sobre candidatos).
+
+### Archivos modificados
+- `MergeExecutionService.cls` — nuevo método privado `cleanupOrphanedTickets(currentTicketId, losingIds)` llamado en paso 11 de `executeMerge()`
+- `MergeWrappers.cls` — campo `cleanedUpTicketCount` agregado a `MergeResult`
+- `MergeExecutionControllerTest.cls` — 2 nuevos tests: `exec_merge_cleansUpOrphanedTickets_afterSuccessfulMerge` y `exec_merge_noOrphanedTickets_cleanupCountIsZero`
+
+### Estado
+- ✅ Deployado en sandbox (Deploy ID: `0AfSv00000KLYCtKAP`)
+- ✅ Dry-run producción: **49/49 tests, 0 fallos** — listo para deploy real
+- Funciona retroactivamente con tickets existentes
+
+### Nota importante
+Limpia tickets donde el **loser** aparece en otros tickets. No toca tickets donde el **master** también está (esos siguen siendo válidos). Para tickets ya huérfanos por merges anteriores al deploy: se limpiarán naturalmente cuando se procesen los tickets relacionados. Un script Anonymous Apex one-time queda como opción futura si el volumen es grande.
 
 ---
 

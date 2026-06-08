@@ -132,6 +132,40 @@
     box-shadow: 0 0 0 3px rgba(186,5,23,0.15);
 }
 
+/* Post-merge cleanup notification banner */
+.cleanup-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background-color: #f3fdf3;
+    border: 1px solid #4bca81;
+    border-left: 4px solid #2e844a;
+    border-radius: 4px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #1d4e2d;
+    line-height: 1.5;
+}
+.cleanup-banner__icon {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: #2e844a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+.cleanup-banner__title {
+    font-weight: 700;
+    margin: 0 0 2px 0;
+}
+.cleanup-banner__detail {
+    margin: 0;
+    color: #2e4637;
+}
+
 /* Info banner for 3+ candidates */
 .multi-candidate-banner {
     display: flex;
@@ -346,4 +380,78 @@
     padding: 0;
     max-height: 72vh;
     overflow-y: auto;
+}
+
+/* ── Snapshot view modal (merged loser records) ──────────────────────────── */
+
+.snapshot-modal__body {
+    padding: 0;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+.snapshot-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background-color: #fff3e0;
+    border-left: 4px solid #dd7a01;
+    padding: 0.75rem 1rem;
+}
+
+.snapshot-banner__icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #dd7a01;
+}
+
+.snapshot-banner__title {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #3e2f00;
+    margin: 0 0 2px 0;
+}
+
+.snapshot-banner__text {
+    font-size: 0.8125rem;
+    color: #544000;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 2-column grid — mirrors lightning-record-form layout */
+.snapshot-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid #e0e0e0;
+}
+
+.snapshot-field {
+    padding: 0.625rem 1rem 0.5rem 1rem;
+    border-bottom: 1px solid #e8e7e6;
+    border-right: 1px solid #e8e7e6;
+    min-width: 0;
+}
+
+/* Right-column cells have no right border */
+.snapshot-field:nth-child(even) {
+    border-right: 0;
+}
+
+.snapshot-field__label {
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin: 0 0 0.25rem 0;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.snapshot-field__value {
+    font-size: 0.875rem;
+    color: #181818;
+    margin: 0;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }

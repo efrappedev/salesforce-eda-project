@@ -199,6 +199,125 @@ public with sharing class MergeController {
         return [SELECT IsSandbox FROM Organization LIMIT 1].IsSandbox;
     }
 
+    // ─── Snapshot view for merged loser records ───────────────────────────────
+
+    /**
+     * Returns the pre-merge snapshot of a loser record from the merge log.
+     * Used when the user clicks the eye icon on a "Fusionné" card — those records
+     * were deleted by Database.merge() and no longer exist in Salesforce.
+     */
+    @AuraEnabled(cacheable=true)
+    public static MergeWrappers.SnapshotViewWrapper getLoserSnapshot(
+        String ticketId,
+        String loserId
+    ) {
+        List<Merge_Log__c> logs = [
+            SELECT Before_Snapshot_JSON__c, Object_Type__c
+            FROM Merge_Log__c
+            WHERE Merge_Ticket__c = :ticketId
+              AND Action_Type__c IN ('MERGE_COMPLETED', 'MERGE_PENDING', 'MERGE_ERROR')
+            ORDER BY CreatedDate DESC
+            LIMIT 1
+        ];
+
+        if (logs.isEmpty() || String.isBlank(logs[0].Before_Snapshot_JSON__c)) return null;
+
+        Merge_Log__c lg = logs[0];
+        Map<String, Object> allSnapshots = (Map<String, Object>)
+            JSON.deserializeUntyped(lg.Before_Snapshot_JSON__c);
+
+        if (!allSnapshots.containsKey(loserId)) return null;
+
+        Map<String, Object> snap   = (Map<String, Object>) allSnapshots.get(loserId);
+        String              objType = lg.Object_Type__c;
+
+        // Schema describe for field labels
+        Map<String, Schema.SObjectField> fieldMap = new Map<String, Schema.SObjectField>();
+        Schema.SObjectType sType = Schema.getGlobalDescribe().get(objType);
+        if (sType != null) fieldMap = sType.getDescribe().fields.getMap();
+
+        MergeWrappers.SnapshotViewWrapper wrapper = new MergeWrappers.SnapshotViewWrapper();
+        wrapper.recordId   = loserId;
+        wrapper.objectType = objType;
+
+        // Resolve display name
+        Object nameObj  = snap.get('Name');
+        Object firstObj = snap.get('FirstName');
+        Object lastObj  = snap.get('LastName');
+        if (nameObj != null && !String.isBlank(String.valueOf(nameObj))) {
+            wrapper.recordName = String.valueOf(nameObj);
+        } else {
+            String fn = firstObj != null ? String.valueOf(firstObj) : '';
+            String ln = lastObj  != null ? String.valueOf(lastObj)  : '';
+            wrapper.recordName = (fn + ' ' + ln).trim();
+        }
+
+        Object capAt = snap.get('__meta_capturedAt');
+        wrapper.capturedAt = capAt != null ? String.valueOf(capAt) : '';
+
+        // Fields to omit from the view (technical / already shown in header)
+        Set<String> skipFields = new Set<String>{
+            'id', 'isdeleted', 'masterrecordid',
+            '__meta_capturedat', '__meta_capturedby', '__meta_objecttype'
+        };
+
+        List<MergeWrappers.SnapshotField> stdFields  = new List<MergeWrappers.SnapshotField>();
+        List<MergeWrappers.SnapshotField> custFields = new List<MergeWrappers.SnapshotField>();
+
+        for (String apiName : snap.keySet()) {
+            if (apiName.startsWith('__meta_')) continue;
+            if (skipFields.contains(apiName.toLowerCase())) continue;
+
+            Object val = snap.get(apiName);
+            if (val == null) continue;
+
+            String strVal;
+            if (val instanceof Boolean) {
+                strVal = (Boolean) val ? 'Oui' : 'Non';
+            } else if (val instanceof Map<String, Object>) {
+                Object relName = ((Map<String, Object>) val).get('Name');
+                if (relName == null || String.isBlank(String.valueOf(relName))) continue;
+                strVal = String.valueOf(relName);
+            } else if (val instanceof List<Object>) {
+                continue;
+            } else {
+                strVal = String.valueOf(val);
+                if (String.isBlank(strVal)) continue;
+            }
+
+            String label = apiName;
+            String lower = apiName.toLowerCase();
+            if (fieldMap.containsKey(lower)) {
+                label = fieldMap.get(lower).getDescribe().getLabel();
+            }
+
+            MergeWrappers.SnapshotField f = new MergeWrappers.SnapshotField();
+            f.apiName = apiName;
+            f.label   = label;
+            f.value   = strVal;
+
+            if (apiName.endsWith('__c')) { custFields.add(f); } else { stdFields.add(f); }
+        }
+
+        sortSnapshotFields(stdFields);
+        sortSnapshotFields(custFields);
+        wrapper.fields.addAll(stdFields);
+        wrapper.fields.addAll(custFields);
+        return wrapper;
+    }
+
+    @TestVisible private static void sortSnapshotFields(List<MergeWrappers.SnapshotField> fields) {
+        for (Integer i = 0; i < fields.size() - 1; i++) {
+            for (Integer j = i + 1; j < fields.size(); j++) {
+                if (fields[i].label > fields[j].label) {
+                    MergeWrappers.SnapshotField tmp = fields[i];
+                    fields[i] = fields[j];
+                    fields[j] = tmp;
+                }
+            }
+        }
+    }
+
     // ─── Orphaned Account cleanup ─────────────────────────────────────────────
 
     @AuraEnabled

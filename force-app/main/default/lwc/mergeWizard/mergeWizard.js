@@ -2,6 +2,7 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getComparisonMatrix            from '@salesforce/apex/MergeController.getComparisonMatrix';
+import getLoserSnapshotApex           from '@salesforce/apex/MergeController.getLoserSnapshot';
 import executeMergeApex               from '@salesforce/apex/MergeController.executeMerge';
 import dismissTicketApex              from '@salesforce/apex/MergeController.dismissTicket';
 import deleteOrphanedAccountApex       from '@salesforce/apex/MergeController.deleteOrphanedAccount';
@@ -65,14 +66,23 @@ export default class MergeWizard extends LightningElement {
     @track orphanedContacts       = [];
     @track isDeletingContact      = false;
 
+    // ── Cleaned-up orphaned tickets (post-merge notification) ─────────────────
+    // Single tracked string — truthy when tickets were auto-deleted after merge
+    @track cleanedUpMessage = '';
+
     // ── Deleted contacts (for restore) ───────────────────────────────────────
     _wiredDeletedContacts;
     @track deletedContacts        = [];
 
-    // ── Record view modal state ───────────────────────────────────────────────
+    // ── Record view modal state (live records) ───────────────────────────────
     @track showRecordModal  = false;
     @track recordModalId    = null;
     @track recordModalName  = null;
+
+    // ── Snapshot view modal state (merged/deleted loser records) ─────────────
+    @track showSnapshotModal  = false;
+    @track snapshotLoading    = false;
+    @track snapshotData       = null;
 
     // ── Data ─────────────────────────────────────────────────────────────────
     @track _matrix  = null;
@@ -298,6 +308,9 @@ export default class MergeWizard extends LightningElement {
             });
     }
 
+    // ── Cleaned-up tickets notification ──────────────────────────────────────
+    get hasCleanedUpTickets() { return !!this.cleanedUpMessage; }
+
     get hasExcludedRecords() { return this.excludedRecordNames.length > 0; }
 
     get hasCustomDecisions() {
@@ -344,19 +357,70 @@ export default class MergeWizard extends LightningElement {
 
     // ── Step-1: master selection via card click ────────────────────────────────
 
-    // ── Record view modal handlers ────────────────────────────────────────────
+    // ── Record / Snapshot view modal handlers ────────────────────────────────
 
     handleViewRecord(event) {
         event.stopPropagation();   // don't trigger handleCardMasterSelect
-        this.recordModalId   = event.currentTarget.dataset.id;
-        this.recordModalName = event.currentTarget.dataset.name;
-        this.showRecordModal = true;
+        const id   = event.currentTarget.dataset.id;
+        const name = event.currentTarget.dataset.name;
+
+        // Merged losers no longer exist in Salesforce — show snapshot from log
+        const isMergedLoser = (this._matrix?.missingRecordIds || []).includes(id);
+        if (isMergedLoser) {
+            this.snapshotLoading  = true;
+            this.snapshotData     = null;
+            this.showSnapshotModal = true;
+            getLoserSnapshotApex({ ticketId: this.ticketId, loserId: id })
+                .then(data => {
+                    this.snapshotData    = data;
+                    this.snapshotLoading = false;
+                })
+                .catch(err => {
+                    this.snapshotLoading  = false;
+                    this.showSnapshotModal = false;
+                    this._toast('Erreur', err.body?.message || err.message, 'error');
+                });
+        } else {
+            this.recordModalId   = id;
+            this.recordModalName = name;
+            this.showRecordModal = true;
+        }
     }
 
     closeRecordModal() {
         this.showRecordModal = false;
         this.recordModalId   = null;
         this.recordModalName = null;
+    }
+
+    closeSnapshotModal() {
+        this.showSnapshotModal = false;
+        this.snapshotData     = null;
+        this.snapshotLoading  = false;
+    }
+
+    // ── Snapshot modal getters ────────────────────────────────────────────────
+
+    get snapshotModalName() {
+        return this.snapshotData?.recordName || '…';
+    }
+
+    get snapshotModalCapturedAt() {
+        const raw = this.snapshotData?.capturedAt;
+        if (!raw) return '';
+        try {
+            return new Date(raw).toLocaleString('fr-CA');
+        } catch (e) {
+            return raw;
+        }
+    }
+
+    get snapshotModalFields() {
+        return this.snapshotData?.fields || [];
+    }
+
+    get hasSnapshotFields() {
+        return this.snapshotModalFields.length > 0;
     }
 
     handleCardMasterSelect(event) {
@@ -428,6 +492,19 @@ export default class MergeWizard extends LightningElement {
             });
 
             if (result.success) {
+                const cleanedCount = result.cleanedUpTicketCount || 0;
+                if (cleanedCount > 0) {
+                    const names     = this.losingRecordNames.join(', ') || '—';
+                    const countWord = cleanedCount === 1
+                        ? '1 ticket associé supprimé automatiquement'
+                        : `${cleanedCount} tickets associés supprimés automatiquement`;
+                    const plural = this.losingRecordNames.length > 1;
+                    const verb   = plural ? 'ont été fusionnés' : 'a été fusionné';
+                    const noun   = plural ? "ces enregistrements n'existent" : "cet enregistrement n'existe";
+                    this.cleanedUpMessage = `${countWord} — Les tickets référençant « ${names} » qui ${verb} ont été retirés de la liste car ${noun} plus dans Salesforce.`;
+                } else {
+                    this.cleanedUpMessage = '';
+                }
                 const mergeDetail = {
                     logId: result.logId, mergedRecordId: result.mergedRecordId,
                     ticketId: this.ticketId
