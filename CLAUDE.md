@@ -34,3 +34,26 @@
 - Apex: `MergeController`, `MergeScanService`, `MergeScanBatch`, `MergeTicketService`, `MergeExecutionService`, `EDARelatedRecordsService`, `MergeAuditService`, `SnapshotService`, `DataNormalizationUtil`, `MergeWrappers`
 - LWC: `mergeManager`, `mergeTicketList`, `mergeScanModal`, `mergeWizard`, `mergeComparisonMatrix`
 - Objetos custom: `Merge_Ticket__c`, `Merge_Candidate__c`, `Merge_Log__c`
+
+---
+
+## Proyecto secundario: Android iJiami Bypass
+
+Si el usuario menciona **Android, iJiami, Frida, APK, Xuper, bypass o emulador**:
+
+1. **LEER INMEDIATAMENTE:** `android/CONTEXTO.md` — contiene todo el estado técnico actual
+2. Scripts de trabajo en: `android/scripts/`
+3. APKs NO están en el repo (binarios propietarios) — el usuario los tiene localmente en `Apk/`
+4. **Responder siempre en español**
+
+### Setup rápido en máquina nueva
+```bash
+# Emulador (Android Studio + AVD instalado):
+export PATH="$PATH:~/Library/Android/sdk/platform-tools:~/Library/Python/3.9/bin"
+adb root && adb shell "/data/local/tmp/frida-server &"
+frida -U -f com.android.mgstv -l android/scripts/kills_only.js
+
+# Solo Fire TV (solo necesita adb):
+adb connect <ip_firetv>
+adb logcat | grep -iE "http|url|portal|brasiliptv"
+```

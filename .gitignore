@@ -53,4 +53,12 @@ force-app/main/default/Merge app Salesforce/DIAGNOSTIC_ACCOUNT_SCAN.apex
 force-app/main/default/Screenshots Merge/
 force-app/main/default/Merge app Salesforce v2/
 
+# Android — binaries y APKs locales, NO subir a GitHub
+*.apk
+*.idsig
+*.dmg
+*.exe
+*.dex
+Apk/Xuper_4.34.5_Emagoplay/
+
 .claude/
