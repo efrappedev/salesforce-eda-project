@@ -1,5 +1,5 @@
 <apex:page standardController="Contact" extensions="DegreeAuditMatrixController"
-           sidebar="false" showHeader="false" docType="html-5.0" lightningStylesheets="true">
+           sidebar="false" showHeader="false" docType="html-5.0" lightningStylesheets="false">
 
     <!-- CSS global de la app -->
     <apex:stylesheet value="{!URLFOR($Resource.DegreeAuditCSS)}"/>
@@ -372,9 +372,11 @@
                   var courses = parseOptTooltip(td.getAttribute('title')||''); // ⬅️ usa la GLOBAL
                   courses.forEach(function(course){
                     var tr = document.createElement('tr'); tr.className='js-opt-row';
-                    var td1 = document.createElement('td'); td1.style.textAlign='center'; td1.className='ico ok'; td1.innerHTML='&#10003;';
-                    var td2 = document.createElement('td'); 
-                    td2.textContent = cleanCourseName(course);                  // ⬅️ asegura limpieza
+                    var td1 = document.createElement('td'); td1.style.textAlign='center';
+                    var chk = document.createElement('span'); chk.className='ico ok'; chk.innerHTML='&#10003;';
+                    td1.appendChild(chk);
+                    var td2 = document.createElement('td');
+                    td2.textContent = cleanCourseName(course);
                     tr.appendChild(td1); tr.appendChild(td2);
                     tbody.appendChild(tr);
                   });
@@ -427,275 +429,49 @@
             
     </script>
 
-    <!-- Overrides CSS específicos para Quick Action (aseguran que los botones se VEAN) -->
+    <!-- Overrides CSS específicos para Quick Action -->
 <style>
-/* ==== Quick Action: permitir scroll en el iframe ==== */
-html, body{
-  height:auto !important;
-  overflow:auto !important;
-  -webkit-overflow-scrolling:touch;
+/* Scroll en el iframe de la Quick Action */
+html, body {
+  height: auto !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* ==== Botonera fija (no tapa contenido) ==== */
-.qa-actions{
-  position:fixed !important;
-  left:16px; right:16px; bottom:12px;
-  z-index:9999;
-  display:flex !important; gap:8px; align-items:center; justify-content:flex-end;
-  padding:10px 12px;
-  background:rgba(255,255,255,.98);
-  border:1px solid #e5e7eb; border-radius:8px;
-  box-shadow:0 6px 20px rgba(0,0,0,.10);
+/* Botonera fija en la parte inferior */
+.qa-actions {
+  position: fixed !important;
+  left: 16px; right: 16px; bottom: 12px;
+  z-index: 9999;
+  display: flex !important;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.10);
 }
-/* colchón para que la botonera no tape la última fila */
-#studentDetailCapture{ padding-bottom:96px !important; }
+#studentDetailCapture { padding-bottom: 96px !important; }
 
-/* ==== Caja de la tabla ==== */
-#studentDetailPanel .detail-table-wrap{
-  border:1px solid #e5e7eb !important;
-  border-radius:8px !important;
-  overflow:hidden !important;
-  background:#fff !important;
-}
-
-/* ==== Reset duro SOLO para esta tabla (anula SLDS y el CSS global) ==== */
-#studentDetailPanel #detailTable,
-#studentDetailPanel #detailTable *{
-  box-shadow:none !important;
-  background-image:none !important;
-  border:0 !important;
-  outline:0 !important;
-}
-#studentDetailPanel #detailTable tr::before,
-#studentDetailPanel #detailTable tr::after,
-#studentDetailPanel #detailTable th::before,
-#studentDetailPanel #detailTable th::after,
-#studentDetailPanel #detailTable td::before,
-#studentDetailPanel #detailTable td::after{
-  content:none !important;
+/* Wrapper de la tabla */
+#daContactVF .detail-table-wrap {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
 }
 
-/* ==== Apariencia limpia de la tabla ==== */
-#studentDetailPanel table.detail-table{
-  width:100% !important;
-  table-layout:fixed !important;
-  border-collapse:separate !important;
-  border-spacing:0 !important;
-  background:#fff !important;
-  font-size:13px;
+/* ── Sin zebra ── */
+#daContactVF .detail-table tbody tr:nth-child(even) td {
+  background: #fff;
 }
 
-/* celdas base */
-#studentDetailPanel .detail-table thead th,
-#studentDetailPanel .detail-table tbody td{
-  position:relative;
-  padding:10px 14px !important;
-  border-bottom:1px solid #e5e7eb !important;
-  vertical-align:middle !important;
-  background:#fff !important;
-  background-clip:padding-box;
-  /* sin bordes verticales heredados */
-  border-right:0 !important;
+/* ── Quitar borde inferior de la fila que precede a un encabezado de bloque ── */
+#daContactVF .detail-table tbody tr:has(+ .opt-sub) td {
+  border-bottom: none;
 }
-
-/* cabecera */
-#studentDetailPanel .detail-table thead th{
-  background:#f9fafb !important;
-  font-weight:600;
-  text-transform:uppercase;
-  font-size:12px;
-}
-
-/* 1ª columna (✓/✕) fija y centrada */
-#studentDetailPanel .detail-table thead th:first-child,
-#studentDetailPanel .detail-table tbody td:first-child{
-  width:80px !important;
-  text-align:center !important;
-  /* quitar cualquier separador en esta columna */
-  border-right:0 !important;
-}
-#studentDetailPanel .detail-table tbody td:first-child::after{
-  content:none !important;  /* evita la “guía” junto al ✓ */
-}
-
-/* un poco más de aire al nombre del curso */
-#studentDetailPanel .detail-table tbody td:nth-child(2){
-  padding-left:18px !important;
-}
-
-/* sin zebra (para evitar parches de fondo) */
-#studentDetailPanel .detail-table tbody tr:nth-child(even) td{
-  background:#fff !important;
-}
-
-/* subtítulo de bloque optativo */
-#studentDetailPanel .detail-table .opt-sub th{
-  text-align:left !important;
-  background:#f3f4f6 !important;
-  color:#111827; font-weight:600;
-  border-top:1px solid #e5e7eb !important;
-  border-bottom:1px solid #e5e7eb !important;
-  padding:10px 14px !important;
-}
-
-/* filas inyectadas (cursos del bloque) */
-#studentDetailPanel .detail-table .js-opt-row td{
-  background:#fff !important;
-}
-
-/* última fila sin línea extra */
-#studentDetailPanel .detail-table tr:last-child > *{
-  border-bottom:0 !important;
-}
-
-/* ajuste de los iconos ✓/✕ */
-#studentDetailPanel .detail-table td .ico.ok,
-#studentDetailPanel .detail-table td .ico.miss{
-  display:inline-block; line-height:1;
-}
-
-/* Quitar cualquier borde que venga de SLDS en la 2ª columna */
-#studentDetailPanel .detail-table thead th + th,
-#studentDetailPanel .detail-table tbody td + td{
-  border-left: 0 !important;
-  position: relative;
-  background-clip: padding-box;
-}
-
-/* Pintar nuestro separador vertical limpio entre ✓ y el nombre */
-#studentDetailPanel .detail-table thead th + th::before,
-#studentDetailPanel .detail-table tbody td + td::before{
-  content:"";
-  position:absolute;
-  left:-1px;              /* justo pegado a la 1ª columna */
-  top:-1px; bottom:-1px;
-  width:1px;
-  background:#e5e7eb;
-  pointer-events:none;
-}
-
-/* Asegura que la 1ª columna NO pinte nada adicional */
-#studentDetailPanel .detail-table thead th:first-child,
-#studentDetailPanel .detail-table tbody td:first-child{
-  border-right: 0 !important;
-}
-#studentDetailPanel .detail-table tbody td:first-child::before,
-#studentDetailPanel .detail-table tbody td:first-child::after{
-  content:none !important;
-}
-
-/* === Parámetros de la tabla del detalle (solo Contact) === */
-#studentDetailPanel .detail-table{
-  --statusW: 80px;     /* ancho de la 1ª col (✓/✕) */
-  --cellPadX: 14px;    /* padding horizontal de las celdas */
-}
-
-/* Quita cualquier borde heredado en la 2ª columna */
-#studentDetailPanel .detail-table thead th + th,
-#studentDetailPanel .detail-table tbody td + td{
-  border-left: 0 !important;
-  position: relative;
-  background-clip: padding-box;
-}
-
-/* Nuestro separador limpio entre 1ª y 2ª columna */
-#studentDetailPanel .detail-table thead th + th::before,
-#studentDetailPanel .detail-table tbody td + td::before{
-  content:"";
-  position:absolute;
-  left: -1px;
-  top:-1px; bottom:-1px;
-  width:1px;
-  background:#e5e7eb;
-  pointer-events:none;
-}
-
-/* Asegura que la 1ª columna no pinte bordes raros */
-#studentDetailPanel .detail-table thead th:first-child,
-#studentDetailPanel .detail-table tbody td:first-child{
-  border-right: 0 !important;
-}
-#studentDetailPanel .detail-table tbody td:first-child::before,
-#studentDetailPanel .detail-table tbody td:first-child::after{
-  content:none !important;
-}
-
-/* ===== SUBTÍTULO DE BLOQUE (fila .opt-sub) =====
-   - Alinea el texto como la 2ª columna
-   - Dibuja el separador vertical a los 80px para que no “se corte” */
-#studentDetailPanel .detail-table .opt-sub th{
-  position: relative;
-  padding-left: calc(var(--statusW) + var(--cellPadX)) !important; /* alinea con col 2 */
-}
-
-/* pinta el separador donde iría el borde entre col 1 y 2 */
-#studentDetailPanel .detail-table .opt-sub th::before{
-  content:"";
-  position:absolute;
-  left: var(--statusW);
-  top:-1px; bottom:-1px;
-  width:1px;
-  background:#e5e7eb;
-  pointer-events:none;
-}
-
-/* (opcional) “tapa” la zona de la 1ª columna para que se vea
-   homogénea con las filas normales */
-#studentDetailPanel .detail-table .opt-sub th::after{
-  content:"";
-  position:absolute;
-  left:0; top:0; bottom:0;
-  width: var(--statusW);
-  background:#fff; /* mismo fondo que las filas */
-  pointer-events:none;
-}
-
-/* Asegura ancho fijo de la 1ª columna */
-#detailTable col:first-child { width:80px; }
-
-.detail-table .opt-title{
-  background:#f9fafb;
-  font-weight:600;
-  color:#111827;
-  border-top:1px solid #e5e7eb;
-  border-bottom:1px solid #e5e7eb;
-  padding:10px 14px;
-}
-
-/* 1ª columna fija y centrada (✓/✕) */
-#studentDetailPanel .detail-table thead th:first-child,
-#studentDetailPanel .detail-table tbody td:first-child{
-  width:80px !important;
-  text-align:center !important;
-}
-
-/* separador limpio aplicado a la 2ª columna */
-#studentDetailPanel .detail-table thead th:nth-child(2),
-#studentDetailPanel .detail-table tbody td:nth-child(2){
-  position: relative;
-}
-#studentDetailPanel .detail-table thead th:nth-child(2)::before,
-#studentDetailPanel .detail-table tbody td:nth-child(2)::before{
-  content:""; position:absolute; left:-1px; top:-1px; bottom:-1px; width:1px;
-  background:#e5e7eb; pointer-events:none;
-}
-
-/* fila título de bloque (dos TD: .opt-gap + .opt-title) */
-#studentDetailPanel .detail-table td.opt-gap{
-  width:80px !important; padding:0 !important; border:0 !important; background:#fff !important;
-}
-#studentDetailPanel .detail-table td.opt-title{
-  position:relative;
-  background:#f9fafb !important; color:#111827; font-weight:600;
-  padding:10px 14px !important;
-  border-top:1px solid #e5e7eb !important; border-bottom:1px solid #e5e7eb !important;
-}
-/* el mismo separador entre col 1 y 2 en la fila de título */
-#studentDetailPanel .detail-table td.opt-title::before{
-  content:""; position:absolute; left:-1px; top:-1px; bottom:-1px; width:1px;
-  background:#e5e7eb; pointer-events:none;
-}
-
 </style>
 
 

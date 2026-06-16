@@ -16,6 +16,12 @@ public with sharing class MergeController {
     // Test-injection: bypass dfr.isAccessible() in getEmailObjectCandidates so tests cover
     // the qualifying-object branch regardless of the running user's FLS profile
     @TestVisible private static Boolean TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false;
+    // Test-injection: simulate EDA absent so the createRelationship guard branch is covered
+    @TestVisible private static Boolean TEST_EDA_NOT_AVAILABLE = false;
+    // Test-injection: force the Account-delete CRUD guard to deny, covering the throw branch
+    @TestVisible private static Boolean TEST_FORCE_ACCOUNT_NOT_DELETABLE = false;
+    // Test-injection: force the Contact-delete CRUD guard to deny, covering the throw branch
+    @TestVisible private static Boolean TEST_FORCE_CONTACT_NOT_DELETABLE = false;
 
     // ─── Ticket list ──────────────────────────────────────────────────────────
 
@@ -72,7 +78,7 @@ public with sharing class MergeController {
         String soql =
             'SELECT Id, Name, Status__c, Object_Type__c, Match_Type__c, ' +
             '       Match_Confidence__c, Candidate_Count__c, Match_Key__c, ' +
-            '       Error_Message__c, ' +
+            '       Error_Message__c, Closed_Reason__c, ' +
             '       CreatedDate, LastModifiedDate, ' +
             '       (SELECT Record_Name__c FROM Merge_Candidates__r ' +
             '        ORDER BY CreatedDate ASC LIMIT 5) ' +
@@ -181,6 +187,63 @@ public with sharing class MergeController {
             Final_Action__c = 'Ignored',
             Closed_Reason__c = closedReason,
             Notes__c        = notes
+        );
+    }
+
+    // ─── EDA Relationships ────────────────────────────────────────────────────
+
+    /**
+     * Returns active picklist values for hed__Relationship__c.hed__Type__c.
+     * Returns empty list if EDA is not installed.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String,String>> getRelationshipTypes() {
+        Schema.SObjectType relSObj = Schema.getGlobalDescribe().get('hed__relationship__c');
+        if (relSObj == null) return new List<Map<String,String>>();
+        Schema.SObjectField typeField = relSObj.getDescribe().fields.getMap().get('hed__type__c');
+        if (typeField == null) return new List<Map<String,String>>();
+        List<Map<String,String>> result = new List<Map<String,String>>();
+        for (Schema.PicklistEntry e : typeField.getDescribe().getPicklistValues()) {
+            if (e.isActive()) {
+                result.add(new Map<String,String>{ 'label' => e.getLabel(), 'value' => e.getValue() });
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Creates a relationship A→B. EDA automatically creates the reciprocal B→A.
+     * Throws AuraHandledException if EDA is not available.
+     */
+    @AuraEnabled
+    public static void createRelationship(
+        String contactId1,
+        String contactId2,
+        String relType
+    ) {
+        Schema.SObjectType relSObj = TEST_EDA_NOT_AVAILABLE ? null
+            : Schema.getGlobalDescribe().get('hed__relationship__c');
+        if (relSObj == null) {
+            throw new AuraHandledException('EDA non disponible dans cet org.');
+        }
+        SObject rel = relSObj.newSObject();
+        rel.put('hed__Contact__c',        (Id) contactId1);
+        rel.put('hed__RelatedContact__c', (Id) contactId2);
+        rel.put('hed__Type__c',           relType);
+        rel.put('hed__Status__c',         'Current');
+        insert rel;
+    }
+
+    /**
+     * Reopens an Ignored ticket — resets status to New and clears the closed reason.
+     */
+    @AuraEnabled
+    public static void reopenTicket(String ticketId) {
+        update new Merge_Ticket__c(
+            Id               = (Id) ticketId,
+            Status__c        = 'New',
+            Final_Action__c  = null,
+            Closed_Reason__c = null
         );
     }
 
@@ -324,6 +387,11 @@ public with sharing class MergeController {
     public static void deleteOrphanedAccount(
         String accountId, String ticketId, String accountName
     ) {
+        if (TEST_FORCE_ACCOUNT_NOT_DELETABLE || !Schema.sObjectType.Account.isDeletable()) {
+            throw new AuraHandledException(
+                'Vous n\'avez pas la permission de supprimer des comptes (Account).'
+            );
+        }
         Integer contactCount = [
             SELECT COUNT() FROM Contact WHERE AccountId = :accountId
         ];
@@ -388,6 +456,11 @@ public with sharing class MergeController {
     public static void deleteOrphanedContact(
         String contactId, String ticketId, String contactName
     ) {
+        if (TEST_FORCE_CONTACT_NOT_DELETABLE || !Schema.sObjectType.Contact.isDeletable()) {
+            throw new AuraHandledException(
+                'Vous n\'avez pas la permission de supprimer des contacts (Contact).'
+            );
+        }
         delete [SELECT Id FROM Contact WHERE Id = :contactId LIMIT 1];
 
         if (!String.isBlank(ticketId)) {

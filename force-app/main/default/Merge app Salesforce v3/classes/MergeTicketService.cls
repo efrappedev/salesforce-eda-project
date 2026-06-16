@@ -13,6 +13,10 @@
  */
 public without sharing class MergeTicketService {
 
+    // Test-injection: forces the getSObject() call in formatLookupAwareName to throw
+    // so the catch block at line 255 is covered in test runs
+    @TestVisible private static Boolean TEST_THROW_LOOKUP_RESOLUTION = false;
+
     // Fields to always show in the comparison table, in display order
     private static final Map<String,List<String>> KEY_COMPARISON_FIELDS =
         new Map<String,List<String>>{
@@ -58,7 +62,8 @@ public without sharing class MergeTicketService {
 
     public static MergeWrappers.ComparisonMatrix buildComparisonMatrix(Id ticketId) {
         Merge_Ticket__c ticket = [
-            SELECT Id, Object_Type__c, Status__c, Selected_Master_Id__c
+            SELECT Id, Object_Type__c, Status__c, Selected_Master_Id__c,
+                   Closed_Reason__c, Notes__c
             FROM Merge_Ticket__c
             WHERE Id = :ticketId LIMIT 1
         ];
@@ -91,30 +96,54 @@ public without sharing class MergeTicketService {
         List<String>   queryFields  = buildFieldList(ticket.Object_Type__c);
         Map<Id,SObject> liveRecords = loadLiveRecords(ticket.Object_Type__c, sfIds, queryFields);
 
-        // ── Load pre-merge snapshot for any candidates that no longer exist ────
-        // Losing records are deleted by Salesforce after merge. Their field values
-        // are preserved in Merge_Log__c.Before_Snapshot_JSON__c (inserted before
-        // the merge DML). Use those snapshots to populate the comparison rows.
+        // ── Load pre-merge snapshot + confirmed loser IDs from Merge Log ────────
+        // Losing records are hard-deleted by Database.merge(). Their field values are
+        // preserved in Merge_Log__c.Before_Snapshot_JSON__c.
+        // For merged tickets we ALWAYS query the log — the Losing_Record_Ids__c field
+        // is the authoritative list of which records were deleted, regardless of whether
+        // the live-record SOQL missed them (EDA interference, LWC cache, etc.).
         Map<String,Map<String,Object>> deletedSnapshots = new Map<String,Map<String,Object>>();
+        Set<String> confirmedLoserIds = new Set<String>();
+        // Merge log display fields — populated inside block, assigned to matrix below
+        String logPerformedBy   = null;
+        String logPerformedDate = null;
+        String logMasterName    = null;
+        String logLoserNames    = null;
         {
+            Boolean isMerged  = ticket.Status__c == 'Merged';
             Boolean anyMissing = false;
             for (Id sfId : sfIds) {
                 if (!liveRecords.containsKey(sfId)) { anyMissing = true; break; }
             }
-            if (anyMissing) {
+            if (isMerged || anyMissing) {
                 List<Merge_Log__c> logs = [
-                    SELECT Before_Snapshot_JSON__c
+                    SELECT Before_Snapshot_JSON__c, Losing_Record_Ids__c,
+                           Performed_By__r.Name, Performed_Date__c,
+                           Master_Record_Name__c, Losing_Record_Names__c
                     FROM Merge_Log__c
                     WHERE Merge_Ticket__c = :ticketId
+                      AND Action_Type__c IN ('MERGE_COMPLETED', 'MERGE_PENDING', 'MERGE_ERROR')
                     ORDER BY CreatedDate DESC
                     LIMIT 1
                 ];
-                if (!logs.isEmpty() && !String.isBlank(logs[0].Before_Snapshot_JSON__c)) {
-                    Map<String,Object> raw = (Map<String,Object>)
-                        JSON.deserializeUntyped(logs[0].Before_Snapshot_JSON__c);
-                    for (String recIdStr : raw.keySet()) {
-                        deletedSnapshots.put(recIdStr, (Map<String,Object>) raw.get(recIdStr));
+                if (!logs.isEmpty()) {
+                    Merge_Log__c lg = logs[0];
+                    if (!String.isBlank(lg.Before_Snapshot_JSON__c)) {
+                        Map<String,Object> raw = (Map<String,Object>)
+                            JSON.deserializeUntyped(lg.Before_Snapshot_JSON__c);
+                        for (String recIdStr : raw.keySet()) {
+                            deletedSnapshots.put(recIdStr, (Map<String,Object>) raw.get(recIdStr));
+                        }
                     }
+                    if (!String.isBlank(lg.Losing_Record_Ids__c)) {
+                        List<Object> parsed = (List<Object>)
+                            JSON.deserializeUntyped(lg.Losing_Record_Ids__c);
+                        for (Object o : parsed) confirmedLoserIds.add(String.valueOf(o));
+                    }
+                    logPerformedBy   = lg.Performed_By__r != null ? lg.Performed_By__r.Name : null;
+                    logPerformedDate = lg.Performed_Date__c != null ? String.valueOf(lg.Performed_Date__c) : null;
+                    logMasterName    = lg.Master_Record_Name__c;
+                    logLoserNames    = lg.Losing_Record_Names__c;
                 }
             }
         }
@@ -126,12 +155,25 @@ public without sharing class MergeTicketService {
 
         // ── Assemble matrix ───────────────────────────────────────────────────
         MergeWrappers.ComparisonMatrix matrix = new MergeWrappers.ComparisonMatrix();
-        matrix.objectType    = ticket.Object_Type__c;
-        matrix.savedMasterId = ticket.Selected_Master_Id__c != null
+        matrix.objectType        = ticket.Object_Type__c;
+        matrix.savedMasterId     = ticket.Selected_Master_Id__c != null
             ? String.valueOf(ticket.Selected_Master_Id__c) : null;
+        matrix.ticketStatus       = ticket.Status__c;
+        matrix.ticketClosedReason = ticket.Closed_Reason__c;
+        matrix.ticketNotes        = ticket.Notes__c;
+        matrix.mergePerformedBy   = logPerformedBy;
+        matrix.mergePerformedDate = logPerformedDate;
+        matrix.mergeMasterName    = logMasterName;
+        matrix.mergeLoserNames    = logLoserNames;
+
+        // missingIds = records absent from liveRecords OR confirmed as losers in the log
         List<String> missingIds = new List<String>();
-        for (Id sfId : sfIds) {
-            if (!liveRecords.containsKey(sfId)) missingIds.add(String.valueOf(sfId));
+        Set<String>  missingSet = new Set<String>();
+        for (String sfIdStr : orderedIds) {
+            Id sfId = (Id) sfIdStr;
+            if (!liveRecords.containsKey(sfId) || confirmedLoserIds.contains(sfIdStr)) {
+                if (missingSet.add(sfIdStr)) missingIds.add(sfIdStr);
+            }
         }
         matrix.missingRecordIds = missingIds;
 
@@ -247,6 +289,7 @@ public without sharing class MergeTicketService {
             String relName = dfr.getRelationshipName();
             if (!String.isBlank(relName)) {
                 try {
+                    if (TEST_THROW_LOOKUP_RESOLUTION) throw new IllegalArgumentException('test');
                     SObject related = rec.getSObject(relName);
                     if (related != null) {
                         String name = (String) related.get('Name');

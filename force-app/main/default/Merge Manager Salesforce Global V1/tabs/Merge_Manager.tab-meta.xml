@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Merge Manager</label>
+    <motif>Custom74: Funnel</motif>
+    <flexiPage>Merge_Manager</flexiPage>
+    <description>Duplicate detection and safe merge management for Contacts and Accounts (EDA).</description>
+</CustomTab>

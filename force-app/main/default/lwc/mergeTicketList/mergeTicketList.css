@@ -72,11 +72,12 @@
 .ticket-badge_low    { background: #f3f2f2; color: #706e6b; border-color: #c9c7c5; }
 
 /* Status badges */
-.ticket-badge_new     { background: #eaf5ee; color: #2e844a; border-color: #8dc99f; }
+.ticket-badge_new     { background: #e8f4fd; color: #0176d3; border-color: #9dcaf0; }
 .ticket-badge_review  { background: #f5eeff; color: #7033b5; border-color: #c4a0e8; }
 .ticket-badge_ready   { background: #e8f4fd; color: #0176d3; border-color: #9dcaf0; }
-.ticket-badge_merged  { background: #f3f2f2; color: #444;    border-color: #c9c7c5; }
+.ticket-badge_merged  { background: #eaf5ee; color: #2e844a; border-color: #8dc99f; }
 .ticket-badge_ignored { background: #f3f2f2; color: #706e6b; border-color: #c9c7c5; }
+.ticket-badge_closed  { background: #f3f2f2; color: #1a1a1a; border-color: #706e6b; }
 .ticket-badge_error   { background: #fde8e8; color: #ba0517; border-color: #f0a0a0; }
 
 .ticket-list__filters {
@@ -128,4 +129,20 @@
     transform: translateY(-50%);
     pointer-events: none;
     --slds-c-icon-color-foreground: #706e6b;
+}
+
+.reopen-btn {
+    background: none;
+    border: 1px solid #c9c9c9;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.75rem;
+    color: #514f4d;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.reopen-btn:hover {
+    background: #f3f3f3;
+    border-color: #9a9a9a;
 }

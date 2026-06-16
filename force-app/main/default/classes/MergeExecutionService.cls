@@ -31,6 +31,8 @@ public without sharing class MergeExecutionService {
     @TestVisible private static Boolean TEST_THROW_ERROR_STAMP         = false;
     // Injects stale normalized values for pref fields so the remap branch in fixEdaPreferenceFields is covered
     @TestVisible private static Boolean TEST_INJECT_STALE_PREF         = false;
+    // Forces validateMergePermissions to deny, covering the throw branch (no test user lacks CRUD by default)
+    @TestVisible private static Boolean TEST_FORCE_MERGE_PERMISSION_DENIED = false;
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ public without sharing class MergeExecutionService {
             // ── 2. Derive object type from ticket ─────────────────────────────
             String objectType = TEST_FORCE_INVALID_OBJECT_TYPE ? '__Invalid__' : getObjectType(ticketId);
             validateObjectType(objectType);
+            validateMergePermissions(objectType);
 
             // ── 3. Load all candidates with comparison fields ─────────────────
             Set<Id> allIds = new Set<Id>{ masterId };
@@ -396,6 +399,20 @@ public without sharing class MergeExecutionService {
     private static void validateObjectType(String objectType) {
         if (!ALLOWED_OBJECT_TYPES.contains(objectType)) {
             throw new MergeException('Unsupported object type: ' + objectType);
+        }
+    }
+
+    // Database.merge() runs in system mode and does not enforce the running
+    // user's CRUD permissions on its own — Apex DML bypasses FLS/CRUD by default.
+    // A merge both updates the master and deletes the losers, so both
+    // permissions must be explicitly checked before the merge DML executes.
+    private static void validateMergePermissions(String objectType) {
+        Schema.DescribeSObjectResult describe =
+            Schema.getGlobalDescribe().get(objectType).getDescribe();
+        if (TEST_FORCE_MERGE_PERMISSION_DENIED || !describe.isUpdateable() || !describe.isDeletable()) {
+            throw new MergeException(
+                'Insufficient permissions to merge ' + objectType + ' records.'
+            );
         }
     }
 

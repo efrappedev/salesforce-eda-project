@@ -1,10 +1,13 @@
 import { LightningElement, api, track, wire } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getComparisonMatrix            from '@salesforce/apex/MergeController.getComparisonMatrix';
 import getLoserSnapshotApex           from '@salesforce/apex/MergeController.getLoserSnapshot';
 import executeMergeApex               from '@salesforce/apex/MergeController.executeMerge';
 import dismissTicketApex              from '@salesforce/apex/MergeController.dismissTicket';
+import getRelationshipTypesApex       from '@salesforce/apex/MergeController.getRelationshipTypes';
+import createRelationshipApex         from '@salesforce/apex/MergeController.createRelationship';
 import deleteOrphanedAccountApex       from '@salesforce/apex/MergeController.deleteOrphanedAccount';
 import restoreDeletedAccountApex       from '@salesforce/apex/MergeController.restoreDeletedAccount';
 import getDeletedAccountsForTicketApex from '@salesforce/apex/MergeController.getDeletedAccountsForTicket';
@@ -32,7 +35,17 @@ const CLOSED_REASON_OPTIONS = [
     { label: 'Autre (voir Notes)',               value: 'Other' }
 ];
 
-export default class MergeWizard extends LightningElement {
+const CLOSED_REASON_LABELS = {
+    'False Positive - Same Household':    'Faux positif — Même domicile',
+    'False Positive - Same Organization': 'Faux positif — Même organisation',
+    'False Positive - Shared Phone':      'Faux positif — Tél. partagé',
+    'False Positive - Shared Email':      'Faux positif — Courriel partagé',
+    'Already Resolved':                   'Déjà résolu manuellement',
+    'Out of Scope':                       'Hors périmètre',
+    'Other':                              'Autre (voir Notes)'
+};
+
+export default class MergeWizard extends NavigationMixin(LightningElement) {
     @api ticketId;
 
     // ── Wizard state ─────────────────────────────────────────────────────────
@@ -78,6 +91,14 @@ export default class MergeWizard extends LightningElement {
     @track showRecordModal  = false;
     @track recordModalId    = null;
     @track recordModalName  = null;
+
+    // ── Relationship wizard modal state ───────────────────────────────────────
+    @track showRelModal      = false;
+    @track relSelectedIds    = [];
+    @track relType           = null;
+    @track relTypeOptions    = [];
+    @track isCreatingRel     = false;
+    @track relCreateError    = null;
 
     // ── Snapshot view modal state (merged/deleted loser records) ─────────────
     @track showSnapshotModal  = false;
@@ -148,6 +169,96 @@ export default class MergeWizard extends LightningElement {
     get confidenceClass() {
         const map = { High: 'slds-badge slds-badge_success', Medium: 'slds-badge badge-medium', Low: 'slds-badge' };
         return map[this._ticket?.Match_Confidence__c] || 'slds-badge';
+    }
+
+    // ── Computed: ignore reason banner ───────────────────────────────────────
+
+    get isIgnoredTicket() {
+        return this._matrix?.ticketStatus === 'Ignored';
+    }
+
+    get isMergedTicket() {
+        return this._matrix?.ticketStatus === 'Merged';
+    }
+
+    get relMasterName() {
+        if (!this._matrix || !this.masterId) return '';
+        const idx = this._matrix.recordIds.indexOf(this.masterId);
+        return idx >= 0 ? this._matrix.recordNames[idx] : '';
+    }
+
+    get isContactTicket() {
+        return this._matrix?.objectType === 'Contact';
+    }
+
+    get relCandidateList() {
+        if (!this._matrix) return [];
+        return this._matrix.recordIds.map((id, i) => ({
+            id,
+            name:      this._matrix.recordNames[i],
+            checked:   this.relSelectedIds.includes(id),
+            disabled:  !this.relSelectedIds.includes(id) && this.relSelectedIds.length >= 2,
+            rowClass:  this.relSelectedIds.includes(id)
+                ? 'rel-candidate-row rel-candidate-row_selected'
+                : 'rel-candidate-row'
+        }));
+    }
+
+    get relShowTypeSelectors() {
+        return this.relSelectedIds.length === 2;
+    }
+
+    get relContactA() {
+        if (this.relSelectedIds.length < 1) return '';
+        const idx = this._matrix.recordIds.indexOf(this.relSelectedIds[0]);
+        return idx >= 0 ? this._matrix.recordNames[idx] : this.relSelectedIds[0];
+    }
+
+    get relContactB() {
+        if (this.relSelectedIds.length < 2) return '';
+        const idx = this._matrix.recordIds.indexOf(this.relSelectedIds[1]);
+        return idx >= 0 ? this._matrix.recordNames[idx] : this.relSelectedIds[1];
+    }
+
+    get relTypeLabel() {
+        return this.relContactA ? `Type de relation (appliqué à ${this.relContactA})` : 'Type de relation';
+    }
+
+    get relHasType() {
+        return !!this.relType;
+    }
+
+    get mergeLogPerformedBy() {
+        return this._matrix?.mergePerformedBy || '';
+    }
+
+    get mergeLogDate() {
+        const raw = this._matrix?.mergePerformedDate;
+        if (!raw) return '';
+        try { return new Date(raw).toLocaleString('fr-CA'); } catch(e) { return raw; }
+    }
+
+    get mergeLogMasterName() {
+        return this._matrix?.mergeMasterName || '';
+    }
+
+    get mergeLogLoserNames() {
+        return this._matrix?.mergeLoserNames || '';
+    }
+
+    get ignoreReasonLabel() {
+        const raw = this._matrix?.ticketClosedReason;
+        return raw ? (CLOSED_REASON_LABELS[raw] || raw) : '';
+    }
+
+    get ignoreNotes() {
+        const notes = this._matrix?.ticketNotes;
+        if (!notes) return '';
+        // Strip internal [DELETED_ACCOUNT|...] and [DELETED_CONTACT|...] lines
+        return notes.split('\n')
+            .filter(l => !l.startsWith('[DELETED_'))
+            .join('\n')
+            .trim();
     }
 
     // ── Computed: step visibility ─────────────────────────────────────────────
@@ -358,6 +469,94 @@ export default class MergeWizard extends LightningElement {
     // ── Step-1: master selection via card click ────────────────────────────────
 
     // ── Record / Snapshot view modal handlers ────────────────────────────────
+
+    handleNameClick(event) {
+        event.stopPropagation();
+        const id = event.currentTarget.dataset.id;
+        this[NavigationMixin.GenerateUrl]({
+            type: 'standard__recordPage',
+            attributes: { recordId: id, actionName: 'view' }
+        }).then(url => window.open(url, '_blank'));
+    }
+
+    // ── Relationship wizard handlers ───────────────────────────────────────────
+
+    openRelModal() {
+        this.relSelectedIds = [];
+        this.relType        = null;
+        this.relCreateError = null;
+        if (this.relTypeOptions.length === 0) {
+            getRelationshipTypesApex()
+                .then(types => {
+                    this.relTypeOptions = (types || []).map(t => ({ label: t.label, value: t.value }));
+                })
+                .catch(() => { this.relTypeOptions = []; });
+        }
+        this.showRelModal = true;
+    }
+
+    closeRelModal() {
+        this.showRelModal   = false;
+        this.relSelectedIds = [];
+        this.relType        = null;
+        this.relCreateError = null;
+    }
+
+    handleRelCandidateToggle(event) {
+        event.stopPropagation();
+        const id = event.currentTarget.dataset.id;
+        if (this.relSelectedIds.includes(id)) {
+            this.relSelectedIds = this.relSelectedIds.filter(x => x !== id);
+            this.relType = null;
+        } else if (this.relSelectedIds.length < 2) {
+            this.relSelectedIds = [...this.relSelectedIds, id];
+        }
+        this.relCreateError = null;
+    }
+
+    handleSwapContacts() {
+        this.relSelectedIds = [this.relSelectedIds[1], this.relSelectedIds[0]];
+        this.relType        = null;
+        this.relCreateError = null;
+    }
+
+    handleRelTypeChange(event) {
+        this.relType = event.detail.value;
+        this.relCreateError = null;
+    }
+
+    async handleCreateRelationship() {
+        if (this.relSelectedIds.length < 2) {
+            this.relCreateError = 'Veuillez sélectionner 2 contacts.';
+            return;
+        }
+        if (!this.relType) {
+            this.relCreateError = 'Veuillez sélectionner un type de relation.';
+            return;
+        }
+        this.isCreatingRel  = true;
+        this.relCreateError = null;
+        const nameA = this.relContactA;
+        const nameB = this.relContactB;
+        const type  = this.relType;
+        try {
+            await createRelationshipApex({
+                contactId1: this.relSelectedIds[1],
+                contactId2: this.relSelectedIds[0],
+                relType:    type
+            });
+            this.closeRelModal();
+            this._toast(
+                'Relation créée',
+                `${nameA} ↔ ${nameB} (${type})`,
+                'success'
+            );
+        } catch (err) {
+            this.relCreateError = err.body?.message || err.message;
+        } finally {
+            this.isCreatingRel = false;
+        }
+    }
 
     handleViewRecord(event) {
         event.stopPropagation();   // don't trigger handleCardMasterSelect

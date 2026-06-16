@@ -230,6 +230,13 @@ public without sharing class MergeWrappers {
         @AuraEnabled public Map<String,List<RelatedContactInfo>>   relatedContactsByRecordId;
         @AuraEnabled public String                                 savedMasterId;    // Selected_Master_Id__c (Merged tickets)
         @AuraEnabled public List<String>                           missingRecordIds; // records deleted by the merge
+        @AuraEnabled public String                                 ticketStatus;
+        @AuraEnabled public String                                 ticketClosedReason;
+        @AuraEnabled public String                                 ticketNotes;
+        @AuraEnabled public String                                 mergePerformedBy;
+        @AuraEnabled public String                                 mergePerformedDate;
+        @AuraEnabled public String                                 mergeMasterName;
+        @AuraEnabled public String                                 mergeLoserNames;
 
         public ComparisonMatrix() {
             recordIds                 = new List<String>();

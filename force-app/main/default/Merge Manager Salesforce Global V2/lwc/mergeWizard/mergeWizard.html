@@ -1,0 +1,955 @@
+<template>
+    <!-- ── Wizard header: ticket info + step indicators ───────────────────── -->
+    <div class="wizard-header slds-border_bottom slds-p-around_medium">
+        <!-- Ticket info row -->
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+            <div class="slds-media slds-media_center">
+                <div class="slds-media__figure">
+                    <lightning-icon icon-name={ticketTypeIcon} size="small"></lightning-icon>
+                </div>
+                <div class="slds-media__body">
+                    <p class="slds-text-heading_small slds-truncate">{ticketMatchValue}</p>
+                    <p class="slds-text-body_small slds-text-color_weak">{ticketSubtitle}</p>
+                </div>
+            </div>
+            <div class="slds-grid slds-gutters_x-small">
+                <span class={confidenceClass}>{ticket.Match_Confidence__c}</span>
+                <lightning-button-icon
+                    icon-name="utility:close"
+                    variant="bare"
+                    alternative-text={i18n.altCloseTicket}
+                    title={i18n.titleDismiss}
+                    onclick={openDismissModal}>
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- Step progress bar -->
+        <div class="wiz-stepper">
+            <div class="wiz-step">
+                <button class={step1CircleClass} onclick={goToStep1} disabled={step1Disabled}>
+                    <template if:true={step1Done}>
+                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse">
+                        </lightning-icon>
+                    </template>
+                    <template if:false={step1Done}>1</template>
+                </button>
+                <span class={step1LabelClass}>{i18n.stepSelection}</span>
+            </div>
+            <div class={connector1Class}></div>
+            <div class="wiz-step">
+                <button class={step2CircleClass} onclick={goToStep2} disabled={step2Disabled}>
+                    <template if:true={step2Done}>
+                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse">
+                        </lightning-icon>
+                    </template>
+                    <template if:false={step2Done}>2</template>
+                </button>
+                <span class={step2LabelClass}>{i18n.stepCompare}</span>
+            </div>
+            <div class={connector2Class}></div>
+            <div class="wiz-step">
+                <button class={step3CircleClass} disabled>3</button>
+                <span class={step3LabelClass}>{i18n.stepConfirm}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Wizard body ─────────────────────────────────────────────────────── -->
+    <div class="wizard-body slds-p-around_medium">
+
+        <!-- Loading spinner -->
+        <template if:true={isLoading}>
+            <div class="wizard-loading">
+                <lightning-spinner alternative-text={i18n.loading}></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- STEP 1: Candidate selection cards -->
+        <template if:true={showStep1}>
+
+            <template if:false={hasMultipleCandidates}>
+                <p class="slds-text-body_regular slds-m-bottom_medium slds-text-color_weak">
+                    {i18n.step1Hint}
+                </p>
+            </template>
+            <template if:true={hasMultipleCandidates}>
+                <div class="multi-candidate-banner slds-m-bottom_medium">
+                    <lightning-icon icon-name="utility:info" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    <strong>{multiDetectedLabel}</strong>
+                    &nbsp;{i18n.multiChoose}<strong>{i18n.multiBold1}</strong>{i18n.multiInstr}<strong>{i18n.multiBtnLabel}</strong>{i18n.multiInstr2}<strong>{i18n.multiNotChanged}</strong>.
+                </div>
+            </template>
+            <div class="slds-grid slds-gutters slds-wrap">
+                <template for:each={candidateCards} for:item="card">
+                    <div key={card.recordId} class={card.colClass}>
+                        <div class={card.cardClass}
+                            onclick={handleCardMasterSelect}
+                            data-id={card.recordId}
+                            role="button"
+                            tabindex="0">
+                            <!-- Card header -->
+                            <div class="slds-card__header slds-grid">
+                                <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name={card.typeIcon} size="small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <h2 class="slds-card__header-title candidate-header-title">
+                                            <template if:false={card.isMergedLoser}>
+                                                <button class="candidate-name-link"
+                                                    data-id={card.recordId}
+                                                    onclick={handleNameClick}
+                                                    title={i18n.titleOpenRecord}>
+                                                    {card.recordName}
+                                                </button>
+                                            </template>
+                                            <template if:true={card.isMergedLoser}>
+                                                <span class="slds-truncate" title={card.recordName}>
+                                                    {card.recordName}
+                                                </span>
+                                            </template>
+                                            <button class="candidate-view-btn slds-button slds-button_icon"
+                                                    data-id={card.recordId}
+                                                    data-name={card.recordName}
+                                                    onclick={handleViewRecord}
+                                                    title={i18n.titleViewFull}>
+                                                <lightning-icon icon-name="utility:preview" size="x-small" alternative-text={i18n.titleViewFull}></lightning-icon>
+                                            </button>
+                                        </h2>
+                                    </div>
+                                </header>
+                                <template if:true={card.isMaster}>
+                                    <span class="slds-badge slds-badge_success">{i18n.masterBadge}</span>
+                                </template>
+                                <template if:true={card.showLoserToggle}>
+                                    <button class={card.loserPillClass}
+                                        data-id={card.recordId}
+                                        onclick={handleCardLoserToggle}>
+                                        {card.loserPillLabel}
+                                    </button>
+                                </template>
+                            </div>
+                            <!-- Card body: key field values -->
+                            <div class="slds-card__body slds-card__body_inner">
+                                <dl class="slds-dl_horizontal slds-text-body_small candidate-fields">
+                                    <template for:each={card.keyFieldRows} for:item="kf">
+                                        <dt key={kf.label} class="slds-dl_horizontal__label
+                                            slds-text-color_weak">{kf.label}</dt>
+                                        <dd key={kf.val} class="slds-dl_horizontal__detail
+                                            slds-truncate">{kf.val}</dd>
+                                    </template>
+                                </dl>
+                                <template if:true={card.isMergedLoser}>
+                                    <div class="slds-grid slds-grid_align-end slds-m-top_x-small">
+                                        <span class="merged-loser-badge">
+                                            {i18n.mergedLoserBadge}
+                                        </span>
+                                    </div>
+                                </template>
+                                <template if:true={card.isMergedMaster}>
+                                    <div class="slds-grid slds-grid_align-end slds-m-top_x-small">
+                                        <span class="merged-master-badge">
+                                            {i18n.mergedMasterBadge}
+                                        </span>
+                                    </div>
+                                </template>
+                            </div>
+                            <!-- Related counts footer (carousel — max 4 visible) -->
+                            <template if:true={card.hasRelatedCounts}>
+                                <div class="slds-card__footer">
+                                    <c-merge-related-carousel items={card.relatedCounts} lang={lang}>
+                                    </c-merge-related-carousel>
+                                    <template if:true={card.hasActiveEnrollmentWarning}>
+                                        <div class="candidate-warning slds-m-top_x-small" role="alert">
+                                            <lightning-icon icon-name="utility:warning"
+                                                size="xx-small" class="slds-m-right_xx-small">
+                                            </lightning-icon>
+                                            {i18n.activeEnrollWarning}
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Banner: ticket À Valider (Ignored) -->
+            <!-- Banner: ticket À Valider (Ignored) -->
+            <template if:true={isIgnoredTicket}>
+                <div class="ignore-reason-banner slds-m-top_medium">
+                    <div class="ignore-reason-banner__header">
+                        <lightning-icon icon-name="utility:ban" size="x-small"
+                            class="ignore-reason-banner__icon">
+                        </lightning-icon>
+                        <strong>{i18n.tabToValidate}</strong>
+                        <template if:true={ignoreReasonLabel}>
+                            &nbsp;—&nbsp;{ignoreReasonLabel}
+                        </template>
+                    </div>
+                    <template if:true={ignoreNotes}>
+                        <p class="ignore-reason-banner__notes">{ignoreNotes}</p>
+                    </template>
+                    <template if:true={hasHistory}>
+                        <div class="banner-history">
+                            <template if:true={hasHiddenHistory}>
+                                <button class="banner-hist-expand" onclick={toggleHistory}>{logShowMoreLabel}</button>
+                            </template>
+                            <template if:true={showAllHistory}>
+                                <button class="banner-hist-expand" onclick={toggleHistory}>{i18n.logShowLess}</button>
+                            </template>
+                            <template for:each={visibleHistoryLogs} for:item="log">
+                                <div key={log.id} class="banner-hist-entry">
+                                    <div class="banner-hist-entry__row">
+                                        <lightning-icon icon-name="utility:clock" size="x-small"
+                                            class="banner-hist-entry__icon">
+                                        </lightning-icon>
+                                        <span class="banner-hist-entry__status">{log.statusLabel}</span>
+                                        <template if:true={log.reasonLabel}>
+                                            &nbsp;—&nbsp;{log.reasonLabel}
+                                        </template>
+                                        <template if:true={log.date}>
+                                            <span class="banner-hist-entry__date">{log.date}</span>
+                                        </template>
+                                    </div>
+                                    <template if:true={log.notes}>
+                                        <p class="banner-hist-entry__notes">{log.notes}</p>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Banner: ticket Closed -->
+            <template if:true={isClosedTicket}>
+                <div class="closed-reason-banner slds-m-top_medium">
+                    <div class="closed-reason-banner__header">
+                        <lightning-icon icon-name="utility:block_visitor" size="x-small"
+                            class="closed-reason-banner__icon">
+                        </lightning-icon>
+                        <strong class="closed-reason-banner__badge">{i18n.closedBadge}</strong>
+                        <template if:true={ignoreReasonLabel}>
+                            &nbsp;—&nbsp;{ignoreReasonLabel}
+                        </template>
+                    </div>
+                    <template if:true={ignoreNotes}>
+                        <p class="closed-reason-banner__notes">{ignoreNotes}</p>
+                    </template>
+                    <template if:true={hasHistory}>
+                        <div class="banner-history">
+                            <template if:true={hasHiddenHistory}>
+                                <button class="banner-hist-expand" onclick={toggleHistory}>{logShowMoreLabel}</button>
+                            </template>
+                            <template if:true={showAllHistory}>
+                                <button class="banner-hist-expand" onclick={toggleHistory}>{i18n.logShowLess}</button>
+                            </template>
+                            <template for:each={visibleHistoryLogs} for:item="log">
+                                <div key={log.id} class="banner-hist-entry">
+                                    <div class="banner-hist-entry__row">
+                                        <lightning-icon icon-name="utility:clock" size="x-small"
+                                            class="banner-hist-entry__icon">
+                                        </lightning-icon>
+                                        <span class="banner-hist-entry__status">{log.statusLabel}</span>
+                                        <template if:true={log.reasonLabel}>
+                                            &nbsp;—&nbsp;{log.reasonLabel}
+                                        </template>
+                                        <template if:true={log.date}>
+                                            <span class="banner-hist-entry__date">{log.date}</span>
+                                        </template>
+                                    </div>
+                                    <template if:true={log.notes}>
+                                        <p class="banner-hist-entry__notes">{log.notes}</p>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- History only (ticket Reopened — no current-state banner) -->
+            <template if:true={isReopenedWithHistory}>
+                <div class="ignore-reason-banner slds-m-top_medium">
+                    <div class="banner-history">
+                        <template if:true={hasHiddenHistory}>
+                            <button class="banner-hist-expand" onclick={toggleHistory}>{logShowMoreLabel}</button>
+                        </template>
+                        <template if:true={showAllHistory}>
+                            <button class="banner-hist-expand" onclick={toggleHistory}>{i18n.logShowLess}</button>
+                        </template>
+                        <template for:each={visibleHistoryLogs} for:item="log">
+                            <div key={log.id} class="banner-hist-entry">
+                                <div class="banner-hist-entry__row">
+                                    <lightning-icon icon-name="utility:clock" size="x-small"
+                                        class="banner-hist-entry__icon">
+                                    </lightning-icon>
+                                    <span class="banner-hist-entry__status">{log.statusLabel}</span>
+                                    <template if:true={log.reasonLabel}>
+                                        &nbsp;—&nbsp;{log.reasonLabel}
+                                    </template>
+                                    <template if:true={log.date}>
+                                        <span class="banner-hist-entry__date">{log.date}</span>
+                                    </template>
+                                </div>
+                                <template if:true={log.notes}>
+                                    <p class="banner-hist-entry__notes">{log.notes}</p>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Merge log banner (visible when ticket is Merged) -->
+            <template if:true={isMergedTicket}>
+                <div class="merge-log-banner slds-m-top_medium">
+                    <div class="merge-log-banner__header">
+                        <lightning-icon icon-name="utility:merge" size="x-small"
+                            class="merge-log-banner__icon">
+                        </lightning-icon>
+                        <strong>{i18n.fusionDone}</strong>
+                        <template if:true={mergeLogDate}>
+                            &nbsp;—&nbsp;{mergeLogDate}
+                        </template>
+                        <template if:true={mergeLogPerformedBy}>
+                            &nbsp;{i18n.by}&nbsp;<em>{mergeLogPerformedBy}</em>
+                        </template>
+                    </div>
+                    <template if:true={mergeLogMasterName}>
+                        <p class="merge-log-banner__row">
+                            <span class="merge-log-banner__label">{i18n.labelMasterConserved}</span>
+                            {mergeLogMasterName}
+                        </p>
+                    </template>
+                    <template if:true={mergeLogLoserNames}>
+                        <p class="merge-log-banner__row">
+                            <span class="merge-log-banner__label">{i18n.labelMergedRecords}</span>
+                            {mergeLogLoserNames}
+                        </p>
+                    </template>
+                </div>
+            </template>
+
+        </template>
+
+        <!-- Deleted accounts log (Contact merge tickets) -->
+        <template if:true={hasDeletedAccounts}>
+            <div class="deleted-accounts-box slds-m-top_medium">
+                <div class="deleted-accounts-header">
+                    <lightning-icon icon-name="utility:delete" size="xx-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    {i18n.deletedAccountsHdr}
+                </div>
+                <template for:each={deletedAccounts} for:item="acc">
+                    <div key={acc.accountId} class="deleted-account-row">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <div class="slds-col slds-truncate">
+                                <lightning-icon icon-name="standard:account" size="xx-small"
+                                    class="slds-m-right_xx-small">
+                                </lightning-icon>
+                                <strong>{acc.accountName}</strong>
+                                <span class="deleted-record-badge slds-m-left_x-small">{i18n.badgeFused}</span>
+                                <span class="slds-text-body_small slds-text-color_weak
+                                    slds-m-left_x-small">
+                                    {i18n.deletedOn} {acc.deletedAt}
+                                </span>
+                            </div>
+                            <div class="slds-col slds-shrink slds-m-left_small">
+                                <lightning-button
+                                    label={i18n.btnRestore}
+                                    variant="neutral"
+                                    icon-name="utility:undo"
+                                    data-id={acc.accountId}
+                                    onclick={handleRestoreAccount}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Deleted contacts log (Account merge tickets) -->
+        <template if:true={hasDeletedContacts}>
+            <div class="deleted-accounts-box slds-m-top_medium">
+                <div class="deleted-accounts-header">
+                    <lightning-icon icon-name="utility:delete" size="xx-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    {i18n.deletedContactsHdr}
+                </div>
+                <template for:each={deletedContacts} for:item="ct">
+                    <div key={ct.contactId} class="deleted-account-row">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <div class="slds-col slds-truncate">
+                                <lightning-icon icon-name="standard:contact" size="xx-small"
+                                    class="slds-m-right_xx-small">
+                                </lightning-icon>
+                                <strong>{ct.contactName}</strong>
+                                <span class="deleted-record-badge slds-m-left_x-small">{i18n.badgeFused}</span>
+                                <span class="slds-text-body_small slds-text-color_weak
+                                    slds-m-left_x-small">
+                                    {i18n.deletedOn} {ct.deletedAt}
+                                </span>
+                            </div>
+                            <div class="slds-col slds-shrink slds-m-left_small">
+                                <lightning-button
+                                    label={i18n.btnRestore}
+                                    variant="neutral"
+                                    icon-name="utility:undo"
+                                    data-id={ct.contactId}
+                                    onclick={handleRestoreContact}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- STEP 2: Comparison matrix -->
+        <template if:true={showStep2}>
+            <template if:true={hasMatrix}>
+                <c-merge-comparison-matrix
+                    lang={lang}
+                    matrix={comparisonMatrix}
+                    master-id={masterId}
+                    field-decisions={fieldDecisions}
+                    loser-ids={selectedLoserIds}
+                    onmasterchange={handleMasterChange}
+                    onfielddecisionchange={handleFieldDecisionChange}>
+                </c-merge-comparison-matrix>
+            </template>
+        </template>
+
+        <!-- STEP 3: Confirmation summary -->
+        <template if:true={showStep3}>
+            <!-- Active loser warning -->
+            <template if:true={hasActiveLoserWarning}>
+                <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_medium"
+                    role="alert">
+                    <lightning-icon icon-name="utility:error" size="x-small"
+                        class="slds-m-right_x-small">
+                    </lightning-icon>
+                    <strong>{i18n.activeLoserBold}</strong>&nbsp;{i18n.activeLoserText}
+                </div>
+            </template>
+
+            <!-- Summary box -->
+            <div class="slds-box slds-m-bottom_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">{i18n.fusionSummaryTitle}</h3>
+
+                <!-- Master -->
+                <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                    <lightning-icon icon-name="utility:success" size="x-small"
+                        class="slds-m-right_x-small" style="color:#2e844a">
+                    </lightning-icon>
+                    <span class="slds-text-body_small">
+                        <strong>{i18n.labelMasterConserved}</strong>&nbsp;{masterRecordName}
+                    </span>
+                </div>
+
+                <!-- Losers -->
+                <div class="slds-m-bottom_x-small">
+                    <p class="slds-text-body_small slds-m-bottom_xx-small">
+                        <strong>{i18n.labelRecordsToMerge}</strong>
+                    </p>
+                    <ul class="slds-list_dotted">
+                        <template for:each={losingRecordNames} for:item="name">
+                            <li key={name} class="slds-text-body_small">{name}</li>
+                        </template>
+                    </ul>
+                </div>
+
+                <!-- Excluded records -->
+                <template if:true={hasExcludedRecords}>
+                    <div class="slds-m-bottom_x-small">
+                        <p class="slds-text-body_small slds-m-bottom_xx-small">
+                            <strong>{i18n.labelExcluded}</strong>
+                        </p>
+                        <ul class="slds-list_dotted">
+                            <template for:each={excludedRecordNames} for:item="name">
+                                <li key={name} class="slds-text-body_small slds-text-color_weak">{name}</li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+
+                <!-- Field decisions -->
+                <template if:true={hasCustomDecisions}>
+                    <div>
+                        <p class="slds-text-body_small slds-m-bottom_xx-small">
+                            <strong>{i18n.labelCustomDecisions}</strong>
+                        </p>
+                        <ul class="slds-list_dotted">
+                            <template for:each={customDecisionSummary} for:item="d">
+                                <li key={d.fieldLabel} class="slds-text-body_small">
+                                    {d.fieldLabel}
+                                    &nbsp;&#8592;&nbsp;
+                                    <em>{d.sourceName}</em>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Notes -->
+            <lightning-textarea
+                label={i18n.labelNotes}
+                placeholder={i18n.notesPlaceholder}
+                value={mergeNotes}
+                onchange={handleNotesChange}
+                max-length="32768">
+            </lightning-textarea>
+        </template>
+    </div>
+
+    <!-- ── Wizard footer ───────────────────────────────────────────────────── -->
+    <div class="wizard-footer slds-border_top slds-p-horizontal_medium slds-p-vertical_small
+        slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+
+        <lightning-button
+            label={i18n.btnIgnore}
+            icon-name="utility:warning"
+            variant="neutral"
+            onclick={openDismissModal}>
+        </lightning-button>
+
+        <div class="slds-grid slds-gutters_x-small">
+            <lightning-button
+                label={i18n.btnBack}
+                onclick={goToPrevStep}
+                disabled={isPrevDisabled}>
+            </lightning-button>
+            <template if:false={isLastStep}>
+                <lightning-button
+                    label={i18n.btnNext}
+                    variant="brand"
+                    icon-name="utility:forward"
+                    icon-position="right"
+                    onclick={goToNextStep}
+                    disabled={isNextDisabled}>
+                </lightning-button>
+            </template>
+            <template if:true={isLastStep}>
+                <lightning-button
+                    label={i18n.btnExecute}
+                    variant="brand"
+                    icon-name="utility:merge"
+                    onclick={executeMerge}
+                    disabled={isExecuting}>
+                </lightning-button>
+            </template>
+        </div>
+    </div>
+
+    <!-- ── Exception modal ──────────────────────────────────────────────── -->
+    <template if:true={showDismissModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                        title={i18n.close} onclick={closeDismissModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">{i18n.dismissModalTitle}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <!-- Choice cards — always visible, nothing below until one is selected -->
+                    <div class="exception-choice-grid">
+                        <button class={choiceCardToValidateClass}
+                            data-mode="toValidate" onclick={handleDismissModeChange}>
+                            <template if:true={dismissModeToValidate}>
+                                <span class="exception-card__check exception-card__check_validate">&#x2713;</span>
+                            </template>
+                            <span class="exception-card__icon-wrap exception-card__icon-wrap_validate">
+                                <lightning-icon icon-name="utility:routing_offline" size="x-small"
+                                    alternative-text={i18n.tabToValidate}>
+                                </lightning-icon>
+                            </span>
+                            <span class="exception-card__title">{i18n.tabToValidate}</span>
+                            <span class="exception-card__desc">{i18n.toValidateDesc}</span>
+                        </button>
+                        <button class={choiceCardCloseClass}
+                            data-mode="close" onclick={handleDismissModeChange}>
+                            <template if:true={dismissModeClose}>
+                                <span class="exception-card__check exception-card__check_close">&#x2713;</span>
+                            </template>
+                            <span class="exception-card__icon-wrap exception-card__icon-wrap_close">
+                                <lightning-icon icon-name="utility:lock" size="x-small"
+                                    alternative-text={i18n.tabCloseTicket}>
+                                </lightning-icon>
+                            </span>
+                            <span class="exception-card__title">{i18n.tabCloseTicket}</span>
+                            <span class="exception-card__desc">{i18n.closeTicketDesc}</span>
+                        </button>
+                    </div>
+
+                    <!-- Form: À Valider — only after card selected -->
+                    <template if:true={dismissModeToValidate}>
+                        <div class="exception-content exception-content_validate">
+                            <lightning-combobox
+                                label={i18n.labelClosedReason}
+                                value={dismissReason}
+                                options={closedReasonOptions}
+                                onchange={handleDismissReasonChange}
+                                required>
+                            </lightning-combobox>
+                            <lightning-textarea
+                                label={i18n.labelExtraNotes}
+                                value={dismissNotes}
+                                onchange={handleDismissNotesChange}
+                                class="slds-m-top_small">
+                            </lightning-textarea>
+                        </div>
+                    </template>
+
+                    <!-- Form: Cerrar — only after card selected -->
+                    <template if:true={dismissModeClose}>
+                        <div class="exception-content exception-content_close">
+                            <div class="add-reason-container">
+                                <lightning-combobox
+                                    label={i18n.labelClosedReason}
+                                    value={closeReason}
+                                    options={closeReasonOptions}
+                                    onchange={handleCloseReasonChange}
+                                    required>
+                                </lightning-combobox>
+                                <!-- Mini-popover: appears when "+ Add custom reason" is selected -->
+                                <template if:true={showAddReasonPopover}>
+                                    <div class="add-reason-popover">
+                                        <div class="add-reason-popover__header">
+                                            <span>{i18n.addReasonPopoverTitle}</span>
+                                            <button class="add-reason-popover__close"
+                                                onclick={cancelAddReason}
+                                                title={i18n.cancel}>&#x2715;</button>
+                                        </div>
+                                        <input type="text"
+                                            class="slds-input"
+                                            placeholder={i18n.placeholderNewReason}
+                                            value={newReasonInput}
+                                            oninput={handleNewReasonInput} />
+                                        <div class="add-reason-popover__footer">
+                                            <button class="slds-button slds-button_neutral"
+                                                onclick={cancelAddReason}>
+                                                {i18n.cancel}
+                                            </button>
+                                            <button class="slds-button slds-button_brand"
+                                                onclick={confirmAddReason}>
+                                                {i18n.btnAddReason}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <lightning-textarea
+                                label={i18n.labelExtraNotes}
+                                value={closeNotes}
+                                onchange={handleCloseNotesChange}
+                                class="slds-m-top_small">
+                            </lightning-textarea>
+                        </div>
+                    </template>
+
+                    <template if:true={dismissError}>
+                        <p class="slds-text-color_error slds-m-top_small">{dismissError}</p>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label={i18n.cancel} onclick={closeDismissModal}></lightning-button>
+                    <template if:true={dismissModeToValidate}>
+                        <lightning-button
+                            label={i18n.btnMarkToValidate}
+                            variant="neutral"
+                            onclick={confirmDismiss}
+                            disabled={isDismissing}>
+                        </lightning-button>
+                    </template>
+                    <template if:true={dismissModeClose}>
+                        <lightning-button
+                            label={i18n.btnCloseTicket}
+                            variant="brand"
+                            onclick={confirmDismiss}
+                            disabled={isDismissing}>
+                        </lightning-button>
+                    </template>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ── Executing overlay ───────────────────────────────────────────────── -->
+    <template if:true={isExecuting}>
+        <div class="wizard-executing-overlay">
+            <lightning-spinner alternative-text={i18n.altExecuting} size="large"></lightning-spinner>
+            <p class="slds-text-heading_small slds-m-top_medium" style="color:#fff">
+                {i18n.executingMsg}
+            </p>
+        </div>
+    </template>
+
+    <!-- ── Orphaned Contact modal (Account merges) ─────────────────────── -->
+    <template if:true={showOrphanContactModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_warning">
+                    <button class="slds-modal__close btn-modal-close"
+                        title={i18n.close} onclick={closeOrphanContactModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {i18n.orphanContactTitle}
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_medium">
+                        {i18n.orphanContactDesc}
+                    </p>
+                    <template if:true={cleanedUpMessage}>
+                        <div class="cleanup-banner slds-m-bottom_medium" role="status">
+                            <div class="cleanup-banner__icon">
+                                <lightning-icon icon-name="utility:check"
+                                    size="x-small" variant="inverse">
+                                </lightning-icon>
+                            </div>
+                            <div class="cleanup-banner__body">
+                                <p>{cleanedUpMessage}</p>
+                            </div>
+                        </div>
+                    </template>
+                    <template for:each={orphanedContacts} for:item="ct">
+                        <div key={ct.contactId}
+                            class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
+                            <div class="slds-grid slds-grid_vertical-align-center slds-gutters_small">
+                                <div class="slds-col">
+                                    <lightning-icon icon-name="standard:contact" size="small"
+                                        class="slds-m-right_x-small">
+                                    </lightning-icon>
+                                    <strong>{ct.contactName}</strong>
+                                    <template if:true={ct.email}>
+                                        <span class="slds-text-body_small slds-text-color_weak
+                                            slds-m-left_x-small">{ct.email}</span>
+                                    </template>
+                                    <template if:true={ct.phone}>
+                                        <span class="slds-text-body_small slds-text-color_weak
+                                            slds-m-left_x-small">{ct.phone}</span>
+                                    </template>
+                                </div>
+                                <div class="slds-col slds-shrink">
+                                    <lightning-button
+                                        label={i18n.btnDelete}
+                                        variant="destructive-text"
+                                        icon-name="utility:delete"
+                                        data-id={ct.contactId}
+                                        onclick={handleDeleteOrphanedContact}
+                                        disabled={isDeletingContact}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label={i18n.btnKeepAll}
+                        variant="brand"
+                        onclick={closeOrphanContactModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ── Full record view modal ───────────────────────────────────────── -->
+    <template if:true={showRecordModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 aria-labelledby="record-view-title"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container record-view-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                            title={i18n.close} onclick={closeRecordModal}>&#x2715;</button>
+                    <h2 id="record-view-title" class="slds-modal__title slds-hyphenate">
+                        <lightning-icon icon-name={ticketTypeIcon} size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {recordModalName}
+                    </h2>
+                </header>
+                <div class="slds-modal__content record-view-modal__body">
+                    <lightning-record-form
+                        record-id={recordModalId}
+                        object-api-name={objectApiName}
+                        layout-type="Full"
+                        mode="view"
+                        columns="2">
+                    </lightning-record-form>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label={i18n.close}
+                        onclick={closeRecordModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" onclick={closeRecordModal}></div>
+    </template>
+
+    <!-- ── Snapshot view modal ──────────────────────────────────────────── -->
+    <template if:true={showSnapshotModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 aria-labelledby="snapshot-view-title"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container record-view-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                            title={i18n.close} onclick={closeSnapshotModal}>&#x2715;</button>
+                    <h2 id="snapshot-view-title" class="slds-modal__title slds-hyphenate">
+                        <lightning-icon icon-name={ticketTypeIcon} size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {snapshotModalName}
+                    </h2>
+                </header>
+                <div class="slds-modal__content snapshot-modal__body">
+
+                    <template if:true={snapshotLoading}>
+                        <div class="wizard-loading">
+                            <lightning-spinner alternative-text={i18n.loading}></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={snapshotLoading}>
+                        <div class="snapshot-banner">
+                            <lightning-icon icon-name="utility:warning" size="x-small"
+                                class="snapshot-banner__icon">
+                            </lightning-icon>
+                            <div>
+                                <p class="snapshot-banner__title">{i18n.snapshotBannerTitle}</p>
+                                <p class="snapshot-banner__text">
+                                    {i18n.snapshotDesc1}
+                                    <template if:true={snapshotModalCapturedAt}>
+                                        {i18n.snapshotDatePrefix} {snapshotModalCapturedAt},
+                                    </template>
+                                    {i18n.snapshotDesc2}
+                                </p>
+                            </div>
+                        </div>
+
+                        <template if:true={hasSnapshotFields}>
+                            <div class="snapshot-fields-grid">
+                                <template for:each={snapshotModalFields} for:item="f">
+                                    <div key={f.apiName} class="snapshot-field">
+                                        <p class="snapshot-field__label">{f.label}</p>
+                                        <p class="snapshot-field__value">{f.value}</p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasSnapshotFields}>
+                            <p class="slds-text-body_small slds-text-color_weak slds-p-around_medium">
+                                {i18n.snapshotEmpty}
+                            </p>
+                        </template>
+                    </template>
+
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label={i18n.close}
+                        onclick={closeSnapshotModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" onclick={closeSnapshotModal}></div>
+    </template>
+
+    <!-- ── Orphaned Account modal ────────────────────────────────────────── -->
+    <template if:true={showOrphanModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_warning">
+                    <button class="slds-modal__close btn-modal-close"
+                        title={i18n.close} onclick={closeOrphanModal}>&#x2715;</button>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {i18n.orphanAccountTitle}
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_medium">
+                        {i18n.orphanAccountDesc}
+                    </p>
+                    <template if:true={cleanedUpMessage}>
+                        <div class="cleanup-banner slds-m-bottom_medium" role="status">
+                            <div class="cleanup-banner__icon">
+                                <lightning-icon icon-name="utility:check"
+                                    size="x-small" variant="inverse">
+                                </lightning-icon>
+                            </div>
+                            <div class="cleanup-banner__body">
+                                <p>{cleanedUpMessage}</p>
+                            </div>
+                        </div>
+                    </template>
+                    <template for:each={orphanedAccounts} for:item="acc">
+                        <div key={acc.accountId} class="orphan-account-row slds-box slds-box_x-small slds-m-bottom_small">
+                            <div class="slds-grid slds-grid_vertical-align-center slds-gutters_small">
+                                <div class="slds-col">
+                                    <lightning-icon icon-name="standard:account" size="small"
+                                        class="slds-m-right_x-small">
+                                    </lightning-icon>
+                                    <strong>{acc.accountName}</strong>
+                                    <template if:true={acc.affiliationCount}>
+                                        <span class="slds-m-left_x-small slds-badge badge-warning-soft">
+                                            <lightning-icon icon-name="utility:warning"
+                                                size="xx-small" class="slds-m-right_xx-small">
+                                            </lightning-icon>
+                                            {acc.affiliationCount} {i18n.affiliationsWarn}
+                                        </span>
+                                    </template>
+                                </div>
+                                <div class="slds-col slds-shrink">
+                                    <lightning-button
+                                        label={i18n.btnDelete}
+                                        variant="destructive-text"
+                                        icon-name="utility:delete"
+                                        data-id={acc.accountId}
+                                        onclick={handleDeleteOrphanedAccount}
+                                        disabled={isDeletingAccount}>
+                                    </lightning-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label={i18n.btnKeepAll}
+                        variant="brand"
+                        onclick={closeOrphanModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+
+</template>

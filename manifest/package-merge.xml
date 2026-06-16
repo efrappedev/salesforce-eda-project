@@ -21,15 +21,8 @@
         <members>MergeExecutionService</members>
         <members>MergeController</members>
         <members>MergeScanBatch</members>
+        <members>MergeExecutionControllerTest</members>
         <name>ApexClass</name>
-    </types>
-
-    <!-- ── Custom Objects (includes all fields + validation rules) ────────── -->
-    <types>
-        <members>Merge_Ticket__c</members>
-        <members>Merge_Candidate__c</members>
-        <members>Merge_Log__c</members>
-        <name>CustomObject</name>
     </types>
 
     <!-- ── LWC Components ─────────────────────────────────────────────────── -->
@@ -39,6 +32,7 @@
         <members>mergeScanModal</members>
         <members>mergeWizard</members>
         <members>mergeComparisonMatrix</members>
+        <members>mergeDashboard</members>
         <name>LightningComponentBundle</name>
     </types>
 

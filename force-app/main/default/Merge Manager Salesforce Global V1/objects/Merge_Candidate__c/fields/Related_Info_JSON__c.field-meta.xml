@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Related_Info_JSON__c</fullName>
+    <label>Related Records Info (JSON)</label>
+    <description>JSON object storing EDA-related record counts at scan time: { courseConnections, activeCourseConnections, programEnrollments, activeProgramEnrollments, affiliations }. Used to drive visual warnings in the Merge Wizard.</description>
+    <length>32768</length>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

@@ -1,5 +1,17 @@
 import { LightningElement, api, track } from 'lwc';
-import getTickets from '@salesforce/apex/MergeController.getTickets';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import getTickets     from '@salesforce/apex/MergeController.getTickets';
+import reopenTicketApex from '@salesforce/apex/MergeController.reopenTicket';
+
+const CLOSED_REASON_LABELS = {
+    'False Positive - Same Household':    'Même domicile',
+    'False Positive - Same Organization': 'Même organisation',
+    'False Positive - Shared Phone':      'Tél. partagé',
+    'False Positive - Shared Email':      'Courriel partagé',
+    'Already Resolved':                   'Déjà résolu',
+    'Out of Scope':                       'Hors périmètre',
+    'Other':                              'Autre'
+};
 
 // ── Badge class maps ──────────────────────────────────────────────────────────
 
@@ -14,6 +26,7 @@ const STATUS_CLASS = {
     'Ready':     'slds-badge ticket-badge ticket-badge_ready',
     'Merged':    'slds-badge ticket-badge ticket-badge_merged',
     'Ignored':   'slds-badge ticket-badge ticket-badge_ignored',
+    'Closed':    'slds-badge ticket-badge ticket-badge_closed',
     'Error':     'slds-badge ticket-badge ticket-badge_error'
 };
 const MATCH_TYPE_LABEL = {
@@ -23,12 +36,14 @@ const MATCH_TYPE_LABEL = {
 export default class MergeTicketList extends LightningElement {
     @api selectedTicketId;
 
-    @track objectTypeFilter = 'Contact';
-    @track statusFilter     = 'All';
-    @track searchTerm       = '';
-    @track isLoading        = false;
-    @track errorMessage     = null;
-    @track _tickets         = [];
+    @track objectTypeFilter      = 'Contact';
+    @track statusFilter          = 'All';
+    @track closedReasonFilter    = null;
+    @track searchTerm            = '';
+    @track isLoading             = false;
+    @track isReopening           = false;
+    @track errorMessage          = null;
+    @track _tickets              = [];
 
     objectTypeOptions = [
         { label: 'Contact', value: 'Contact' },
@@ -90,6 +105,8 @@ export default class MergeTicketList extends LightningElement {
                     confidenceClass:  CONFIDENCE_CLASS[t.Match_Confidence__c] || 'slds-badge ticket-badge',
                     statusClass:      STATUS_CLASS[t.Status__c] || 'slds-badge ticket-badge',
                     errorTooltip:     t.Status__c === 'Error' && t.Error_Message__c ? t.Error_Message__c : null,
+                    closedReasonLabel: t.Closed_Reason__c ? (CLOSED_REASON_LABELS[t.Closed_Reason__c] || t.Closed_Reason__c) : null,
+                    canReopen:        t.Status__c === 'Ignored',
                     rowClass:         this._rowClass(t.Id),
                     relativeDate:     this._relativeDate(t.LastModifiedDate),
                     candidateNames,
@@ -98,10 +115,19 @@ export default class MergeTicketList extends LightningElement {
                 };
             })
             .filter(t => {
+                if (this.closedReasonFilter && t.Closed_Reason__c !== this.closedReasonFilter) return false;
                 if (!term) return true;
                 return t.matchValue.toLowerCase().includes(term)
                     || t.candidateLabel.toLowerCase().includes(term);
             });
+    }
+
+    get showClosedReasonFilter() {
+        return this.statusFilter === 'Closed' || this.statusFilter === 'Ignored';
+    }
+
+    get closedReasonFilterOptions() {
+        return Object.entries(CLOSED_REASON_LABELS).map(([value, label]) => ({ label, value }));
     }
 
     get countLabel() {
@@ -127,8 +153,13 @@ export default class MergeTicketList extends LightningElement {
     }
 
     handleStatusChange(event) {
-        this.statusFilter = event.detail.value;
+        this.statusFilter       = event.detail.value;
+        this.closedReasonFilter = null;
         this._loadTickets();
+    }
+
+    handleClosedReasonFilterChange(event) {
+        this.closedReasonFilter = event.detail.value || null;
     }
 
     handleSearchChange(event) { this.searchTerm = event.target.value; }
@@ -154,6 +185,29 @@ export default class MergeTicketList extends LightningElement {
             this.objectTypeFilter = objectType;
         }
         this._loadTickets();
+    }
+
+    async handleReopenTicket(event) {
+        event.stopPropagation();
+        const ticketId = event.currentTarget.dataset.id;
+        this.isReopening = true;
+        try {
+            await reopenTicketApex({ ticketId });
+            this._loadTickets();
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Ticket réouvert',
+                message: 'Le ticket a été remis à l\'état Nouveau.',
+                variant: 'success'
+            }));
+        } catch (err) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Erreur',
+                message: err.body?.message || err.message,
+                variant: 'error'
+            }));
+        } finally {
+            this.isReopening = false;
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

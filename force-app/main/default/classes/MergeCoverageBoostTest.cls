@@ -98,43 +98,53 @@ private class MergeCoverageBoostTest {
 
     @IsTest
     static void getEmailObjectCandidates_contact_returnsNonNullList() {
+        // Inject a fake candidate so the "found" assertion is deterministic regardless
+        // of whether a real qualifying email object (with both EMAIL + lookup fields)
+        // happens to be deployed in this org.
+        MergeWrappers.EmailObjectInfo fake = new MergeWrappers.EmailObjectInfo();
+        fake.label = 'ZZZ Coverage Contact Obj';
+        fake.value = 'ZZZ_Coverage_Contact__c';
+        MergeController.TEST_EXTRA_CANDIDATES = new List<MergeWrappers.EmailObjectInfo>{ fake };
+
         Test.startTest();
         List<MergeWrappers.EmailObjectInfo> candidates =
             MergeController.getEmailObjectCandidates('Contact');
         Test.stopTest();
 
-        System.assertNotEquals(null, candidates, 'Candidates list must not be null');
+        MergeController.TEST_EXTRA_CANDIDATES = null;
 
-        // Email_Address__c is deployed in this org — verify it appears in the list
-        if (Schema.getGlobalDescribe().containsKey('email_address__c')) {
-            Boolean found = false;
-            for (MergeWrappers.EmailObjectInfo info : candidates) {
-                System.assertNotEquals(null, info.label);
-                System.assertNotEquals(null, info.value);
-                if (info.value == 'Email_Address__c') found = true;
-            }
-            System.assert(found,
-                'Email_Address__c must appear in candidates (has EMAIL field + Contact lookup)');
+        System.assertNotEquals(null, candidates, 'Candidates list must not be null');
+        Boolean found = false;
+        for (MergeWrappers.EmailObjectInfo info : candidates) {
+            System.assertNotEquals(null, info.label);
+            System.assertNotEquals(null, info.value);
+            if (info.value == 'ZZZ_Coverage_Contact__c') found = true;
         }
+        System.assert(found, 'Injected candidate must appear in the candidates list');
     }
 
     @IsTest
     static void getEmailObjectCandidates_account_returnsNonNullList() {
+        // Same injection strategy as the Contact test above — independent of real
+        // org schema for any qualifying email object.
+        MergeWrappers.EmailObjectInfo fake = new MergeWrappers.EmailObjectInfo();
+        fake.label = 'ZZZ Coverage Account Obj';
+        fake.value = 'ZZZ_Coverage_Account__c';
+        MergeController.TEST_EXTRA_CANDIDATES = new List<MergeWrappers.EmailObjectInfo>{ fake };
+
         Test.startTest();
         List<MergeWrappers.EmailObjectInfo> candidates =
             MergeController.getEmailObjectCandidates('Account');
         Test.stopTest();
 
-        System.assertNotEquals(null, candidates, 'Account candidates list must not be null');
+        MergeController.TEST_EXTRA_CANDIDATES = null;
 
-        if (Schema.getGlobalDescribe().containsKey('email_address__c')) {
-            Boolean found = false;
-            for (MergeWrappers.EmailObjectInfo info : candidates) {
-                if (info.value == 'Email_Address__c') found = true;
-            }
-            System.assert(found,
-                'Email_Address__c must appear in Account candidates (has EMAIL field + Account lookup)');
+        System.assertNotEquals(null, candidates, 'Account candidates list must not be null');
+        Boolean found = false;
+        for (MergeWrappers.EmailObjectInfo info : candidates) {
+            if (info.value == 'ZZZ_Coverage_Account__c') found = true;
         }
+        System.assert(found, 'Injected candidate must appear in the Account candidates list');
     }
 
     // ── MergeController.getEmailObjectCandidates sort swap ───────────────────
@@ -339,16 +349,16 @@ private class MergeCoverageBoostTest {
         // and the loop body at lines 341–343 executes.
         Contact phantom = new Contact(LastName = 'BoostPhantom');
         insert phantom;
-        try {
-            insert new hed__Affiliation__c(
-                hed__Contact__c = phantom.Id,
-                hed__Account__c = loserAcc.Id
-            );
-        } catch (Exception e) {
-            // If EDA blocks manual insert the loop body remains uncovered this run;
-            // the test still passes so it does not block the deploy.
-            System.debug(LoggingLevel.WARN,
-                'hed__Affiliation__c insert skipped (EDA trigger): ' + e.getMessage());
+        if (EDARelatedRecordsService.isEDAAvailable()) {
+            try {
+                SObject aff = Schema.getGlobalDescribe().get('hed__Affiliation__c').newSObject();
+                aff.put('hed__Contact__c', phantom.Id);
+                aff.put('hed__Account__c', loserAcc.Id);
+                insert aff;
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'hed__Affiliation__c insert skipped (EDA trigger): ' + e.getMessage());
+            }
         }
 
         Merge_Ticket__c ticket = new Merge_Ticket__c(
@@ -458,34 +468,33 @@ private class MergeCoverageBoostTest {
     @IsTest
     static void scan_eaObject_fieldAccessBypass_coversNonInjectionPath() {
         // Covers lines 173-220 of MergeScanService: the real field-resolution + SOQL path
-        // inside detectByEmailObject when Email_Address__c exists but its fields may be
-        // restricted in the test user's profile.  TEST_SKIP_FIELD_ACCESSIBILITY_CHECK
-        // is set INSIDE startTest so it is in scope when the service reads it.
-        if (!Schema.getGlobalDescribe().containsKey('email_address__c')) return;
-
-        Contact c1 = new Contact(LastName = 'NIPBoostA');
-        Contact c2 = new Contact(LastName = 'NIPBoostB');
-        insert new List<Contact>{ c1, c2 };
-
-        SObject ea1 = Schema.getGlobalDescribe().get('Email_Address__c').newSObject();
-        ea1.put('Contact__c', c1.Id);
-        ea1.put('Email__c',   'nip_boost@boosttest.com');
-        SObject ea2 = Schema.getGlobalDescribe().get('Email_Address__c').newSObject();
-        ea2.put('Contact__c', c2.Id);
-        ea2.put('Email__c',   'nip_boost@boosttest.com');
-        insert new List<SObject>{ ea1, ea2 };
+        // inside detectByEmailObject, with isAccessible() checks bypassed. Uses Contact as
+        // the email-object (self-referencing via ReportsToId) so this test is portable and
+        // does not depend on Email_Address__c (or any of its lookup fields) being deployed
+        // in the org — see [[security_review]] notes on the optional email-object feature.
+        Contact c1 = new Contact(LastName = 'NIPBoostA', Email = 'nip_boost@boosttest.com');
+        insert c1;
+        Contact c2 = new Contact(LastName = 'NIPBoostB', Email = 'nip_boost@boosttest.com',
+                                  ReportsToId = c1.Id);
+        Database.DmlOptions opts = new Database.DmlOptions();
+        opts.DuplicateRuleHeader.AllowSave = true;
+        Database.insert(c2, opts);
 
         MergeWrappers.ScanRequest req = new MergeWrappers.ScanRequest();
         req.objectType         = 'Contact';
-        req.matchFields        = new List<String>{ 'Email' };
+        req.matchFields        = new List<String>{ 'Phone' }; // EA-only path, no direct Email scan
         req.dryRun             = false;
         req.recordLimit        = 1000;
-        req.emailObjectApiName = 'Email_Address__c';
+        req.emailObjectApiName = 'Contact';
 
         Test.startTest();
         MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = true;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD  = 'Email';
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD = 'ReportsToId';
         MergeWrappers.ScanResult result = MergeScanService.scan(req);
         MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD  = null;
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD = null;
         Test.stopTest();
 
         System.assertEquals(true, result.success, 'Scan must succeed: ' + result.errorMessage);
@@ -495,35 +504,40 @@ private class MergeCoverageBoostTest {
 
     @IsTest
     static void scan_eaObject_forceEmptyDirectFields_coversElseBranch() {
-        // Covers lines 260-264: else branch fires when forceEmptyDirectFieldsForTest=true
-        // so detectByEmailObject uses the "SELECT Id, Name ... WHERE Id IN :allEaIds" fallback.
-        if (!Schema.getGlobalDescribe().containsKey('email_address__c')) return;
+        // Covers the else branch that fires when forceEmptyDirectFieldsForTest=true,
+        // so detectByEmailObject uses the "SELECT Id, Name ... WHERE Id IN :allEaIds"
+        // fallback instead of the direct-field cross-check. Uses Contact as a portable,
+        // self-referencing stand-in for the email object (see comment above).
+        // Two separate target contacts (c1, c4) are each pointed to by a distinct
+        // "EA row" contact (c2, c3) sharing the same email — this builds a 2-ID group
+        // from Step 1 alone, since the cross-check step is forced empty here.
+        Contact c1 = new Contact(LastName = 'ElseBoostTargetA');
+        Contact c4 = new Contact(LastName = 'ElseBoostTargetB');
+        insert new List<Contact>{ c1, c4 };
 
-        Contact c1 = new Contact(LastName = 'ElseBoostA');
-        Contact c2 = new Contact(LastName = 'ElseBoostB');
-        insert new List<Contact>{ c1, c2 };
-
-        SObject ea1 = Schema.getGlobalDescribe().get('Email_Address__c').newSObject();
-        ea1.put('Contact__c', c1.Id);
-        ea1.put('Email__c',   'else_boost@boosttest.com');
-        SObject ea2 = Schema.getGlobalDescribe().get('Email_Address__c').newSObject();
-        ea2.put('Contact__c', c2.Id);
-        ea2.put('Email__c',   'else_boost@boosttest.com');
-        insert new List<SObject>{ ea1, ea2 };
+        Contact c2 = new Contact(LastName = 'ElseBoostRowA', Email = 'else_boost@boosttest.com',
+                                  ReportsToId = c1.Id);
+        Contact c3 = new Contact(LastName = 'ElseBoostRowB', Email = 'else_boost@boosttest.com',
+                                  ReportsToId = c4.Id);
+        Database.DmlOptions opts = new Database.DmlOptions();
+        opts.DuplicateRuleHeader.AllowSave = true;
+        Database.insert(new List<Contact>{ c2, c3 }, opts);
 
         MergeWrappers.ScanRequest req = new MergeWrappers.ScanRequest();
         req.objectType         = 'Contact';
-        req.matchFields        = new List<String>{ 'Email' };
+        req.matchFields        = new List<String>{ 'Phone' };
         req.dryRun             = false;
         req.recordLimit        = 1000;
-        req.emailObjectApiName = 'Email_Address__c';
+        req.emailObjectApiName = 'Contact';
 
         Test.startTest();
-        MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = true;
-        MergeScanService.forceEmptyDirectFieldsForTest        = true;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD     = 'Email';
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD     = 'ReportsToId';
+        MergeScanService.forceEmptyDirectFieldsForTest  = true;
         MergeWrappers.ScanResult result = MergeScanService.scan(req);
-        MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false;
-        MergeScanService.forceEmptyDirectFieldsForTest        = false;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD     = null;
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD     = null;
+        MergeScanService.forceEmptyDirectFieldsForTest  = false;
         Test.stopTest();
 
         System.assertEquals(true, result.success, 'Scan must succeed: ' + result.errorMessage);
@@ -533,39 +547,39 @@ private class MergeCoverageBoostTest {
 
     @IsTest
     static void scan_eaObject_crossDetect_coversCrossCheckLines() {
-        // Covers lines 254-256: cross-check adds cA.Id via its direct Email field when
-        // its email matches an EA email already in keyToIds.
-        if (!Schema.getGlobalDescribe().containsKey('email_address__c')) return;
-
-        // cA has direct email; cB shares same email only via EA object
-        Contact cA = new Contact(LastName = 'CrossBoostA', Email = 'cross_boost@boosttest.com');
-        Contact cB = new Contact(LastName = 'CrossBoostB');
-        Database.DmlOptions opts = new Database.DmlOptions();
-        opts.DuplicateRuleHeader.AllowSave = true;
-        Database.insert(cA, opts);
+        // Covers the cross-check lines: adds cA.Id via its direct Email field when its
+        // email matches an EA email already in keyToIds. Uses Contact as a portable,
+        // self-referencing stand-in for the email object (see comment above).
+        // cRow acts as the "EA row" (Email + ReportsToId pointing to target cB); cA is a
+        // separate contact sharing the same direct Email, only discoverable via cross-check.
+        Contact cB = new Contact(LastName = 'CrossBoostTarget');
         insert cB;
 
-        SObject ea = Schema.getGlobalDescribe().get('Email_Address__c').newSObject();
-        ea.put('Contact__c', cB.Id);
-        ea.put('Email__c',   'cross_boost@boosttest.com');
-        insert ea;
+        Contact cA   = new Contact(LastName = 'CrossBoostA',   Email = 'cross_boost@boosttest.com');
+        Contact cRow = new Contact(LastName = 'CrossBoostRow', Email = 'cross_boost@boosttest.com',
+                                    ReportsToId = cB.Id);
+        Database.DmlOptions opts = new Database.DmlOptions();
+        opts.DuplicateRuleHeader.AllowSave = true;
+        Database.insert(new List<Contact>{ cA, cRow }, opts);
 
         MergeWrappers.ScanRequest req = new MergeWrappers.ScanRequest();
         req.objectType         = 'Contact';
-        req.matchFields        = new List<String>{ 'Email' };
+        req.matchFields        = new List<String>{ 'Phone' };
         req.dryRun             = false;
         req.recordLimit        = 1000;
-        req.emailObjectApiName = 'Email_Address__c';
+        req.emailObjectApiName = 'Contact';
 
         Test.startTest();
-        MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = true;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD  = 'Email';
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD = 'ReportsToId';
         MergeWrappers.ScanResult result = MergeScanService.scan(req);
-        MergeScanService.TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false;
+        MergeScanService.TEST_FORCE_EA_EMAIL_FIELD  = null;
+        MergeScanService.TEST_FORCE_EA_LOOKUP_FIELD = null;
         Test.stopTest();
 
         System.assertEquals(true, result.success, 'Cross-detect scan must succeed');
         System.assertEquals(1, result.ticketsCreated,
-            'Cross-detection: direct email (cA) + EA (cB) = 1 duplicate pair');
+            'Cross-detection: direct email (cA) + EA row (cRow) → cB = 1 duplicate group');
     }
 
     // ── MergeExecutionService.validateObjectType — exception path (line 268) ──
@@ -608,6 +622,49 @@ private class MergeCoverageBoostTest {
             'executeMerge must fail when objectType is invalid');
         System.assert(result.errorMessage.containsIgnoreCase('Unsupported'),
             'Error must mention unsupported type: ' + result.errorMessage);
+    }
+
+    // ── MergeExecutionService.validateMergePermissions — throw branch ────────
+
+    @IsTest
+    static void exec_validateMergePermissions_denied_failsBeforeMergeDml() {
+        Contact master = makeContact('PermMaster', 'permdeny@boosttest.com', null);
+        Contact loser  = makeContact('PermLoser',  'permdeny@boosttest.com', null);
+
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'New',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|permdeny@boosttest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2
+        );
+        insert ticket;
+        insert new List<Merge_Candidate__c>{
+            new Merge_Candidate__c(Merge_Ticket__c = ticket.Id,
+                Record_Id__c = String.valueOf(master.Id), Record_Name__c = 'PermMaster',
+                Is_Master__c = false, Is_Losing_Record__c = false),
+            new Merge_Candidate__c(Merge_Ticket__c = ticket.Id,
+                Record_Id__c = String.valueOf(loser.Id), Record_Name__c = 'PermLoser',
+                Is_Master__c = false, Is_Losing_Record__c = false)
+        };
+
+        MergeWrappers.MergeRequest req = new MergeWrappers.MergeRequest();
+        req.ticketId       = String.valueOf(ticket.Id);
+        req.masterId       = String.valueOf(master.Id);
+        req.losingIds      = new List<String>{ String.valueOf(loser.Id) };
+        req.fieldDecisions = new Map<String,String>();
+        req.notes          = '';
+
+        MergeExecutionService.TEST_FORCE_MERGE_PERMISSION_DENIED = true;
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(req);
+        Test.stopTest();
+        MergeExecutionService.TEST_FORCE_MERGE_PERMISSION_DENIED = false;
+
+        System.assertEquals(false, result.success,
+            'executeMerge must fail when CRUD permission check is denied');
+        System.assert(result.errorMessage.containsIgnoreCase('Insufficient permissions'),
+            'Error must mention insufficient permissions: ' + result.errorMessage);
+        System.assertEquals(2, [SELECT COUNT() FROM Contact WHERE Id IN (:master.Id, :loser.Id)],
+            'Neither contact should be merged/deleted when permission is denied');
     }
 
     // ── MergeScanBatch.finish — enrichWithEmailObject call (lines 136-139) ───

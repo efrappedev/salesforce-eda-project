@@ -67,6 +67,7 @@
 
         <!-- STEP 1: Candidate selection cards -->
         <template if:true={showStep1}>
+
             <template if:false={hasMultipleCandidates}>
                 <p class="slds-text-body_regular slds-m-bottom_medium slds-text-color_weak">
                     Cliquez sur un enregistrement pour le sélectionner comme <strong>master</strong>.
@@ -99,10 +100,27 @@
                                         <lightning-icon icon-name={card.typeIcon} size="small"></lightning-icon>
                                     </div>
                                     <div class="slds-media__body">
-                                        <h2 class="slds-card__header-title">
-                                            <span class="slds-truncate" title={card.recordName}>
-                                                {card.recordName}
-                                            </span>
+                                        <h2 class="slds-card__header-title candidate-header-title">
+                                            <template if:false={card.isMergedLoser}>
+                                                <button class="candidate-name-link"
+                                                    data-id={card.recordId}
+                                                    onclick={handleNameClick}
+                                                    title="Ouvrir la fiche dans Salesforce">
+                                                    {card.recordName}
+                                                </button>
+                                            </template>
+                                            <template if:true={card.isMergedLoser}>
+                                                <span class="slds-truncate" title={card.recordName}>
+                                                    {card.recordName}
+                                                </span>
+                                            </template>
+                                            <button class="candidate-view-btn slds-button slds-button_icon"
+                                                    data-id={card.recordId}
+                                                    data-name={card.recordName}
+                                                    onclick={handleViewRecord}
+                                                    title="Voir la fiche complète">
+                                                <lightning-icon icon-name="utility:preview" size="x-small" alternative-text="Voir fiche"></lightning-icon>
+                                            </button>
                                         </h2>
                                     </div>
                                 </header>
@@ -116,14 +134,6 @@
                                         {card.loserPillLabel}
                                     </button>
                                 </template>
-                                <!-- View full record button -->
-                                <button class="candidate-view-btn slds-button slds-button_icon"
-                                        data-id={card.recordId}
-                                        data-name={card.recordName}
-                                        onclick={handleViewRecord}
-                                        title="Voir la fiche complète">
-                                    <lightning-icon icon-name="utility:preview" size="x-small" alternative-text="Voir fiche"></lightning-icon>
-                                </button>
                             </div>
                             <!-- Card body: key field values -->
                             <div class="slds-card__body slds-card__body_inner">
@@ -179,6 +189,55 @@
                     </div>
                 </template>
             </div>
+
+            <!-- Ignore reason banner (visible when ticket is Ignored) -->
+            <template if:true={isIgnoredTicket}>
+                <div class="ignore-reason-banner slds-m-top_medium">
+                    <div class="ignore-reason-banner__header">
+                        <lightning-icon icon-name="utility:ban" size="x-small"
+                            class="ignore-reason-banner__icon">
+                        </lightning-icon>
+                        <strong>Ticket fermé</strong>
+                        <template if:true={ignoreReasonLabel}>
+                            &nbsp;—&nbsp;{ignoreReasonLabel}
+                        </template>
+                    </div>
+                    <template if:true={ignoreNotes}>
+                        <p class="ignore-reason-banner__notes">{ignoreNotes}</p>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Merge log banner (visible when ticket is Merged) -->
+            <template if:true={isMergedTicket}>
+                <div class="merge-log-banner slds-m-top_medium">
+                    <div class="merge-log-banner__header">
+                        <lightning-icon icon-name="utility:merge" size="x-small"
+                            class="merge-log-banner__icon">
+                        </lightning-icon>
+                        <strong>Fusion effectuée</strong>
+                        <template if:true={mergeLogDate}>
+                            &nbsp;—&nbsp;{mergeLogDate}
+                        </template>
+                        <template if:true={mergeLogPerformedBy}>
+                            &nbsp;par&nbsp;<em>{mergeLogPerformedBy}</em>
+                        </template>
+                    </div>
+                    <template if:true={mergeLogMasterName}>
+                        <p class="merge-log-banner__row">
+                            <span class="merge-log-banner__label">Master conservé :</span>
+                            {mergeLogMasterName}
+                        </p>
+                    </template>
+                    <template if:true={mergeLogLoserNames}>
+                        <p class="merge-log-banner__row">
+                            <span class="merge-log-banner__label">Fusionné :</span>
+                            {mergeLogLoserNames}
+                        </p>
+                    </template>
+                </div>
+            </template>
+
         </template>
 
         <!-- Deleted accounts log (Contact merge tickets) -->
@@ -367,6 +426,17 @@
             variant="destructive-text"
             onclick={openDismissModal}>
         </lightning-button>
+
+        <!-- Relationship button — Contact tickets only -->
+        <template if:true={isContactTicket}>
+            <lightning-button
+                label="Créer une relation"
+                icon-name="utility:people"
+                variant="neutral"
+                title="Crée une relation EDA entre deux des contacts de ce ticket (ex. : Époux/Épouse, Parent/Enfant, Collègue…). EDA génère automatiquement la relation réciproque."
+                onclick={openRelModal}>
+            </lightning-button>
+        </template>
 
         <!-- Navigation -->
         <div class="slds-grid slds-gutters_x-small">
@@ -715,4 +785,119 @@
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
+
+    <!-- ── Relationship wizard modal ─────────────────────────────────────── -->
+    <template if:true={showRelModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 aria-labelledby="rel-modal-title"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container rel-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-modal__close btn-modal-close"
+                            title="Fermer" onclick={closeRelModal}>&#x2715;</button>
+                    <h2 id="rel-modal-title" class="slds-modal__title slds-hyphenate">
+                        <lightning-icon icon-name="utility:people" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        Créer une relation
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <!-- Step 1: Select 2 candidates -->
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">
+                        Sélectionnez <strong>2 contacts</strong> à relier ({relSelectedIds.length}/2) :
+                    </p>
+                    <div class="rel-candidate-list slds-m-bottom_medium">
+                        <template for:each={relCandidateList} for:item="cand">
+                            <button key={cand.id}
+                                class={cand.rowClass}
+                                data-id={cand.id}
+                                onclick={handleRelCandidateToggle}
+                                disabled={cand.disabled}>
+                                <span class="rel-candidate-check">
+                                    <template if:true={cand.checked}>&#10003;</template>
+                                    <template if:false={cand.checked}>&#9675;</template>
+                                </span>
+                                <lightning-icon icon-name="standard:contact" size="x-small"
+                                    class="slds-m-horizontal_xx-small">
+                                </lightning-icon>
+                                <span class="rel-candidate-name">{cand.name}</span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Step 2: Type selector (visible only when 2 selected) -->
+                    <template if:true={relShowTypeSelectors}>
+                        <div class="rel-row">
+
+                            <!-- Contacts A and B with roles + swap button -->
+                            <div class="rel-persons-row">
+                                <div class="rel-person rel-person--a">
+                                    <lightning-icon icon-name="standard:contact" size="x-small"
+                                        class="slds-m-right_xx-small"></lightning-icon>
+                                    <div class="rel-person__info">
+                                        <span class="rel-person__name">{relContactA}</span>
+                                        <span class="rel-person__role">recevra le type choisi</span>
+                                    </div>
+                                </div>
+                                <button class="rel-swap-btn" onclick={handleSwapContacts}
+                                    title="Inverser les deux contacts">⇄</button>
+                                <div class="rel-person rel-person--b">
+                                    <lightning-icon icon-name="standard:contact" size="x-small"
+                                        class="slds-m-right_xx-small"></lightning-icon>
+                                    <div class="rel-person__info">
+                                        <span class="rel-person__name">{relContactB}</span>
+                                        <span class="rel-person__role">recevra le type réciproque</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Type combobox -->
+                            <lightning-combobox
+                                label={relTypeLabel}
+                                value={relType}
+                                options={relTypeOptions}
+                                placeholder="Ex : Husband, Parent, Friend..."
+                                onchange={handleRelTypeChange}
+                                class="slds-m-top_small"
+                                required>
+                            </lightning-combobox>
+
+                            <!-- Preview sentence once type is chosen -->
+                            <template if:true={relHasType}>
+                                <div class="rel-preview slds-m-top_x-small">
+                                    <strong>{relContactA}</strong>&nbsp;est&nbsp;<em>{relType}</em>&nbsp;de&nbsp;<strong>{relContactB}</strong>.
+                                    EDA créera automatiquement la relation réciproque.
+                                </div>
+                            </template>
+                            <template if:false={relHasType}>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                                    EDA créera automatiquement la relation réciproque.
+                                </p>
+                            </template>
+
+                        </div>
+                    </template>
+
+                    <template if:true={relCreateError}>
+                        <p class="slds-text-color_error slds-m-top_small">{relCreateError}</p>
+                    </template>
+
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Annuler" onclick={closeRelModal}></lightning-button>
+                    <lightning-button
+                        label="Créer la relation"
+                        variant="brand"
+                        icon-name="utility:people"
+                        onclick={handleCreateRelationship}
+                        disabled={isCreatingRel}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" onclick={closeRelModal}></div>
+    </template>
+
 </template>

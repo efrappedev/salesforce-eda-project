@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prevent_Manual_Edit_After_Completion</fullName>
+    <active>true</active>
+    <description>Completed logs are immutable. Once Action_Type = MERGE_COMPLETED, no field can be edited manually. This preserves the forensic integrity of the audit trail.</description>
+    <errorConditionFormula>
+        AND(
+            NOT(ISNEW()),
+            ISPICKVAL(Action_Type__c, 'MERGE_COMPLETED'),
+            OR(
+                ISCHANGED(Before_Snapshot_JSON__c),
+                ISCHANGED(After_Snapshot_JSON__c),
+                ISCHANGED(Master_Record_Id__c),
+                ISCHANGED(Losing_Record_Ids__c)
+            )
+        )
+    </errorConditionFormula>
+    <errorDisplayField>Action_Type__c</errorDisplayField>
+    <errorMessage>Completed merge logs are read-only. The before/after snapshots and record IDs cannot be modified after the merge completes.</errorMessage>
+</ValidationRule>

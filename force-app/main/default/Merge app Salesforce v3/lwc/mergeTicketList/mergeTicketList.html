@@ -23,6 +23,21 @@
                 </lightning-combobox>
             </div>
         </div>
+        <!-- Closed reason sub-filter (visible only when Closed/Ignored filter active) -->
+        <template if:true={showClosedReasonFilter}>
+            <div class="slds-m-top_x-small">
+                <lightning-combobox
+                    name="closedReason"
+                    label="Raison de fermeture"
+                    variant="label-hidden"
+                    placeholder="Toutes les raisons"
+                    value={closedReasonFilter}
+                    options={closedReasonFilterOptions}
+                    onchange={handleClosedReasonFilterChange}>
+                </lightning-combobox>
+            </div>
+        </template>
+
         <!-- Search box -->
         <div class="slds-m-top_x-small ticket-list__search">
             <div class="slds-input-has-icon slds-input-has-icon_left">
@@ -77,7 +92,7 @@
                             <lightning-icon icon-name={ticket.typeIcon} size="small"></lightning-icon>
                         </div>
                         <div class="slds-media__body ticket-list__body">
-                            <!-- Names: one per line, bold; confidence badge top-right -->
+                            <!-- Names: one per line, bold; status badge top-right -->
                             <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
                                 <div class="ticket-list__names-block">
                                     <template for:each={ticket.candidateNamesItems} for:item="cname">
@@ -86,7 +101,7 @@
                                            title={cname.name}>{cname.name}</p>
                                     </template>
                                 </div>
-                                <span class={ticket.confidenceClass}>{ticket.Match_Confidence__c}</span>
+                                <span class={ticket.statusClass} title={ticket.errorTooltip}>{ticket.Status__c}</span>
                             </div>
                             <!-- Phone left, time right -->
                             <div class="slds-grid slds-grid_align-spread slds-m-top_xx-small">
@@ -96,12 +111,23 @@
                                     {ticket.relativeDate}
                                 </span>
                             </div>
-                            <!-- Match type + count left, status badge right -->
+                            <!-- Match type + count left, reopen button right (ignored only) -->
                             <div class="slds-grid slds-grid_align-spread slds-m-top_xx-small">
                                 <span class="slds-text-body_small slds-text-color_weak">
                                     {ticket.matchTypeLabel} &bull; {ticket.Candidate_Count__c} enreg.
+                                    <template if:true={ticket.closedReasonLabel}>
+                                        &bull; {ticket.closedReasonLabel}
+                                    </template>
                                 </span>
-                                <span class={ticket.statusClass}>{ticket.Status__c}</span>
+                                <template if:true={ticket.canReopen}>
+                                    <button class="reopen-btn"
+                                        data-id={ticket.Id}
+                                        onclick={handleReopenTicket}
+                                        disabled={isReopening}
+                                        title="Remettre à Nouveau">
+                                        ↺ Réouvrir
+                                    </button>
+                                </template>
                             </div>
                         </div>
                     </div>

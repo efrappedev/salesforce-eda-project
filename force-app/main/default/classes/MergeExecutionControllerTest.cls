@@ -750,6 +750,64 @@ private class MergeExecutionControllerTest {
     }
 
     @IsTest
+    static void ctrl_reopenTicket_resetsStatusAndClearsReason() {
+        Merge_Ticket__c t = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Ignored',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|reopen@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Final_Action__c = 'Ignored', Closed_Reason__c = 'Other'
+        );
+        insert t;
+        MergeController.reopenTicket(String.valueOf(t.Id));
+        Merge_Ticket__c upd = [
+            SELECT Status__c, Final_Action__c, Closed_Reason__c
+            FROM Merge_Ticket__c WHERE Id = :t.Id
+        ];
+        System.assertEquals('New', upd.Status__c);
+        System.assertEquals(null, upd.Final_Action__c);
+        System.assertEquals(null, upd.Closed_Reason__c);
+    }
+
+    @IsTest
+    static void ctrl_getRelationshipTypes_returnsListOrEmpty() {
+        List<Map<String,String>> types = MergeController.getRelationshipTypes();
+        System.assertNotEquals(null, types, 'Should return a list (may be empty if EDA absent)');
+    }
+
+    @IsTest
+    static void ctrl_createRelationship_edaFlagNotAvailable_throws() {
+        MergeController.TEST_EDA_NOT_AVAILABLE = true;
+        try {
+            MergeController.createRelationship('003000000000001AAA', '003000000000002AAA', 'Friend');
+            System.assert(false, 'Expected AuraHandledException');
+        } catch (AuraHandledException e) {
+            System.assert(e.getMessage() != null);
+        } finally {
+            MergeController.TEST_EDA_NOT_AVAILABLE = false;
+        }
+    }
+
+    @IsTest
+    static void ctrl_createRelationship_noEDA_throwsOrSucceeds() {
+        Boolean edaPresent = Schema.getGlobalDescribe().containsKey('hed__relationship__c');
+        if (!edaPresent) {
+            try {
+                MergeController.createRelationship('001000000000001AAA', '001000000000002AAA', 'Friend');
+                System.assert(false, 'Should have thrown');
+            } catch (AuraHandledException e) {
+                System.assert(e.getMessage().contains('EDA'), 'Error should mention EDA');
+            }
+        } else {
+            Contact c1 = new Contact(LastName = 'RelTest1');
+            Contact c2 = new Contact(LastName = 'RelTest2');
+            insert new List<Contact>{ c1, c2 };
+            MergeController.createRelationship(String.valueOf(c1.Id), String.valueOf(c2.Id), 'Friend');
+            Integer count = [SELECT COUNT() FROM hed__Relationship__c WHERE hed__Contact__c = :c1.Id];
+            System.assertEquals(1, count, 'Relationship should be created');
+        }
+    }
+
+    @IsTest
     static void ctrl_isEDAAvailable_returnsBoolean() {
         System.assertNotEquals(null, MergeController.isEDAAvailable());
     }
@@ -800,6 +858,24 @@ private class MergeExecutionControllerTest {
             threw = true;
         }
         System.assertEquals(true, threw, 'Should throw when account has contacts');
+    }
+
+    @IsTest
+    static void ctrl_deleteOrphanedAccount_permissionDenied_throwsException() {
+        Account acc = makeAccount('NoDeletePermAcc');
+
+        MergeController.TEST_FORCE_ACCOUNT_NOT_DELETABLE = true;
+        Boolean threw = false;
+        try {
+            MergeController.deleteOrphanedAccount(String.valueOf(acc.Id), null, acc.Name);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        MergeController.TEST_FORCE_ACCOUNT_NOT_DELETABLE = false;
+
+        System.assertEquals(true, threw, 'Should throw when Account.isDeletable() is denied');
+        System.assertEquals(1, [SELECT COUNT() FROM Account WHERE Id = :acc.Id],
+            'Account must not be deleted when permission is denied');
     }
 
     @IsTest
@@ -861,6 +937,26 @@ private class MergeExecutionControllerTest {
         insert t;
         System.assertEquals(0,
             MergeController.getDeletedAccountsForTicket(String.valueOf(t.Id)).size());
+    }
+
+    @IsTest
+    static void ctrl_deleteOrphanedContact_permissionDenied_throwsException() {
+        Account acc = makeAccount('NoDeletePermContactOrg');
+        Contact c = new Contact(LastName = 'NoDeletePermContact', AccountId = acc.Id);
+        insert c;
+
+        MergeController.TEST_FORCE_CONTACT_NOT_DELETABLE = true;
+        Boolean threw = false;
+        try {
+            MergeController.deleteOrphanedContact(String.valueOf(c.Id), null, c.LastName);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        MergeController.TEST_FORCE_CONTACT_NOT_DELETABLE = false;
+
+        System.assertEquals(true, threw, 'Should throw when Contact.isDeletable() is denied');
+        System.assertEquals(1, [SELECT COUNT() FROM Contact WHERE Id = :c.Id],
+            'Contact must not be deleted when permission is denied');
     }
 
     @IsTest

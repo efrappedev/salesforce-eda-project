@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Action_Type__c</fullName>
+    <label>Action Type</label>
+    <description>Lifecycle state of this log record. MERGE_PENDING = before-snapshot captured, merge not yet executed. MERGE_COMPLETED = success. MERGE_ERROR = exception was thrown.</description>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>MERGE_PENDING</fullName>
+                <default>false</default>
+                <label>Pending (before-snapshot captured)</label>
+            </value>
+            <value>
+                <fullName>MERGE_COMPLETED</fullName>
+                <default>false</default>
+                <label>Completed</label>
+            </value>
+            <value>
+                <fullName>MERGE_ERROR</fullName>
+                <default>false</default>
+                <label>Error</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

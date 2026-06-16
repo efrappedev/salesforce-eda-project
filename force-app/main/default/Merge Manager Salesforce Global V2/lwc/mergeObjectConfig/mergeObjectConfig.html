@@ -1,0 +1,214 @@
+<template>
+    <section role="dialog" tabindex="-1"
+        class="slds-modal slds-fade-in-open"
+        aria-modal="true" aria-label={i18n.configTitle}>
+
+        <div class="slds-modal__container">
+
+            <!-- Header -->
+            <header class="slds-modal__header">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                    title={i18n.close} onclick={handleClose}>
+                    <lightning-icon icon-name="utility:close" size="small"
+                        alternative-text={i18n.close}></lightning-icon>
+                </button>
+                <lightning-icon icon-name="utility:settings" size="x-small"
+                    class="cfg-header-icon"></lightning-icon>
+                <h2 class="slds-text-heading_medium" style="display:inline;vertical-align:middle">
+                    {i18n.configTitle}
+                </h2>
+            </header>
+
+            <!-- Two-column body -->
+            <div class="slds-modal__content settings-layout">
+
+                <!-- Left nav -->
+                <nav class="settings-nav">
+                    <button class={navItemLanguageClass} data-section="language" onclick={handleSectionChange}>
+                        <lightning-icon icon-name="utility:world" size="x-small"
+                            class="settings-nav__icon" alternative-text={i18n.settingsNavLanguage}>
+                        </lightning-icon>
+                        <span>{i18n.settingsNavLanguage}</span>
+                    </button>
+                    <button class={navItemObjectsClass} data-section="objects" onclick={handleSectionChange}>
+                        <lightning-icon icon-name="utility:standard_objects" size="x-small"
+                            class="settings-nav__icon" alternative-text={i18n.settingsNavObjects}>
+                        </lightning-icon>
+                        <span>{i18n.settingsNavObjects}</span>
+                    </button>
+                    <button class={navItemReasonsClass} data-section="reasons" onclick={handleSectionChange}>
+                        <lightning-icon icon-name="utility:list" size="x-small"
+                            class="settings-nav__icon" alternative-text={i18n.settingsNavReasons}>
+                        </lightning-icon>
+                        <span>{i18n.settingsNavReasons}</span>
+                    </button>
+                </nav>
+
+                <!-- Right panel -->
+                <div class="settings-panel">
+
+                    <!-- ── Language ── -->
+                    <template if:true={isLanguageSection}>
+                        <div class="settings-panel__content">
+                            <h3 class="settings-panel__title">{i18n.settingsNavLanguage}</h3>
+                            <p class="settings-panel__hint slds-m-bottom_small">{i18n.settingsLang}</p>
+                            <div class="cfg-lang-toggle">
+                                <button class={langFrClass} data-lang="fr" onclick={handleLangChange}>FR</button>
+                                <button class={langEnClass} data-lang="en" onclick={handleLangChange}>EN</button>
+                                <button class={langEsClass} data-lang="es" onclick={handleLangChange}>ES</button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- ── Objects ── -->
+                    <template if:true={isObjectsSection}>
+                        <div class="settings-panel__content">
+                            <!-- Type toggle -->
+                            <div class="cfg-type-toggle slds-m-bottom_x-small">
+                                <button class={contactTabClass} data-type="Contact" onclick={handleTypeChange}>
+                                    {i18n.objectTypeContact}
+                                </button>
+                                <button class={accountTabClass} data-type="Account" onclick={handleTypeChange}>
+                                    {i18n.objectTypeAccount}
+                                </button>
+                            </div>
+
+                            <template if:true={isLoading}>
+                                <div class="slds-text-align_center slds-p-around_medium">
+                                    <lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_small">{i18n.loadingOrg}</p>
+                                </div>
+                            </template>
+
+                            <template if:true={errorMessage}>
+                                <div class="cfg-error slds-m-bottom_small">{errorMessage}</div>
+                            </template>
+
+                            <template if:false={isLoading}>
+                                <template if:true={hasItems}>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_xx-small">
+                                        {itemsFoundLabel} — {i18n.configHint}
+                                    </p>
+                                    <template if:true={hasCheckedItems}>
+                                        <div class="cfg-section-label">{checkedSectionLabel}</div>
+                                        <template for:each={checkedItems} for:item="item">
+                                            <div key={item.key} class={item.rowClass}>
+                                                <input type="checkbox" class="cfg-checkbox" checked
+                                                    data-api={item.apiName} onchange={handleToggle} />
+                                                <c-merge-object-config-row api-name={item.apiName}></c-merge-object-config-row>
+                                                <div class="cfg-row-info">
+                                                    <span class="cfg-obj-label">{item.schemaLabel}</span>
+                                                    <span class="cfg-obj-api">{item.apiName}</span>
+                                                </div>
+                                                <div class="cfg-label-group">
+                                                    <span class="cfg-label-hint">{i18n.labelDisplayLabel}</span>
+                                                    <input type="text" class="slds-input cfg-label-input"
+                                                        value={item.customLabel} placeholder={item.schemaLabel}
+                                                        data-api={item.apiName} oninput={handleLabelChange} />
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:true={hasUncheckedItems}>
+                                        <div class="cfg-section-label cfg-section-label_dim">{uncheckedSectionLabel}</div>
+                                        <template for:each={uncheckedItems} for:item="item">
+                                            <div key={item.key} class={item.rowClass}>
+                                                <input type="checkbox" class="cfg-checkbox"
+                                                    data-api={item.apiName} onchange={handleToggle} />
+                                                <c-merge-object-config-row api-name={item.apiName}></c-merge-object-config-row>
+                                                <div class="cfg-row-info">
+                                                    <span class="cfg-obj-label">{item.schemaLabel}</span>
+                                                    <span class="cfg-obj-api">{item.apiName}</span>
+                                                </div>
+                                                <div class="cfg-label-group">
+                                                    <span class="cfg-label-hint">{i18n.labelDisplayLabel}</span>
+                                                    <input type="text" class="slds-input cfg-label-input"
+                                                        value={item.customLabel} placeholder={item.schemaLabel}
+                                                        data-api={item.apiName} oninput={handleLabelChange} />
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+                                </template>
+                                <template if:false={hasItems}>
+                                    <template if:false={errorMessage}>
+                                        <div class="cfg-empty">
+                                            <p>{i18n.emptyConfigPre} {selectedType}.</p>
+                                        </div>
+                                    </template>
+                                </template>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- ── Close Reasons ── -->
+                    <template if:true={isReasonsSection}>
+                        <div class="settings-panel__content">
+                            <h3 class="settings-panel__title">{i18n.settingsNavReasons}</h3>
+
+                            <!-- Predefined (read-only) -->
+                            <div class="cfg-section-label">{i18n.predefinedLabel}</div>
+                            <ul class="reason-list">
+                                <template for:each={predefinedReasonsList} for:item="r">
+                                    <li key={r.value} class="reason-item reason-item_predefined">
+                                        <lightning-icon icon-name="utility:lock" size="xx-small"
+                                            class="reason-item__icon" alternative-text="predefined">
+                                        </lightning-icon>
+                                        <span>{r.label}</span>
+                                    </li>
+                                </template>
+                            </ul>
+
+                            <!-- Custom (editable) -->
+                            <div class="cfg-section-label slds-m-top_small">{i18n.customReasonsLabel}</div>
+                            <template if:true={hasCustomReasons}>
+                                <ul class="reason-list">
+                                    <template for:each={customReasonsItems} for:item="r">
+                                        <li key={r.id} class="reason-item reason-item_custom">
+                                            <span class="reason-item__text">{r.value}</span>
+                                            <button class="reason-item__remove"
+                                                data-value={r.value}
+                                                onclick={removeCustomReason}
+                                                title={i18n.btnRemove}>&#x2715;</button>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template if:false={hasCustomReasons}>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                                    {i18n.noCustomReasons}
+                                </p>
+                            </template>
+
+                            <!-- Add new -->
+                            <div class="reason-add-row slds-m-top_small">
+                                <input type="text"
+                                    class="slds-input"
+                                    placeholder={i18n.placeholderNewReason}
+                                    value={newReasonInput}
+                                    oninput={handleReasonInput} />
+                                <button class="slds-button slds-button_neutral reason-add-btn"
+                                    onclick={addCustomReason}>
+                                    {i18n.btnAddReason}
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="slds-modal__footer">
+                <lightning-button label={i18n.close} variant="neutral" onclick={handleClose}></lightning-button>
+                <template if:true={isObjectsSection}>
+                    <lightning-button label={saveLabel} variant="brand"
+                        disabled={isSaving} onclick={handleSave}>
+                    </lightning-button>
+                </template>
+            </footer>
+
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

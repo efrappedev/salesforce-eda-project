@@ -1,0 +1,33 @@
+<template>
+    <div class="carousel-wrap">
+        <!-- Left arrow -->
+        <template if:true={showArrows}>
+            <button class="carousel-arrow"
+                    disabled={isPrevDisabled}
+                    onclick={handlePrev}
+                    title={i18n.prevTitle}>
+                &#8249;
+            </button>
+        </template>
+
+        <!-- Visible items (max 4) -->
+        <div class="carousel-items">
+            <template for:each={visibleItems} for:item="rc">
+                <div key={rc.label} class="rc-item">
+                    <p class="rc-label">{rc.label}</p>
+                    <p class={rc.countClass}>{rc.total}</p>
+                </div>
+            </template>
+        </div>
+
+        <!-- Right arrow -->
+        <template if:true={showArrows}>
+            <button class="carousel-arrow"
+                    disabled={isNextDisabled}
+                    onclick={handleNext}
+                    title={i18n.nextTitle}>
+                &#8250;
+            </button>
+        </template>
+    </div>
+</template>

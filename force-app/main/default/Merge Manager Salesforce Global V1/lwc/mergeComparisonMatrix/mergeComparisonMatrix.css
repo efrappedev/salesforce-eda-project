@@ -1,0 +1,288 @@
+/* ── Table layout ─────────────────────────────────────────────────────────── */
+
+.matrix-wrapper {
+    font-size: 13px;
+}
+
+.matrix-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.matrix-table {
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+/* Fixed label column */
+.matrix-table__label-col {
+    min-width: 180px;
+    max-width: 220px;
+    position: sticky;
+    left: 0;
+    background-color: #fafaf9;
+    z-index: 2;
+    border-right: 2px solid #dddbda !important;
+}
+
+/* Candidate columns */
+.matrix-table__record-col {
+    min-width: 200px;
+    vertical-align: top;
+    background-color: #ffffff;
+}
+
+.matrix-table__record-col_master {
+    background-color: #f2f8fd;
+    border-top: 3px solid #0176d3 !important;
+}
+
+/* Sticky thead */
+thead .matrix-table__label-col,
+thead .matrix-table__record-col {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+thead .matrix-table__label-col {
+    z-index: 4;
+}
+
+/* ── Row styles ───────────────────────────────────────────────────────────── */
+
+.matrix-table__row:hover .matrix-table__value-col {
+    background-color: #f3f2f2;
+}
+
+.matrix-table__row_conflict .matrix-table__label-col {
+    border-left: 3px solid #dd7a01;
+}
+
+.matrix-table__row_eda .matrix-table__label-col {
+    border-left: 3px solid #9050e9;
+}
+
+/* ── Cell styles ─────────────────────────────────────────────────────────── */
+
+.matrix-table__value-col {
+    vertical-align: middle;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.matrix-table__value-col_selected {
+    background-color: #e8f4fd !important;
+    box-shadow: inset 2px 0 0 #0176d3;
+}
+
+/* Amber tint for cells whose value differs from the currently selected cell */
+.matrix-table__value-col_different {
+    background-color: #fff3e0 !important;
+    box-shadow: inset 2px 0 0 #dd7a01;
+}
+
+.matrix-table__value-col_different .matrix-cell-value {
+    color: #8a4700;
+}
+
+/* Custom radio UI inside cells */
+.matrix-cell-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 6px;
+    padding: 2px 0;
+    width: 100%;
+}
+
+.matrix-cell-radio__faux {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #dddbda;
+    background: #fff;
+    display: inline-block;
+    transition: border-color 0.1s, background 0.1s;
+}
+
+input[type="radio"]:checked + .matrix-cell-radio__faux {
+    border-color: #0176d3;
+    background: #0176d3;
+    box-shadow: inset 0 0 0 3px #fff;
+}
+
+.matrix-cell-value {
+    font-size: 12px;
+    word-break: break-word;
+    color: #080707;
+}
+
+.matrix-table__value-col_selected .matrix-cell-value {
+    font-weight: 600;
+    color: #032d60;
+}
+
+/* ── Master selector (column header radio) ───────────────────────────────── */
+
+.matrix-master-radio {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.matrix-master-radio__faux {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #dddbda;
+    background: #fff;
+    display: inline-block;
+    transition: border-color 0.1s, background 0.1s;
+}
+
+input[type="radio"]:checked ~ .matrix-master-radio__faux,
+.matrix-table__record-col_master .matrix-master-radio__faux {
+    border-color: #0176d3;
+    background: #0176d3;
+    box-shadow: inset 0 0 0 4px #fff;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────────*/
+
+.badge-eda {
+    background-color: #9050e9;
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 5px;
+}
+
+.badge-warning {
+    background-color: #dd7a01;
+    color: #fff;
+    font-size: 10px;
+}
+
+.badge-readonly {
+    background-color: #e0e0e0;
+    color: #706e6b;
+    font-size: 9px;
+    padding: 1px 5px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.matrix-cell-value_readonly {
+    font-size: 12px;
+    color: #706e6b;
+    padding: 2px 4px;
+    display: inline-block;
+}
+
+.matrix-field-label {
+    font-weight: 500;
+    color: #3e3e3c;
+}
+
+.conflict-icon {
+    --slds-c-icon-color-foreground: #dd7a01;
+}
+
+/* ── Related Contacts section ────────────────────────────────────────────── */
+
+.related-contacts-section {
+    background-color: #fafaf9;
+}
+
+.related-contact-col {
+    border: 1px solid #dddbda;
+    border-radius: 6px;
+    padding: 0.75rem;
+    background: #fff;
+    height: 100%;
+}
+
+.related-contact-col_master {
+    border: 2px solid #0176d3 !important;
+    background-color: #f2f8fd;
+}
+
+.related-contacts-count {
+    background-color: #f3f2f2;
+    color: #3e3e3c;
+    font-size: 10px;
+}
+
+.related-contacts-active-alert {
+    background-color: #fff3cd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    color: #664d03;
+    font-size: 11px;
+    --slds-c-icon-color-foreground: #dd7a01;
+}
+
+.related-contacts-table {
+    font-size: 11px;
+}
+
+.related-contacts-name {
+    max-width: 160px;
+}
+
+.contact-row_active td {
+    background-color: #fff8ec;
+}
+
+.contact-row_active .related-contacts-name {
+    font-weight: 600;
+    color: #7a4f00;
+}
+
+/* ── EDA section ─────────────────────────────────────────────────────────── */
+
+.eda-section {
+    background-color: #fafaf9;
+}
+
+.eda-card {
+    border-radius: 6px;
+    min-height: 120px;
+}
+
+.eda-card_master {
+    border: 2px solid #0176d3 !important;
+}
+
+.eda-card_warning {
+    border: 2px solid #dd7a01 !important;
+    background-color: #fff8ec;
+}
+
+.eda-count {
+    color: #3e3e3c;
+}
+
+.eda-count_active {
+    color: #ba0517;
+    font-weight: 700;
+}
+
+.eda-active-count {
+    color: #2e844a;
+    font-weight: 500;
+}
+
+.eda-loser-warning {
+    background-color: #fecd34;
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    color: #3e3e3c;
+}
