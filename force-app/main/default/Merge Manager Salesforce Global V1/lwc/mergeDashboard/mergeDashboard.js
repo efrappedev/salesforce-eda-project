@@ -8,6 +8,8 @@ const DEFAULT_TYPES = { status: 'bar', objType: 'donut', trendPeriod: 'month' };
 const COLORS        = ['#0176d3','#2e844a','#fe9339','#ba0517','#706e6b','#9050e9','#0b827c'];
 const STATUS_ORDER  = ['New','Reopened','Error','Merged','Closed','Ignored'];
 const OBJ_COLORS    = { Contact: '#0176d3', Account: '#9050e9' };
+const AGE_ORDER      = ['New', 'Pending', 'Stale'];
+const AGE_COLORS     = { New: '#0176d3', Pending: '#9a5000', Stale: '#ba0517' };
 
 export default class MergeDashboard extends LightningElement {
     @api lang = 'fr';
@@ -154,6 +156,32 @@ export default class MergeDashboard extends LightningElement {
         return raw.map((row, i) => ({
             ...row,
             barStyle: `width:${Math.round(row.value / max * 100)}%;background:${COLORS[i % COLORS.length]}`
+        }));
+    }
+
+    // ── Age (New/Reopened tickets bucketed by days since CreatedDate) ─────────
+
+    get _ageRaw() {
+        const map = this._stats?.data?.byAge || {};
+        const t   = this.i18n;
+        const LABELS = {
+            New:     t.statusNew || 'New',
+            Pending: t.statusPending || 'Pending',
+            Stale:   t.statusStale || 'Stale'
+        };
+        return AGE_ORDER
+            .filter(k => map[k] > 0)
+            .map(k => ({ key: k, label: LABELS[k] || k, value: map[k], color: AGE_COLORS[k] }));
+    }
+
+    get hasAgeData() { return this._ageRaw.length > 0; }
+
+    get ageData() {
+        const raw = this._ageRaw;
+        const max = Math.max(...raw.map(r => r.value), 1);
+        return raw.map(row => ({
+            ...row,
+            barStyle: `width:${Math.round(row.value / max * 100)}%;background:${row.color}`
         }));
     }
 

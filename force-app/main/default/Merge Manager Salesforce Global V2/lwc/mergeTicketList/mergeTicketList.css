@@ -91,6 +91,10 @@
 .ticket-badge_reopened { background: #ddeeff; color: #0176d3; border-color: #4ba3e3; font-weight: 700; }
 .ticket-badge_error    { background: #fde8e8; color: #ba0517; border-color: #f0a0a0; }
 
+/* Aging override for stale 'New'/'Reopened' tickets — Status__c unchanged, badge only */
+.ticket-badge_pending { background: #fff8ec; color: #9a5000; border-color: #f0b96d; }
+.ticket-badge_stale   { background: #fdeee8; color: #c23934; border-color: #f0a0a0; }
+
 .ticket-list__filters {
     background-color: #fafaf9;
 }
@@ -142,6 +146,33 @@
     --slds-c-icon-color-foreground: #706e6b;
 }
 
+.ticket-list__search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ticket-list__search-clear:hover {
+    background: #f3f2f2;
+}
+
+.ticket-list__clear-icon {
+    --slds-c-icon-color-foreground: #706e6b;
+}
+
+.ticket-list__search-clear:hover .ticket-list__clear-icon {
+    --slds-c-icon-color-foreground: #c23934;
+}
+
 .ticket-list__notes {
     font-size: 0.6875rem;
     color: #706e6b;
@@ -164,4 +195,71 @@
 .reopen-btn:hover {
     background: #f3f3f3;
     border-color: #9a9a9a;
+}
+
+/* Page navigation controls */
+.ticket-list__page-nav {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.page-nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #0176d3;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 3px;
+    border-radius: 3px;
+}
+
+.page-nav-btn:disabled {
+    color: #c9c7c5;
+    cursor: default;
+}
+
+.page-nav-btn:hover:not(:disabled) {
+    background: #e8f4fd;
+}
+
+.page-nav-label {
+    font-size: 0.75rem;
+    color: #444;
+    padding: 0 3px;
+    min-width: 2.5rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.page-nav-label_clickable {
+    cursor: pointer;
+    border-radius: 3px;
+    text-decoration: underline dotted #aaa;
+}
+
+.page-nav-label_clickable:hover {
+    background: #e8f4fd;
+    color: #0176d3;
+}
+
+.page-nav-input {
+    width: 2.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+    border: 1px solid #0176d3;
+    border-radius: 3px;
+    padding: 0 2px;
+    color: #444;
+    background: #fff;
+    height: 1.25rem;
+    outline: none;
+    box-shadow: 0 0 0 1px #0176d3;
+    -moz-appearance: textfield;
+}
+
+.page-nav-input::-webkit-inner-spin-button,
+.page-nav-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
 }

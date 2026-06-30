@@ -86,9 +86,17 @@
 
                             <template if:false={isLoading}>
                                 <template if:true={hasItems}>
-                                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_xx-small">
-                                        {itemsFoundLabel} — {i18n.configHint}
-                                    </p>
+                                    <div class="cfg-header-row slds-m-bottom_xx-small">
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            {itemsFoundLabel} — {i18n.configHint}
+                                        </p>
+                                        <div class="cfg-bulk-btns">
+                                            <button class="slds-button slds-button_neutral cfg-bulk-btn"
+                                                onclick={handleSelectAll}>{i18n.selectAll}</button>
+                                            <button class="slds-button slds-button_neutral cfg-bulk-btn"
+                                                onclick={handleUnselectAll}>{i18n.unselectAll}</button>
+                                        </div>
+                                    </div>
                                     <template if:true={hasCheckedItems}>
                                         <div class="cfg-section-label">{checkedSectionLabel}</div>
                                         <template for:each={checkedItems} for:item="item">
@@ -111,6 +119,12 @@
                                     </template>
                                     <template if:true={hasUncheckedItems}>
                                         <div class="cfg-section-label cfg-section-label_dim">{uncheckedSectionLabel}</div>
+                                        <div class="cfg-snapshot-warning">
+                                            <lightning-icon icon-name="utility:warning" size="xx-small"
+                                                class="cfg-snapshot-warning__icon" alternative-text="warning">
+                                            </lightning-icon>
+                                            <span>{i18n.configSnapshotWarning}</span>
+                                        </div>
                                         <template for:each={uncheckedItems} for:item="item">
                                             <div key={item.key} class={item.rowClass}>
                                                 <input type="checkbox" class="cfg-checkbox"
@@ -201,6 +215,10 @@
             <!-- Footer -->
             <footer class="slds-modal__footer">
                 <lightning-button label={i18n.close} variant="neutral" onclick={handleClose}></lightning-button>
+                <template if:true={isLanguageSection}>
+                    <lightning-button label={i18n.save} variant="brand" onclick={handleLangSave}>
+                    </lightning-button>
+                </template>
                 <template if:true={isObjectsSection}>
                     <lightning-button label={saveLabel} variant="brand"
                         disabled={isSaving} onclick={handleSave}>

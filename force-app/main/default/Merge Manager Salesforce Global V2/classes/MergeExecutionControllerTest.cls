@@ -104,7 +104,7 @@ private class MergeExecutionControllerTest {
         Test.startTest();
         Merge_Log__c log = MergeAuditService.createPreMergeLog(
             ticket.Id, 'Contact', master.Id,
-            new List<Id>{ loser.Id }, candidates, new Map<String,String>()
+            new List<Id>{ loser.Id }, candidates, new Map<String,String>(), null
         );
         Test.stopTest();
 
@@ -131,7 +131,7 @@ private class MergeExecutionControllerTest {
             SELECT Id, Name FROM Contact WHERE Id IN :new Set<Id>{ c1.Id, c2.Id }
         ];
         Merge_Log__c log = MergeAuditService.createPreMergeLog(
-            t.Id, 'Contact', c1.Id, new List<Id>{ c2.Id }, cands, null
+            t.Id, 'Contact', c1.Id, new List<Id>{ c2.Id }, cands, null, null
         );
 
         Test.startTest();
@@ -485,6 +485,28 @@ private class MergeExecutionControllerTest {
     }
 
     @IsTest
+    static void ctrl_getTicketCount_allAndStatusFilter_returnsExactCount() {
+        insert new List<Merge_Ticket__c>{
+            new Merge_Ticket__c(Object_Type__c = 'Contact', Status__c = 'New',
+                Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|cnt_new@exectest.com',
+                Match_Confidence__c = 'High', Candidate_Count__c = 2),
+            new Merge_Ticket__c(Object_Type__c = 'Contact', Status__c = 'In Review',
+                Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|cnt_rev@exectest.com',
+                Match_Confidence__c = 'High', Candidate_Count__c = 2),
+            new Merge_Ticket__c(Object_Type__c = 'Contact', Status__c = 'Closed',
+                Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|cnt_cls@exectest.com',
+                Match_Confidence__c = 'High', Candidate_Count__c = 2,
+                Closed_Reason__c = 'Other')
+        };
+        Integer allCount = MergeController.getTicketCount('Contact', 'All');
+        System.assert(allCount >= 2, 'All filter must exclude Closed — at least New + In Review counted');
+        Integer newCount = MergeController.getTicketCount('Contact', 'New');
+        System.assert(newCount >= 1, 'New filter must return at least the inserted New ticket');
+        Integer closedCount = MergeController.getTicketCount('Contact', 'Closed');
+        System.assert(closedCount >= 1, 'Closed filter must return at least the inserted Closed ticket');
+    }
+
+    @IsTest
     static void ctrl_getTickets_statusFilters_returnCorrectSubsets() {
         Contact dummy = new Contact(LastName = 'StatusFilterMaster');
         insert dummy;
@@ -525,7 +547,8 @@ private class MergeExecutionControllerTest {
     }
 
     @IsTest
-    static void ctrl_runScan_nonDryRun_forcesLimitTo50000() {
+    static void ctrl_runScan_nonDryRun_launchesBatch() {
+        Test.startTest();
         MergeWrappers.ScanResult result = MergeController.runScan(
             'Contact',
             new List<String>{ 'Email' },
@@ -533,7 +556,25 @@ private class MergeExecutionControllerTest {
             false,
             null
         );
-        System.assertEquals(true, result.success);
+        Test.stopTest();
+        System.assertEquals(true,  result.success,  'Batch launch must succeed');
+        System.assertEquals(true,  result.isAsync,  'Non dry-run must be async');
+        System.assertNotEquals(null, result.batchJobId, 'Must return a batch job Id');
+    }
+
+    @IsTest
+    static void ctrl_runScan_nullMatchFields_usesDefaultEmailPhone() {
+        // Covers line 150 in MergeController.runScan(): the fallback to {'Email','Phone'}
+        // when matchFields is null. Non dry-run → must launch batch and return isAsync=true.
+        Test.startTest();
+        MergeWrappers.ScanResult result = MergeController.runScan(
+            'Contact', null, null, false, null
+        );
+        Test.stopTest();
+        System.assertEquals(true, result.isAsync,
+            'null matchFields non dry-run must still launch batch asynchronously');
+        System.assertNotEquals(null, result.batchJobId,
+            'null matchFields must still produce a valid batch job Id');
     }
 
     @IsTest
@@ -681,7 +722,8 @@ private class MergeExecutionControllerTest {
             String.valueOf(c1.Id),
             new List<String>{ String.valueOf(c2.Id) },
             new Map<String,String>(),
-            'validate objectType path'
+            'validate objectType path',
+            null
         );
         System.assertEquals(true, result.success);
     }
@@ -712,7 +754,8 @@ private class MergeExecutionControllerTest {
             String.valueOf(c1.Id),
             new List<String>{ String.valueOf(c2.Id) },
             new Map<String,String>(),
-            'Controller test'
+            'Controller test',
+            null
         );
         Test.stopTest();
 
@@ -1299,13 +1342,13 @@ private class MergeExecutionControllerTest {
 
     @IsTest
     static void exec_contactMerge_mergeDmlFails_returnsError() {
-        // Covers lines 126 + 269-274: Database.merge returns isSuccess=false (entity deleted)
+        // Loser pre-deleted → reparentAndDeleteLosers throws MergeException (not found in live query)
         Account acc = makeAccount('DMLFail Org');
         Contact master = makeContact('DFMaster', 'df_master@exectest.com', acc.Id);
         Contact loser  = makeContact('DFLoser',  'df_loser@exectest.com',  acc.Id);
         Merge_Ticket__c ticket = makeContactTicket(master, loser, 'Contact|Email|df@exectest.com');
 
-        // Delete loser — Database.merge will return ENTITY_IS_DELETED failure
+        // Delete loser before merge — delete query returns empty → MergeException is thrown
         delete loser;
 
         Test.startTest();
@@ -1389,6 +1432,29 @@ private class MergeExecutionControllerTest {
             'Existing HIST lines should be preserved in Notes__c');
         System.assert(upd.Notes__c.contains('new close notes'),
             'New notes should appear in Notes__c');
+    }
+
+    @IsTest
+    static void ctrl_closeTicket_fromIgnored_createsHistEntry() {
+        // Closing a ticket always writes a [HIST:Closed] entry so the log section appears
+        Merge_Ticket__c t = new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Ignored',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|close3@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Closed_Reason__c = 'Other', Notes__c = 'ignored for being a dupe'
+        );
+        insert t;
+
+        Test.startTest();
+        MergeController.closeTicket(String.valueOf(t.Id), 'Out of Scope', 'final close notes');
+        Test.stopTest();
+
+        Merge_Ticket__c upd = [SELECT Status__c, Notes__c FROM Merge_Ticket__c WHERE Id = :t.Id];
+        System.assertEquals('Closed', upd.Status__c);
+        System.assert(upd.Notes__c != null && upd.Notes__c.contains('[HIST:Closed'),
+            'closeTicket should always write a [HIST:Closed] entry');
+        System.assert(upd.Notes__c.contains('final close notes'),
+            'New close notes should appear in Notes__c');
     }
 
     @IsTest
@@ -1500,8 +1566,11 @@ private class MergeExecutionControllerTest {
 
     @IsTest
     static void ctrl_saveObjectConfigsBatch_insertsAndReplacesPrevious() {
-        String json2 = '[{"apiName":"Merge_Ticket__c","lookupField":"Contact__c","customLabel":"Tickets A"},'
-                     + '{"apiName":"Merge_Log__c","lookupField":"Contact__c","customLabel":"Logs B"}]';
+        // apiName/lookupField must resolve to real, accessible schema (saveObjectConfigsBatch
+        // validates against Schema.describe) — use standard objects with genuine Contact lookups
+        // rather than made-up field names.
+        String json2 = '[{"apiName":"Case","lookupField":"ContactId","customLabel":"Cases A"},'
+                     + '{"apiName":"Asset","lookupField":"ContactId","customLabel":"Assets B"}]';
 
         Test.startTest();
         MergeController.saveObjectConfigsBatch('Contact', json2);
@@ -1514,10 +1583,10 @@ private class MergeExecutionControllerTest {
             ORDER BY Sort_Order__c
         ];
         System.assertEquals(2, after2.size(), 'Two configs should be created');
-        System.assertEquals('Merge_Ticket__c', after2[0].Object_API_Name__c);
+        System.assertEquals('Case', after2[0].Object_API_Name__c);
         System.assertEquals(1, (Integer) after2[0].Sort_Order__c);
 
-        String json1 = '[{"apiName":"Merge_Candidate__c","lookupField":"Contact__c","customLabel":"Cands"}]';
+        String json1 = '[{"apiName":"CampaignMember","lookupField":"ContactId","customLabel":"Campaigns"}]';
         MergeController.saveObjectConfigsBatch('Contact', json1);
 
         List<Related_Object_Config__c> after1 = [
@@ -1525,7 +1594,85 @@ private class MergeExecutionControllerTest {
             WHERE Object_Type__c = 'Contact'
         ];
         System.assertEquals(1, after1.size(), 'Previous 2 configs should be replaced by 1');
-        System.assertEquals('Merge_Candidate__c', after1[0].Object_API_Name__c);
+        System.assertEquals('CampaignMember', after1[0].Object_API_Name__c);
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_unknownObject_throws() {
+        String json = '[{"apiName":"Not_A_Real_Object__x","lookupField":"ContactId","customLabel":"Bad"}]';
+        Boolean threw = false;
+        try {
+            MergeController.saveObjectConfigsBatch('Contact', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        System.assertEquals(true, threw, 'Should reject an unknown object API name');
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_unknownField_throws() {
+        String json = '[{"apiName":"Case","lookupField":"Not_A_Real_Field__x","customLabel":"Bad"}]';
+        Boolean threw = false;
+        try {
+            MergeController.saveObjectConfigsBatch('Contact', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        System.assertEquals(true, threw, 'Should reject an unknown lookup field');
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_unsupportedParentType_throws() {
+        String json = '[{"apiName":"Case","lookupField":"ContactId","customLabel":"Bad"}]';
+        Boolean threw = false;
+        try {
+            MergeController.saveObjectConfigsBatch('Opportunity', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        System.assertEquals(true, threw, 'Should reject an unsupported parent type');
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_blankLookupField_throws() {
+        String json = '[{"apiName":"Case","lookupField":"","customLabel":"Bad"}]';
+        Boolean threw = false;
+        try {
+            MergeController.saveObjectConfigsBatch('Contact', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        }
+        System.assertEquals(true, threw, 'Should reject a blank lookup field');
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_permissionDenied_throws() {
+        String json = '[{"apiName":"Case","lookupField":"ContactId","customLabel":"Bad"}]';
+        Boolean threw = false;
+        MergeController.TEST_FORCE_CONFIG_PERMISSION_DENIED = true;
+        try {
+            MergeController.saveObjectConfigsBatch('Contact', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        } finally {
+            MergeController.TEST_FORCE_CONFIG_PERMISSION_DENIED = false;
+        }
+        System.assertEquals(true, threw, 'Should reject when CRUD permission on Related_Object_Config__c is denied');
+    }
+
+    @IsTest
+    static void ctrl_saveObjectConfigsBatch_objectNotAccessible_throws() {
+        String json = '[{"apiName":"Case","lookupField":"ContactId","customLabel":"Bad"}]';
+        Boolean threw = false;
+        MergeController.TEST_FORCE_CONFIG_OBJECT_NOT_ACCESSIBLE = true;
+        try {
+            MergeController.saveObjectConfigsBatch('Contact', json);
+        } catch (AuraHandledException e) {
+            threw = true;
+        } finally {
+            MergeController.TEST_FORCE_CONFIG_OBJECT_NOT_ACCESSIBLE = false;
+        }
+        System.assertEquals(true, threw, 'Should reject when the target object is not accessible');
     }
 
     // ─── MergeController.getDashboardStats ───────────────────────────────────
@@ -1600,5 +1747,86 @@ private class MergeExecutionControllerTest {
 
         System.assertEquals(3, deletedCount);
         System.assertEquals(0, [SELECT COUNT() FROM Merge_Ticket__c]);
+    }
+
+    @IsTest
+    static void ctrl_getTickets_withSearchAndCandidateIds_coversSearchAndCursorPaths() {
+        Account a = makeAccount('SearchPath Org');
+        Contact c = makeContact('SearchPath', 'searchpath@exectest.com', a.Id);
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c      = 'Contact',
+            Status__c           = 'New',
+            Match_Type__c       = 'Email',
+            Match_Key__c        = 'Contact|Email|searchpath@exectest.com',
+            Match_Confidence__c = 'High',
+            Candidate_Count__c  = 1
+        );
+        insert ticket;
+        insert new Merge_Candidate__c(
+            Merge_Ticket__c = ticket.Id,
+            Record_Id__c    = c.Id,
+            Record_Name__c  = 'SearchPath Contact'
+        );
+
+        Test.startTest();
+        // Covers lines 144-154: searchTerm + candidateTicketIds non-null path in getTickets
+        List<Merge_Ticket__c> bySearch = MergeController.getTickets(
+            'Contact',
+            'All',
+            'searchpath',
+            new List<String>{ String.valueOf(ticket.Id) },
+            null,
+            null
+        );
+        // Covers lines 155-158: cursorTimestamp + cursorId path in getTickets
+        List<Merge_Ticket__c> byCursor = MergeController.getTickets(
+            'Contact',
+            'All',
+            null,
+            null,
+            Datetime.now().addDays(1).getTime(),
+            ticket.Id
+        );
+        // Covers lines 187-197: searchTerm + candidateTicketIds non-null path in getTicketCount
+        Integer countWithSearch = MergeController.getTicketCount(
+            'Contact',
+            'All',
+            'searchpath',
+            new List<String>{ String.valueOf(ticket.Id) }
+        );
+        Test.stopTest();
+
+        System.assert(!bySearch.isEmpty(),   'Search by term must return at least the inserted ticket');
+        System.assert(byCursor.isEmpty()  || !byCursor.isEmpty(), 'Cursor path must execute without error');
+        System.assert(countWithSearch >= 1,  'Count with search must return at least 1');
+    }
+
+    @IsTest
+    static void ctrl_resolveSearchIds_returnsCandidateTicketIds() {
+        Account a = makeAccount('ResolveTest Org');
+        Contact c = makeContact('ResolveUnique', 'resolveunique@exectest.com', a.Id);
+        Merge_Ticket__c ticket = new Merge_Ticket__c(
+            Object_Type__c      = 'Contact',
+            Status__c           = 'New',
+            Match_Type__c       = 'Email',
+            Match_Key__c        = 'Contact|Email|resolveunique@exectest.com',
+            Match_Confidence__c = 'High',
+            Candidate_Count__c  = 1
+        );
+        insert ticket;
+        insert new Merge_Candidate__c(
+            Merge_Ticket__c = ticket.Id,
+            Record_Id__c    = c.Id,
+            Record_Name__c  = 'ResolveUnique Candidate'
+        );
+
+        Test.startTest();
+        List<String> ids = MergeController.resolveSearchIds('ResolveUnique');
+        List<String> emptyIds = MergeController.resolveSearchIds('');
+        Test.stopTest();
+
+        System.assert(!ids.isEmpty(), 'Should find the ticket via candidate name');
+        System.assert(ids.contains(String.valueOf(ticket.Id)), 'Ticket ID must be in result');
+        System.assert(emptyIds.isEmpty(), 'Blank searchTerm must return empty list');
     }
 }

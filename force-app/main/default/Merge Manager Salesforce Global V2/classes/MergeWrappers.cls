@@ -118,6 +118,30 @@ public without sharing class MergeWrappers {
         }
     }
 
+    // ─── RELATED RECORDS COMPARISON (Step 2 wizard) ───────────────────────────
+
+    public class RelatedObjectComparison {
+        @AuraEnabled public String                  apiName;
+        @AuraEnabled public String                  label;
+        @AuraEnabled public String                  lookupField;
+        @AuraEnabled public List<RelatedRecordInfo> masterRecords;
+        @AuraEnabled public List<RelatedRecordInfo> loserRecords;
+
+        public RelatedObjectComparison() {
+            masterRecords = new List<RelatedRecordInfo>();
+            loserRecords  = new List<RelatedRecordInfo>();
+        }
+    }
+
+    public class RelatedRecordInfo {
+        @AuraEnabled public String  recordId;
+        @AuraEnabled public String  recordName;
+        @AuraEnabled public String  ownerCandidateId;
+        @AuraEnabled public Boolean hasConflict;
+
+        public RelatedRecordInfo() { hasConflict = false; }
+    }
+
     // ─── MERGE REQUEST / RESULT ───────────────────────────────────────────────
 
     public class MergeRequest {
@@ -126,6 +150,7 @@ public without sharing class MergeWrappers {
         @AuraEnabled public List<String>      losingIds;
         @AuraEnabled public Map<String,String> fieldDecisions; // fieldApiName -> sourceRecordId
         @AuraEnabled public String            notes;
+        @AuraEnabled public String            relatedDeletesJson; // JSON: {objectApiName: [recordIds]}
     }
 
     public class MergeResult {
@@ -182,6 +207,18 @@ public without sharing class MergeWrappers {
         @AuraEnabled public RelatedCountsWrapper relatedCounts;
 
         public RelatedContactInfo() {
+            relatedCounts = new RelatedCountsWrapper();
+        }
+    }
+
+    // ─── RELATED ACCOUNT (for Contact comparison) ─────────────────────────────
+
+    public class RelatedAccountInfo {
+        @AuraEnabled public String               accountId;
+        @AuraEnabled public String               accountName;
+        @AuraEnabled public RelatedCountsWrapper relatedCounts;
+
+        public RelatedAccountInfo() {
             relatedCounts = new RelatedCountsWrapper();
         }
     }
@@ -246,6 +283,7 @@ public without sharing class MergeWrappers {
         @AuraEnabled public Map<String,RelatedCountsWrapper>        relatedCountsByRecordId;
         @AuraEnabled public String                                 objectType;
         @AuraEnabled public Map<String,List<RelatedContactInfo>>   relatedContactsByRecordId;
+        @AuraEnabled public Map<String,RelatedAccountInfo>         relatedAccountByRecordId;
         @AuraEnabled public String                                 savedMasterId;    // Selected_Master_Id__c (Merged tickets)
         @AuraEnabled public List<String>                           missingRecordIds; // records deleted by the merge
         @AuraEnabled public String                                 ticketStatus;
@@ -255,6 +293,7 @@ public without sharing class MergeWrappers {
         @AuraEnabled public String                                 mergePerformedDate;
         @AuraEnabled public String                                 mergeMasterName;
         @AuraEnabled public String                                 mergeLoserNames;
+        @AuraEnabled public String                                 ticketErrorMessage;
 
         public ComparisonMatrix() {
             recordIds                 = new List<String>();
@@ -262,6 +301,7 @@ public without sharing class MergeWrappers {
             rows                      = new List<ComparisonRow>();
             relatedCountsByRecordId    = new Map<String,RelatedCountsWrapper>();
             relatedContactsByRecordId = new Map<String,List<RelatedContactInfo>>();
+            relatedAccountByRecordId  = new Map<String,RelatedAccountInfo>();
             missingRecordIds          = new List<String>();
         }
     }

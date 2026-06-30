@@ -141,26 +141,68 @@ export default class MergeComparisonMatrix extends LightningElement {
             const isMaster = id === this.masterId;
             const activeCount = contacts.filter(c => c.relatedCounts?.hasActiveRecords).length;
             return {
-                recordId:    id,
-                recordName:  this.matrix.recordNames[i],
+                recordId:     id,
+                recordName:   this.matrix.recordNames[i],
                 isMaster,
                 contactCount: contacts.length,
                 activeCount,
                 contacts: contacts.map(c => {
-                    const rc     = c.relatedCounts || {};
-                    const counts = rc.counts || [];
-                    const get    = label => (counts.find(x => x.label === label)?.total || 0);
+                    const rc            = c.relatedCounts || {};
+                    const counts        = rc.counts || [];
+                    const carouselItems = counts.map(ct => ({
+                        label:      ct.label,
+                        total:      ct.total || 0,
+                        countClass: (ct.active || 0) > 0
+                            ? 'slds-text-heading_medium eda-count eda-count_active'
+                            : 'slds-text-heading_medium eda-count'
+                    }));
                     return {
                         contactId:    c.contactId,
                         contactName:  c.contactName,
-                        courses:      get('Cours'),
-                        programs:     get('Programmes'),
-                        affiliations: get('Affiliations'),
                         hasActive:    rc.hasActiveRecords,
+                        hasCarousel:  carouselItems.length > 0,
+                        carouselItems,
                         rowClass:     rc.hasActiveRecords
-                            ? 'contact-row contact-row_active' : 'contact-row'
+                            ? 'contact-row contact-row_active slds-m-bottom_x-small'
+                            : 'contact-row slds-m-bottom_x-small'
                     };
                 }),
+                colHeaderClass: isMaster
+                    ? 'related-contact-col related-contact-col_master'
+                    : 'related-contact-col'
+            };
+        });
+    }
+
+    // ── Related Account section (Contact merges, EDA only) ───────────────────
+
+    get showRelatedAccountSection() {
+        return this.matrix?.objectType === 'Contact'
+            && Object.keys(this.matrix.relatedAccountByRecordId || {}).length > 0;
+    }
+
+    get relatedAccountColumns() {
+        if (!this.matrix) return [];
+        return this.filteredRecordIds.map(id => {
+            const i        = this.matrix.recordIds.indexOf(id);
+            const info     = (this.matrix.relatedAccountByRecordId || {})[id];
+            const isMaster = id === this.masterId;
+            const counts   = info?.relatedCounts?.counts || [];
+            const carouselItems = counts.map(ct => ({
+                label:      ct.label,
+                total:      ct.total || 0,
+                countClass: (ct.active || 0) > 0
+                    ? 'slds-text-heading_medium eda-count eda-count_active'
+                    : 'slds-text-heading_medium eda-count'
+            }));
+            return {
+                recordId:      id,
+                recordName:    this.matrix.recordNames[i],
+                isMaster,
+                hasAccount:    !!info,
+                accountName:   info?.accountName || '',
+                hasCarousel:   carouselItems.length > 0,
+                carouselItems,
                 colHeaderClass: isMaster
                     ? 'related-contact-col related-contact-col_master'
                     : 'related-contact-col'

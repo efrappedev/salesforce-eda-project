@@ -92,6 +92,29 @@
                     </div>
                 </div>
 
+                <!-- ── Age (New/Reopened tickets) ──────────────────────────── -->
+                <div class="dash-card">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartAge}</span>
+                    </div>
+                    <div class="dash-card__body">
+                        <template if:true={hasAgeData}>
+                            <template for:each={ageData} for:item="row">
+                                <div key={row.key} class="dash-bar-row">
+                                    <span class="dash-bar-label" title={row.label}>{row.label}</span>
+                                    <div class="dash-bar-track">
+                                        <div class="dash-bar-fill" style={row.barStyle}></div>
+                                    </div>
+                                    <span class="dash-bar-val">{row.value}</span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasAgeData}>
+                            <div class="dash-nodata">{i18n.noData}</div>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- ── Match Type ──────────────────────────────────────────── -->
                 <div class="dash-card">
                     <div class="dash-card__header">

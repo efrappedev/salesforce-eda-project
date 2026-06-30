@@ -26,6 +26,11 @@
                 <default>false</default>
                 <label>Error — Merge Failed</label>
             </value>
+            <value>
+                <fullName>Closed</fullName>
+                <default>false</default>
+                <label>Closed — Exception</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

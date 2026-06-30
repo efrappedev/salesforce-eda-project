@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- POST-deploy: se borra DESPUÉS de desplegar el código nuevo.
+     Las clases se borran después de que el trigger modificado ya no las referencia.
+     El tipo CMDT se borra después de que sus records (pre) ya fueron eliminados. -->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>DynamicIdDeployDummyTests</members>
+        <members>ContactPostInsertHandler</members>
+        <members>ContactIdGeneratorBatchWithCsvDyn</members>
+        <members>AccountIdGeneratorBatchWithCsvDyn</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>Field_Sync_Mapping__mdt</members>
+        <members>Contact_Handler_Toggles__c</members>
+        <name>CustomObject</name>
+    </types>
+    <version>64.0</version>
+</Package>

@@ -7,6 +7,9 @@
  * current user. The service classes use "without sharing" where elevated
  * access is required (merge DML, audit log writes).
  */
+// CRUD/FLS: Administrative tool restricted via Merge_Manager_Access permission set.
+// with sharing enforces record-level security. CRUD intentionally bypassed for admin merge ops.
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public with sharing class MergeController {
 
     // Test-injection: extra candidates appended before sort to force swap coverage
@@ -26,6 +29,28 @@ public with sharing class MergeController {
     @TestVisible private static Boolean TEST_FORCE_ACCOUNT_NOT_DELETABLE = false;
     // Test-injection: force the Contact-delete CRUD guard to deny, covering the throw branch
     @TestVisible private static Boolean TEST_FORCE_CONTACT_NOT_DELETABLE = false;
+    // Test-injection: force the Related_Object_Config__c create/delete CRUD guard to deny
+    @TestVisible private static Boolean TEST_FORCE_CONFIG_PERMISSION_DENIED = false;
+    // Test-injection: force the object-accessibility guard in saveObjectConfigsBatch to deny
+    @TestVisible private static Boolean TEST_FORCE_CONFIG_OBJECT_NOT_ACCESSIBLE = false;
+    // Test-injection: force initDefaultConfigsIfEmpty to see "no permission" and return early
+    @TestVisible private static Boolean TEST_FORCE_NO_INIT_PERMISSION = false;
+    // Test-injection: extra deleted Account IDs to add to undoMerge step 1c (covers line 348 in EDA orgs)
+    @TestVisible private static Set<Id> TEST_INJECT_EXTRA_DELETED_ACCT_IDS = null;
+    // Test-injection: simulate all loser records permanently deleted (covers toUndelete.isEmpty() → throw)
+    @TestVisible private static Boolean TEST_FORCE_EMPTY_LOSER_UNDELETE = false;
+    // Test-injection: force catch block in undoMerge step-1b (Account deleted-contacts path)
+    @TestVisible private static Boolean TEST_THROW_UNDO_STEP_1B = false;
+    // Test-injection: force catch block in undoMerge step-1c (Contact admin-account path)
+    @TestVisible private static Boolean TEST_THROW_UNDO_STEP_1C = false;
+    // Test-injection: force catch block in undoMerge legacy-deletedIds path
+    @TestVisible private static Boolean TEST_THROW_UNDO_LEGACY_DELETES = false;
+    // Test-injection: force catch block in restoreMasterFieldValues rec.put path
+    @TestVisible private static Boolean TEST_THROW_RESTORE_FIELD_PUT = false;
+    // Test-injection: force catch block in restoreMasterFieldValues Database.update path
+    @TestVisible private static Boolean TEST_THROW_RESTORE_UPDATE = false;
+    // Test-injection: force parentSType = null in saveObjectConfigsBatch (covers dead else-branch)
+    @TestVisible private static Boolean TEST_FORCE_PARENT_STYPE_NULL = false;
     // ─── Ticket list ──────────────────────────────────────────────────────────
 
     @AuraEnabled(cacheable=false)
@@ -73,11 +98,33 @@ public with sharing class MergeController {
         };
     }
 
+    // Resolves Merge_Ticket IDs from candidate names in a separate transaction
+    // (own 50k governor limit, independent of getTickets/getTicketCount).
+    @AuraEnabled
+    public static List<String> resolveSearchIds(String searchTerm) {
+        if (String.isBlank(searchTerm)) return new List<String>();
+        searchTerm = String.escapeSingleQuotes(searchTerm);
+        String likePattern = '%' + searchTerm + '%';
+        Set<String> ids = new Set<String>();
+        for (Merge_Candidate__c c : Database.query(
+                'SELECT Merge_Ticket__c FROM Merge_Candidate__c' +
+                ' WHERE Record_Name__c LIKE :likePattern LIMIT 50000')) { // NOPMD
+            if (c.Merge_Ticket__c != null) ids.add(String.valueOf(c.Merge_Ticket__c));
+        }
+        return new List<String>(ids);
+    }
+
     @AuraEnabled
     public static List<Merge_Ticket__c> getTickets(
-        String objectType,
-        String statusFilter  // 'All' | 'New' | 'In Review' | 'Ready' | 'Error'
+        String       objectType,
+        String       statusFilter,
+        String       searchTerm,
+        List<String> candidateTicketIds,
+        Long         cursorTimestamp,
+        String       cursorId
     ) {
+        objectType   = String.escapeSingleQuotes(objectType);
+        statusFilter = String.escapeSingleQuotes(statusFilter);
         String soql =
             'SELECT Id, Name, Status__c, Object_Type__c, Match_Type__c, ' +
             '       Match_Confidence__c, Candidate_Count__c, Match_Key__c, ' +
@@ -93,9 +140,69 @@ public with sharing class MergeController {
         } else if (!String.isBlank(statusFilter)) {
             soql += ' AND Status__c = :statusFilter';
         }
-        soql += ' ORDER BY LastModifiedDate DESC LIMIT 2000';
+        if (!String.isBlank(searchTerm)) {
+            searchTerm = String.escapeSingleQuotes(searchTerm);
+            String likePattern = '%' + searchTerm + '%'; // NOPMD — used as SOQL bind variable
+            Set<Id> candidateIdSet = new Set<Id>();
+            if (candidateTicketIds != null) {
+                for (String s : candidateTicketIds) {
+                    if (!String.isBlank(s)) candidateIdSet.add((Id) s);
+                }
+            }
+            String candidateClause = candidateIdSet.isEmpty() ? '' : ' OR Id IN :candidateIdSet';
+            soql += ' AND (Match_Key__c LIKE :likePattern OR Name LIKE :likePattern' + candidateClause + ')';
+        }
+        if (cursorTimestamp != null && !String.isBlank(cursorId)) {
+            Datetime cursorDt = Datetime.newInstance(cursorTimestamp); // NOPMD — used as SOQL bind variable
+            soql += ' AND (LastModifiedDate < :cursorDt OR (LastModifiedDate = :cursorDt AND Id < :cursorId))';
+        }
+        soql += ' ORDER BY LastModifiedDate DESC, Id DESC LIMIT 2000';
+        return Database.query(soql); // NOPMD
+    }
 
-        return Database.query(soql);
+    // Backward-compat overload for Apex tests — delegates to full version
+    @TestVisible
+    private static List<Merge_Ticket__c> getTickets(String objectType, String statusFilter) {
+        return getTickets(objectType, statusFilter, null, null, null, null);
+    }
+
+    @AuraEnabled
+    public static Integer getTicketCount(
+        String       objectType,
+        String       statusFilter,
+        String       searchTerm,
+        List<String> candidateTicketIds
+    ) {
+        objectType   = String.escapeSingleQuotes(objectType);
+        statusFilter = String.escapeSingleQuotes(statusFilter);
+        String soql =
+            'SELECT COUNT() FROM Merge_Ticket__c ' +
+            'WHERE Object_Type__c = :objectType';
+
+        if (statusFilter == 'All') {
+            soql += ' AND Status__c NOT IN (\'Merged\', \'Ignored\', \'Closed\')';
+        } else if (!String.isBlank(statusFilter)) {
+            soql += ' AND Status__c = :statusFilter';
+        }
+        if (!String.isBlank(searchTerm)) {
+            searchTerm = String.escapeSingleQuotes(searchTerm);
+            String likePattern = '%' + searchTerm + '%'; // NOPMD — used as SOQL bind variable
+            Set<Id> candidateIdSet = new Set<Id>();
+            if (candidateTicketIds != null) {
+                for (String s : candidateTicketIds) {
+                    if (!String.isBlank(s)) candidateIdSet.add((Id) s);
+                }
+            }
+            String candidateClause = candidateIdSet.isEmpty() ? '' : ' OR Id IN :candidateIdSet';
+            soql += ' AND (Match_Key__c LIKE :likePattern OR Name LIKE :likePattern' + candidateClause + ')';
+        }
+        return Database.countQuery(soql); // NOPMD
+    }
+
+    // Backward-compat overload for Apex tests
+    @TestVisible
+    private static Integer getTicketCount(String objectType, String statusFilter) {
+        return getTicketCount(objectType, statusFilter, null, null);
     }
 
     // ─── Scan ─────────────────────────────────────────────────────────────────
@@ -114,15 +221,28 @@ public with sharing class MergeController {
         if (!new Set<String>{ 'Contact', 'Account' }.contains(objType)) {
             throw new AuraHandledException('Type d\'objet non supporté : ' + objType);
         }
-        System.debug('SCAN_DEBUG objType=' + objType
-            + ' matchFields=' + matchFields
-            + ' dryRun=' + dryRun);
 
+        // Production scan: run as Batch Apex so Database.getQueryLocator handles
+        // any org size without hitting the 50,000-row governor limit.
+        if (dryRun != true) {
+            Set<String> fieldSet = (matchFields != null && !matchFields.isEmpty())
+                ? new Set<String>(matchFields)
+                : new Set<String>{ 'Email', 'Phone' };
+            Id jobId = Database.executeBatch(
+                new MergeScanBatch(objType, fieldSet, emailObjectApiName), 200
+            );
+            MergeWrappers.ScanResult result = new MergeWrappers.ScanResult();
+            result.isAsync    = true;
+            result.batchJobId = String.valueOf(jobId);
+            return result;
+        }
+
+        // Preview / dry-run: sync scan with a small record cap (safe for governor limits).
         MergeWrappers.ScanRequest request = new MergeWrappers.ScanRequest();
         request.mergeObjectType    = objType;
         request.matchFields        = matchFields;
-        request.recordLimit        = (dryRun != true) ? 50000 : recordLimit;
-        request.dryRun             = dryRun;
+        request.recordLimit        = (recordLimit != null && recordLimit > 0) ? recordLimit : 5000;
+        request.dryRun             = true;
         request.emailObjectApiName = emailObjectApiName;
 
         return MergeScanService.scan(request);
@@ -145,15 +265,397 @@ public with sharing class MergeController {
         String             masterId,
         List<String>       losingIds,
         Map<String,String> fieldDecisions,
-        String             notes
+        String             notes,
+        String             relatedDeletesJson
     ) {
         MergeWrappers.MergeRequest req = new MergeWrappers.MergeRequest();
-        req.ticketId       = ticketId;
-        req.masterId       = masterId;
-        req.losingIds      = losingIds;
-        req.fieldDecisions = fieldDecisions;
-        req.notes          = notes;
+        req.ticketId          = ticketId;
+        req.masterId          = masterId;
+        req.losingIds         = losingIds;
+        req.fieldDecisions    = fieldDecisions;
+        req.notes             = notes;
+        req.relatedDeletesJson = relatedDeletesJson;
         return MergeExecutionService.executeMerge(req);
+    }
+
+    // ─── Related records comparison (Step 2 wizard) ──────────────────────────
+
+    @AuraEnabled(cacheable=true)
+    public static List<MergeWrappers.RelatedObjectComparison> getRelatedRecordsComparison(Id ticketId, Id masterId) {
+        // masterId is passed from LWC (user's current Step-1 selection).
+        // We cannot derive it from Is_Master__c because that field is set only
+        // AFTER the merge DML completes — before the merge, all candidates have it null.
+        if (masterId == null) return new List<MergeWrappers.RelatedObjectComparison>();
+
+        List<Merge_Candidate__c> candidates = [
+            SELECT Record_Id__c
+            FROM Merge_Candidate__c WHERE Merge_Ticket__c = :ticketId
+        ];
+
+        Set<Id> allIds = new Set<Id>();
+        for (Merge_Candidate__c c : candidates) {
+            allIds.add((Id) c.Record_Id__c);
+        }
+        if (allIds.isEmpty()) return new List<MergeWrappers.RelatedObjectComparison>();
+
+        // Derive object type from ticket
+        Merge_Ticket__c ticket = [SELECT Object_Type__c FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1];
+        List<Map<String,String>> configs = RelatedRecordsService.getConfigsForComparison(ticket.Object_Type__c);
+
+        Map<String,Schema.SObjectType> gd  = Schema.getGlobalDescribe();
+        List<MergeWrappers.RelatedObjectComparison> result =
+            new List<MergeWrappers.RelatedObjectComparison>();
+        final Id masterIdFinal = masterId;
+
+        for (Map<String,String> cfg : configs) {
+            String apiName     = cfg.get('apiName');
+            String lookupField = cfg.get('lookupField');
+            String label       = cfg.get('label');
+            if (!gd.containsKey(apiName.toLowerCase())) continue;
+
+            MergeWrappers.RelatedObjectComparison comp = new MergeWrappers.RelatedObjectComparison();
+            comp.apiName     = apiName;
+            comp.label       = label;
+            comp.lookupField = lookupField;
+
+            try {
+                String safeLookup = String.escapeSingleQuotes(lookupField);
+                String safeApi    = String.escapeSingleQuotes(apiName);
+                String q = 'SELECT Id, Name, ' + safeLookup + ' FROM ' + safeApi +
+                    ' WHERE ' + safeLookup + ' IN :allIds ORDER BY Name ASC LIMIT 200';
+                List<SObject> records = Database.query(q);
+
+                // Build master name set for conflict detection
+                Set<String> masterNames = new Set<String>();
+                for (SObject r : records) {
+                    if (String.valueOf(r.get(lookupField)) == String.valueOf(masterIdFinal)) {
+                        String n = (String) r.get('Name');
+                        if (!String.isBlank(n)) masterNames.add(n.toLowerCase());
+                    }
+                }
+
+                for (SObject r : records) {
+                    String ownerId = String.valueOf(r.get(lookupField));
+                    MergeWrappers.RelatedRecordInfo info = new MergeWrappers.RelatedRecordInfo();
+                    info.recordId        = String.valueOf(r.Id);
+                    info.recordName      = String.isBlank((String) r.get('Name')) ? '—' : (String) r.get('Name');
+                    info.ownerCandidateId = ownerId;
+
+                    if (ownerId == String.valueOf(masterIdFinal)) {
+                        comp.masterRecords.add(info);
+                    } else {
+                        info.hasConflict = masterNames.contains(info.recordName.toLowerCase());
+                        comp.loserRecords.add(info);
+                    }
+                }
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'getRelatedRecordsComparison [' + apiName + ']: ' + e.getMessage());
+            }
+
+            result.add(comp);
+        }
+        return result;
+    }
+
+    // ─── Undo merge ──────────────────────────────────────────────────────────
+
+    @AuraEnabled
+    public static void undoMerge(Id ticketId) {
+        // Use dynamic SOQL so undoMerge keeps working if Related_Records_JSON__c
+        // hasn't been deployed to this org yet (phantom-field safe).
+        Boolean hasRelatedField = Schema.SObjectType.Merge_Log__c.fields.getMap()
+            .containsKey('merge_related_records__c');
+        String soqlFields = String.escapeSingleQuotes(
+            'Master_Record_Id__c, Losing_Record_Ids__c, Object_Type__c, Field_Decisions_JSON__c'
+            + (hasRelatedField ? ', Merge_Related_Records__c' : ''));
+        List<Merge_Log__c> logs = Database.query(
+            'SELECT ' + soqlFields +
+            ' FROM Merge_Log__c' +
+            ' WHERE Merge_Ticket__c = :ticketId AND Action_Type__c = \'MERGE_COMPLETED\'' +
+            ' LIMIT 1'
+        );
+        if (logs.isEmpty()) {
+            throw new AuraHandledException('Aucun enregistrement de fusion trouvé pour ce ticket.');
+        }
+        Merge_Log__c log = logs[0];
+
+        String objectType = log.Object_Type__c;
+        List<Object> rawLoserIds = (List<Object>) JSON.deserializeUntyped(log.Losing_Record_Ids__c);
+        Set<Id> loserIds = new Set<Id>();
+        for (Object o : rawLoserIds) loserIds.add((Id) String.valueOf(o));
+
+        String relatedRecordsRaw = hasRelatedField ? (String) log.get('Merge_Related_Records__c') : null;
+        Map<String,Object> relatedJson = String.isBlank(relatedRecordsRaw)
+            ? new Map<String,Object>()
+            : (Map<String,Object>) JSON.deserializeUntyped(relatedRecordsRaw);
+
+        Map<String,Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        Id masterId = (Id) log.Master_Record_Id__c;
+
+        // ── 1. Undelete the loser record(s) — preserves original Salesforce ID ─
+        String sobjType = String.escapeSingleQuotes(objectType == 'Account' ? 'Account' : 'Contact');
+        List<SObject> toUndelete = Database.query(
+            'SELECT Id FROM ' + sobjType + ' WHERE Id IN :loserIds ALL ROWS'
+        );
+        if (TEST_FORCE_EMPTY_LOSER_UNDELETE) toUndelete.clear();
+        if (toUndelete.isEmpty()) {
+            throw new AuraHandledException(
+                'Enregistrement(s) à restaurer introuvable(s). ' +
+                'Les fusions effectuées avant la mise à jour 2026-06 ne peuvent pas être annulées. ' +
+                'Créez le contact manuellement en utilisant les données du journal de fusion.'
+            );
+        }
+        List<Database.UndeleteResult> undelResults = Database.undelete(toUndelete, false);
+        for (Database.UndeleteResult ur : undelResults) {
+            if (!ur.isSuccess()) {
+                String errMsg = ur.getErrors().isEmpty() ? 'Erreur inconnue'
+                    : ur.getErrors()[0].getMessage();
+                throw new AuraHandledException(
+                    'Impossible de restaurer l\'enregistrement: ' + errMsg + '. ' +
+                    'Les fusions effectuées avant la mise à jour 2026-06 ne peuvent pas être annulées.'
+                );
+            }
+        }
+
+        // ── 1b. For Account merges: undelete contacts deleted during merge ──────
+        if (sobjType == 'Account') {
+            try {
+                if (TEST_THROW_UNDO_STEP_1B) throw new QueryException('test-1b');
+                Merge_Ticket__c tk = [SELECT Notes__c FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1];
+                if (!String.isBlank(tk.Notes__c)) {
+                    Set<Id> deletedContactIds = new Set<Id>();
+                    for (String ln : tk.Notes__c.split('\n')) {
+                        if (!ln.startsWith('[DELETED_CONTACT|')) continue;
+                        String content = ln.removeStart('[DELETED_CONTACT|').removeEnd(']');
+                        List<String> parts = content.split('\\|');
+                        if (!parts.isEmpty() && !String.isBlank(parts[0])) {
+                            try { deletedContactIds.add((Id) parts[0]); } catch (Exception ex) {}
+                        }
+                    }
+                    if (!deletedContactIds.isEmpty()) {
+                        List<Contact> dc = Database.query(
+                            'SELECT Id FROM Contact WHERE Id IN :deletedContactIds AND IsDeleted = true ALL ROWS'
+                        );
+                        if (!dc.isEmpty()) Database.undelete(dc, false);
+                    }
+                }
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'undoMerge: deleted contacts undelete skipped — ' + e.getMessage());
+            }
+        }
+
+        // ── 1c. Also undelete the loser's Administrative Account if deleted ──
+        // After merge + account deletion (manual or EDA auto-cleanup), the loser's
+        // AccountId points to a soft-deleted account. Undelete it so the contact
+        // is fully restored with its original account relationship.
+        if (sobjType == 'Contact') {
+            try {
+                if (TEST_THROW_UNDO_STEP_1C) throw new QueryException('test-1c');
+                Set<Id> loserContactIds = new Set<Id>(loserIds);
+                List<Contact> loserContacts = [
+                    SELECT AccountId FROM Contact WHERE Id IN :loserContactIds
+                ];
+                Set<Id> accountIds = new Set<Id>();
+                for (Contact c : loserContacts) {
+                    if (c.AccountId != null) accountIds.add(c.AccountId);
+                }
+                if (TEST_INJECT_EXTRA_DELETED_ACCT_IDS != null) accountIds.addAll(TEST_INJECT_EXTRA_DELETED_ACCT_IDS);
+                if (!accountIds.isEmpty()) {
+                    List<Account> deletedAccounts = [
+                        SELECT Id FROM Account WHERE Id IN :accountIds AND IsDeleted = true ALL ROWS
+                    ];
+                    if (!deletedAccounts.isEmpty()) Database.undelete(deletedAccounts, false);
+                }
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'undoMerge: Administrative Account undelete skipped — ' + e.getMessage());
+            }
+        }
+
+        // ── 2. Re-parent related records back to their original loser ────────────
+        // New format: 'reparented' = [{obj, field, loserId, ids}]
+        // Old format: 'loserRelatedIds' = {loserId: {objApiName: [ids]}} (backward compat)
+        List<Object> reparentedEntries = relatedJson.containsKey('reparented')
+            ? (List<Object>) relatedJson.get('reparented')
+            : buildReparentedFromLegacy(relatedJson, objectType);
+
+        for (Object rawEntry : reparentedEntries) {
+            Map<String,Object> entry = (Map<String,Object>) rawEntry;
+            String objApiName  = (String) entry.get('obj');
+            String lookupField = (String) entry.get('field');
+            Id     loserId     = (Id) String.valueOf(entry.get('loserId'));
+            List<Object> rawIds = (List<Object>) entry.get('ids');
+            if (rawIds == null || rawIds.isEmpty() || lookupField == null) continue;
+            if (!gd.containsKey(objApiName.toLowerCase())) continue;
+            Set<Id> recIdSet = new Set<Id>();
+            for (Object o : rawIds) recIdSet.add((Id) String.valueOf(o));
+            try {
+                String safeField   = String.escapeSingleQuotes(lookupField);
+                String safeObjName = String.escapeSingleQuotes(objApiName);
+                List<SObject> recs = Database.query(
+                    'SELECT Id, ' + safeField + ' FROM ' + safeObjName +
+                    ' WHERE Id IN :recIdSet AND ' + safeField + ' = :masterId'
+                );
+                for (SObject r : recs) r.put(lookupField, loserId);
+                if (!recs.isEmpty()) Database.update(recs, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'undoMerge reparent [' + objApiName + ']: ' + e.getMessage());
+            }
+        }
+
+        // ── 3. Restore conflict records deleted during merge + re-point to loser ─
+        // New format: 'deleted' = [{obj, field, loserId, ids}]
+        // Old format: 'deletedIds' = [ids] (backward compat — no field/loser info)
+        if (relatedJson.containsKey('deleted')) {
+            for (Object rawEntry : (List<Object>) relatedJson.get('deleted')) {
+                Map<String,Object> entry = (Map<String,Object>) rawEntry;
+                String objApiName  = (String) entry.get('obj');
+                String lookupField = (String) entry.get('field');
+                Id     loserId     = (Id) String.valueOf(entry.get('loserId'));
+                List<Object> rawIds = (List<Object>) entry.get('ids');
+                if (rawIds == null || rawIds.isEmpty()) continue;
+                if (!gd.containsKey(objApiName.toLowerCase())) continue;
+                Set<Id> recIdSet = new Set<Id>();
+                for (Object o : rawIds) recIdSet.add((Id) String.valueOf(o));
+                try {
+                    // Query recycle bin (ALL ROWS) then undelete + re-point in one pass
+                    List<SObject> recs = Database.query(
+                        'SELECT Id FROM ' + String.escapeSingleQuotes(objApiName) + ' WHERE Id IN :recIdSet ALL ROWS'
+                    );
+                    if (!recs.isEmpty()) {
+                        Database.undelete(recs, false);
+                        for (SObject r : recs) r.put(lookupField, loserId);
+                        Database.update(recs, false);
+                    }
+                } catch (Exception e) {
+                    System.debug(LoggingLevel.WARN,
+                        'undoMerge restore deleted [' + objApiName + ']: ' + e.getMessage());
+                }
+            }
+        } else if (relatedJson.containsKey('deletedIds')) {
+            // Legacy: flat list — undelete only, cannot re-point (no field/loser info)
+            List<Map<String,String>> configs =
+                RelatedRecordsService.getConfigsForComparison(objectType);
+            Set<Id> deletedIdSet = new Set<Id>();
+            for (Object o : (List<Object>) relatedJson.get('deletedIds')) {
+                deletedIdSet.add((Id) String.valueOf(o));
+            }
+            for (Map<String,String> cfg : configs) {
+                String objApiName = cfg.get('apiName');
+                if (!gd.containsKey(objApiName.toLowerCase())) continue;
+                try {
+                    if (TEST_THROW_UNDO_LEGACY_DELETES) throw new QueryException('test-legacy-deletes');
+                    List<SObject> recs = Database.query(
+                        'SELECT Id FROM ' + String.escapeSingleQuotes(objApiName) + ' WHERE Id IN :deletedIdSet ALL ROWS'
+                    );
+                    if (!recs.isEmpty()) Database.undelete(recs, false);
+                } catch (Exception e) { /* silent — record may not be in this object */ }
+            }
+        }
+
+        // ── 4. Revert master field values that changed during the merge ────────────
+        restoreMasterFieldValues(masterId, objectType, log.Field_Decisions_JSON__c);
+
+        // ── 5. Reset ticket to Reopened ──────────────────────────────────────────
+        Merge_Ticket__c undoTkt = [SELECT Notes__c FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1];
+        String undoNotes = buildHistNotes(undoTkt.Notes__c, 'Reopened', null, null);
+        update new Merge_Ticket__c(
+            Id               = ticketId,
+            Status__c        = 'Reopened',
+            Final_Action__c  = null,
+            Error_Message__c = null,
+            Notes__c         = undoNotes
+        );
+    }
+
+    // Reverts the master record's field values to their pre-merge state.
+    // Field_Decisions_JSON__c (post-merge) contains the diff:
+    //   { fieldName: { before: preMergeValue, after: postMergeValue } }
+    // We restore every updateable field that the merge changed.
+    private static void restoreMasterFieldValues(
+        Id masterId, String objectType, String diffJson
+    ) {
+        if (String.isBlank(diffJson)) return;
+        Map<String,Object> diff;
+        try {
+            diff = (Map<String,Object>) JSON.deserializeUntyped(diffJson);
+        } catch (Exception e) { return; }
+        if (diff == null || diff.isEmpty()) return;
+
+        Map<String,Schema.SObjectField> fieldMap = Schema.getGlobalDescribe()
+            .get(objectType)?.getDescribe()?.fields?.getMap();
+        if (fieldMap == null) return;
+
+        // System/compound fields that must never be written back
+        Set<String> SKIP = new Set<String>{
+            'id', 'isdeleted', 'masterrecordid',
+            'createddate', 'createdbyid',
+            'lastmodifieddate', 'lastmodifiedbyid',
+            'systemmodstamp', 'lastvieweddate', 'lastreferenceddate',
+            'name'   // compound on Contact; FirstName/LastName are in diff separately
+        };
+
+        SObject rec = Schema.getGlobalDescribe().get(objectType).newSObject(masterId);
+        Boolean anySet = false;
+
+        for (String fieldName : diff.keySet()) {
+            if (SKIP.contains(fieldName.toLowerCase())) continue;
+            String lower = fieldName.toLowerCase();
+            if (!fieldMap.containsKey(lower)) continue;
+            if (!fieldMap.get(lower).getDescribe().isUpdateable()) continue;
+
+            Map<String,Object> change = (Map<String,Object>) diff.get(fieldName);
+            Object beforeValue = change.get('before');
+            try {
+                if (TEST_THROW_RESTORE_FIELD_PUT) throw new System.SObjectException('test-put');
+                rec.put(fieldName, beforeValue);
+                anySet = true;
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'undoMerge restoreField [' + fieldName + ']: ' + e.getMessage());
+            }
+        }
+
+        if (anySet) {
+            try {
+                if (TEST_THROW_RESTORE_UPDATE) throw new DmlException('test-update');
+                Database.update(rec, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'undoMerge restoreMasterFields: ' + e.getMessage());
+            }
+        }
+    }
+
+    // Converts legacy 'loserRelatedIds' JSON structure to the new reparented list
+    // format so undoMerge works on logs created before the format upgrade.
+    private static List<Object> buildReparentedFromLegacy(
+        Map<String,Object> relatedJson, String objectType
+    ) {
+        List<Object> result = new List<Object>();
+        if (!relatedJson.containsKey('loserRelatedIds')) return result;
+        List<Map<String,String>> configs =
+            RelatedRecordsService.getConfigsForComparison(objectType);
+        Map<String,String> apiToField = new Map<String,String>();
+        for (Map<String,String> cfg : configs) {
+            apiToField.put(cfg.get('apiName'), cfg.get('lookupField'));
+        }
+        Map<String,Object> legacy = (Map<String,Object>) relatedJson.get('loserRelatedIds');
+        for (String loserIdStr : legacy.keySet()) {
+            Map<String,Object> objMap = (Map<String,Object>) legacy.get(loserIdStr);
+            for (String apiName : objMap.keySet()) {
+                result.add(new Map<String,Object>{
+                    'obj'     => apiName,
+                    'field'   => apiToField.get(apiName),
+                    'loserId' => loserIdStr,
+                    'ids'     => (List<Object>) objMap.get(apiName)
+                });
+            }
+        }
+        return result;
     }
 
     // ─── Ticket status ────────────────────────────────────────────────────────
@@ -182,16 +684,15 @@ public with sharing class MergeController {
         String closedReason,
         String notes
     ) {
-        String preserved = preserveHistLines(ticketId);
-        String newNotes  = String.isBlank(preserved)
-            ? notes
-            : (String.isBlank(notes) ? preserved : notes + '\n' + preserved);
+        Merge_Ticket__c current = [SELECT Notes__c, Status__c, Closed_Reason__c FROM Merge_Ticket__c WHERE Id = :(Id)ticketId LIMIT 1];
+        String backfilled = backfillCurrentStateIfNeeded(current);
+        String newNotes   = buildHistNotes(backfilled, 'Ignored', closedReason, notes);
         update new Merge_Ticket__c(
-            Id              = (Id) ticketId,
-            Status__c       = 'Ignored',
-            Final_Action__c = 'Ignored',
+            Id               = (Id) ticketId,
+            Status__c        = 'Ignored',
+            Final_Action__c  = 'Ignored',
             Closed_Reason__c = closedReason,
-            Notes__c        = newNotes
+            Notes__c         = newNotes
         );
     }
 
@@ -201,10 +702,9 @@ public with sharing class MergeController {
         String closedReason,
         String notes
     ) {
-        String preserved = preserveHistLines(ticketId);
-        String newNotes  = String.isBlank(preserved)
-            ? notes
-            : (String.isBlank(notes) ? preserved : notes + '\n' + preserved);
+        Merge_Ticket__c current = [SELECT Notes__c, Status__c, Closed_Reason__c FROM Merge_Ticket__c WHERE Id = :(Id)ticketId LIMIT 1];
+        String backfilled = backfillCurrentStateIfNeeded(current);
+        String newNotes   = buildHistNotes(backfilled, 'Closed', closedReason, notes);
         update new Merge_Ticket__c(
             Id               = (Id) ticketId,
             Status__c        = 'Closed',
@@ -214,19 +714,59 @@ public with sharing class MergeController {
         );
     }
 
-    /** Reads the current Notes__c and returns only the [HIST:...] lines (if any). */
-    private static String preserveHistLines(String ticketId) {
-        Merge_Ticket__c t = [SELECT Notes__c FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1];
-        if (String.isBlank(t.Notes__c)) return '';
-        List<String> hist = new List<String>();
-        for (String line : t.Notes__c.split('\n')) {
-            if (line.startsWith('[HIST:')) hist.add(line);
+    /**
+     * Backward-compat: if the ticket is in a named state (Ignored/Closed/Error) with no
+     * [HIST:] entries yet (written before this feature was deployed), synthesize a HIST entry
+     * for the current state so the history chain is complete.
+     * Returns existingNotes unchanged if no backfill is needed.
+     */
+    private static String backfillCurrentStateIfNeeded(Merge_Ticket__c ticket) {
+        String existingNotes = ticket.Notes__c != null ? ticket.Notes__c : '';
+        List<String> activeLines = new List<String>();
+        for (String line : existingNotes.split('\n')) {
+            if (line.startsWith('[HIST:')) return existingNotes; // already has HIST → no backfill
+            if (!line.startsWith('[DELETED_') && !line.startsWith('[CLOSED_ORPHAN|')) {
+                activeLines.add(line);
+            }
         }
-        return String.join(hist, '\n');
+        String status = ticket.Status__c;
+        if (String.isBlank(status) || status == 'New' || status == 'Reopened') return existingNotes;
+        Boolean hasReason = !String.isBlank(ticket.Closed_Reason__c);
+        String activeStr  = String.join(activeLines, '\n').trim();
+        Boolean hasNotes  = !String.isBlank(activeStr);
+        if (!hasReason && !hasNotes) return existingNotes;
+        String encNotes  = hasNotes ? activeStr.replace('\n', '\\n') : '';
+        String safeReason = hasReason ? ticket.Closed_Reason__c : '';
+        String dateStr   = String.valueOf(System.now()).substring(0, 10);
+        String histEntry = '[HIST:' + status + '|||' + safeReason + '|||' + encNotes + '|||' + dateStr + ']';
+        return String.isBlank(activeStr) ? histEntry : activeStr + '\n' + histEntry;
     }
 
     /**
-     * Reopens an Ignored or Closed ticket — archives current decision to Notes history, clears the closed reason.
+     * Builds a new Notes__c value by prepending a [HIST:] entry to the existing HIST chain.
+     * The activeNotes param is kept as-is before the HIST block (for banner display).
+     */
+    private static String buildHistNotes(String existingNotes, String histStatus, String reason, String activeNotes) {
+        List<String> histLines = new List<String>();
+        if (!String.isBlank(existingNotes)) {
+            for (String line : existingNotes.split('\n')) {
+                if (line.startsWith('[HIST:')) histLines.add(line);
+            }
+        }
+        String encNotes   = String.isBlank(activeNotes) ? '' : activeNotes.replace('\n', '\\n');
+        String safeReason = reason != null ? reason : '';
+        String dateStr    = String.valueOf(System.now()).substring(0, 10);
+        String histEntry  = '[HIST:' + histStatus + '|||' + safeReason + '|||' + encNotes + '|||' + dateStr + ']';
+        List<String> combined = new List<String>{ histEntry };
+        combined.addAll(histLines);
+        String histStr = String.join(combined, '\n');
+        return String.isBlank(activeNotes) ? histStr : activeNotes + '\n' + histStr;
+    }
+
+    /**
+     * Reopens an Ignored or Closed ticket.
+     * Backward-compat: if the ticket was dismissed before HIST-on-entry was deployed,
+     * the current state is captured now. Always adds a [HIST:Reopened] entry.
      */
     @AuraEnabled
     public static void reopenTicket(String ticketId) {
@@ -250,17 +790,28 @@ public with sharing class MergeController {
         Boolean hasReason     = !String.isBlank(ticket.Closed_Reason__c);
         Boolean hasNotes      = !String.isBlank(activeNotesStr);
 
-        if (hasReason || hasNotes) {
+        // Backward-compat: if no HIST entry exists yet for the current state, create one now.
+        Boolean alreadyCaptured = false;
+        if (!histLines.isEmpty()) {
+            String latestStatus = histLines[0].substringBetween('[HIST:', '|||');
+            alreadyCaptured = latestStatus != null && latestStatus.equalsIgnoreCase(ticket.Status__c);
+        }
+        if (!alreadyCaptured && (hasReason || hasNotes)) {
             String reason       = hasReason ? ticket.Closed_Reason__c : '';
             String encodedNotes = activeNotesStr.replace('\n', '\\n');
             String dateStr      = String.valueOf(System.now()).substring(0, 10);
             String status       = ticket.Status__c != null ? ticket.Status__c : '';
             String histEntry    = '[HIST:' + status + '|||' + reason + '|||' + encodedNotes + '|||' + dateStr + ']';
-            // Prepend: build new list with this entry first, then existing HIST lines
             List<String> combined = new List<String>{ histEntry };
             combined.addAll(histLines);
             histLines = combined;
         }
+
+        // Always log the reopen action itself
+        String reopenEntry = '[HIST:Reopened||||||' + String.valueOf(System.now()).substring(0, 10) + ']';
+        List<String> withReopen = new List<String>{ reopenEntry };
+        withReopen.addAll(histLines);
+        histLines = withReopen;
 
         String newNotes = String.join(histLines, '\n').trim();
 
@@ -436,6 +987,11 @@ public with sharing class MergeController {
             t.Notes__c = (t.Notes__c == null ? '' : t.Notes__c) + entry;
             update t;
         }
+        closeOrphanedTickets(
+            (Id) accountId,
+            String.isBlank(ticketId) ? null : (Id) ticketId,
+            'Compte supprimé suite au merge – ' + (String.isBlank(accountName) ? accountId : accountName)
+        );
     }
 
     @AuraEnabled
@@ -497,6 +1053,11 @@ public with sharing class MergeController {
             t.Notes__c = (t.Notes__c == null ? '' : t.Notes__c) + entry;
             update t;
         }
+        closeOrphanedTickets(
+            (Id) contactId,
+            String.isBlank(ticketId) ? null : (Id) ticketId,
+            'Contact supprimé suite au merge – ' + (String.isBlank(contactName) ? contactId : contactName)
+        );
     }
 
     @AuraEnabled
@@ -535,6 +1096,45 @@ public with sharing class MergeController {
             result.add(info);
         }
         return result;
+    }
+
+    // ─── Close orphaned tickets when a record is manually deleted ────────────
+
+    private static void closeOrphanedTickets(Id deletedRecordId, Id excludeTicketId, String reasonNote) {
+        String deletedIdStr = String.valueOf(deletedRecordId);
+        List<Merge_Candidate__c> candidates;
+        if (excludeTicketId != null) {
+            candidates = [SELECT Merge_Ticket__c FROM Merge_Candidate__c
+                          WHERE Record_Id__c = :deletedIdStr
+                            AND Merge_Ticket__c != :excludeTicketId];
+        } else {
+            candidates = [SELECT Merge_Ticket__c FROM Merge_Candidate__c
+                          WHERE Record_Id__c = :deletedIdStr];
+        }
+        Set<Id> ticketsToClose = new Set<Id>();
+        for (Merge_Candidate__c c : candidates) ticketsToClose.add(c.Merge_Ticket__c);
+        if (ticketsToClose.isEmpty()) return;
+
+        String ts        = DateTime.now().format('yyyy-MM-dd HH:mm');
+        String noteEntry = '[CLOSED_ORPHAN|' + deletedRecordId + '|' + ts + '] ' + reasonNote;
+
+        List<Merge_Ticket__c> toUpdate = [
+            SELECT Id, Notes__c FROM Merge_Ticket__c WHERE Id IN :ticketsToClose
+        ];
+        for (Merge_Ticket__c t : toUpdate) {
+            List<String> hist = new List<String>();
+            if (!String.isBlank(t.Notes__c)) {
+                for (String ln : t.Notes__c.split('\n')) {
+                    if (ln.startsWith('[HIST:')) hist.add(ln);
+                }
+            }
+            String preserved   = String.join(hist, '\n');
+            t.Status__c        = 'Closed';
+            t.Final_Action__c  = 'Closed';
+            t.Closed_Reason__c = 'Record Deleted';
+            t.Notes__c         = noteEntry + (String.isBlank(preserved) ? '' : '\n' + preserved);
+        }
+        update toUpdate;
     }
 
     // ─── Email object candidates (scan modal combobox) ───────────────────────
@@ -635,10 +1235,20 @@ public with sharing class MergeController {
 
             Schema.DescribeFieldResult fdr = cr.getField().getDescribe();
 
+            // Skip if the lookup field itself is not accessible in this org context.
+            // getChildRelationships() can return relationships whose field exists only at
+            // the metadata level but is not visible via Schema (e.g. Email_Address__c.Contact__c
+            // in EDA orgs). Such fields cannot be saved or queried, so we exclude them.
+            if (!fdr.isAccessible()) {
+                if (!seenIdx.containsKey(childName)) seenIdx.put(childName, -1);
+                continue;
+            }
+
             if (seenIdx.containsKey(childName)) {
+                Integer existingIdx = seenIdx.get(childName);
                 // Upgrade to required lookup if we already have an optional one
-                if (!fdr.isNillable() || TEST_FORCE_UPGRADE_BRANCH) {
-                    result[seenIdx.get(childName)].put('lookupField', fdr.getName());
+                if (existingIdx >= 0 && (!fdr.isNillable() || TEST_FORCE_UPGRADE_BRANCH)) {
+                    result[existingIdx].put('lookupField', fdr.getName());
                 }
                 continue;
             }
@@ -682,26 +1292,116 @@ public with sharing class MergeController {
      */
     @AuraEnabled
     public static void saveObjectConfigsBatch(String parentType, String configsJson) {
+        if (!new Set<String>{ 'Contact', 'Account' }.contains(parentType)) {
+            throw new AuraHandledException('Unsupported parent type: ' + parentType);
+        }
+        if (TEST_FORCE_CONFIG_PERMISSION_DENIED
+            || !Related_Object_Config__c.SObjectType.getDescribe().isCreateable()
+            || !Related_Object_Config__c.SObjectType.getDescribe().isDeletable()) {
+            throw new AuraHandledException('Insufficient permissions to configure related objects.');
+        }
+
         List<Related_Object_Config__c> existing = [
             SELECT Id FROM Related_Object_Config__c WHERE Object_Type__c = :parentType
         ];
         if (!existing.isEmpty()) delete existing;
+
+        // apiName/lookupField end up concatenated into dynamic SOQL later
+        // (RelatedRecordsService.getBulkCounts) — they MUST be resolved against
+        // real schema here, never persisted as raw client-supplied strings,
+        // otherwise this becomes a stored SOQL-injection vector.
+        //
+        // Field resolution uses getChildRelationships() on the parent — NOT the field map.
+        // Reason: DescribeFieldResult.getName() can return the field name without its namespace
+        // prefix when called from within a managed package (e.g. "Contact__c" instead of
+        // "hed__Contact__c"). Walking the relationships and comparing tolerantly avoids
+        // any ambiguity: we get the SObjectField directly from the relationship, so
+        // field.getDescribe().getName() always returns the canonical, fully-qualified name.
+        Map<String,Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        // Pre-fetch child relationships once for the entire item loop
+        Schema.SObjectType parentSType = TEST_FORCE_PARENT_STYPE_NULL ? null : gd.get(parentType.toLowerCase());
+        List<Schema.ChildRelationship> parentRels = parentSType != null
+            ? parentSType.getDescribe().getChildRelationships()
+            : new List<Schema.ChildRelationship>();
 
         List<Object> items = (List<Object>) JSON.deserializeUntyped(configsJson);
         List<Related_Object_Config__c> toInsert = new List<Related_Object_Config__c>();
         Integer order = 1;
         for (Object o : items) {
             Map<String,Object> m = (Map<String,Object>) o;
+            String apiName     = String.valueOf(m.get('apiName'));
+            String lookupField = String.valueOf(m.get('lookupField'));
+
+            Schema.SObjectType sType = String.isBlank(apiName) ? null : gd.get(apiName.toLowerCase());
+            if (sType == null) {
+                throw new AuraHandledException('Unknown object: ' + apiName);
+            }
+            Schema.DescribeSObjectResult objDesc = sType.getDescribe();
+            if (TEST_FORCE_CONFIG_OBJECT_NOT_ACCESSIBLE || !objDesc.isAccessible()) {
+                throw new AuraHandledException('No access to object: ' + apiName);
+            }
+
+            // Resolve the field via the parent's child relationships — unambiguous and
+            // namespace-safe. We compare tolerantly so "Contact__c" matches "hed__Contact__c"
+            // and vice versa, without pattern-scanning the field map.
+            String lfLower = String.isBlank(lookupField) ? '' : lookupField.toLowerCase();
+            Schema.SObjectField field = null;
+            for (Schema.ChildRelationship cr : parentRels) {
+                if (!cr.getChildSObject().getDescribe().getName().equalsIgnoreCase(apiName)) continue;
+                String fName = cr.getField().getDescribe().getName().toLowerCase();
+                if (fName == lfLower
+                        || fName.endsWith('__' + lfLower)
+                        || lfLower.endsWith('__' + fName)) {
+                    field = cr.getField();
+                    break;
+                }
+            }
+            if (field == null || !field.getDescribe().isAccessible()) {
+                throw new AuraHandledException('Unknown or inaccessible field: ' + lookupField);
+            }
+
             Related_Object_Config__c cfg = new Related_Object_Config__c();
             cfg.Name               = String.valueOf(m.get('customLabel'));
-            cfg.Object_API_Name__c = String.valueOf(m.get('apiName'));
-            cfg.Parent_Field__c    = String.valueOf(m.get('lookupField'));
+            cfg.Object_API_Name__c = objDesc.getName();
+            cfg.Parent_Field__c    = field.getDescribe().getName();
             cfg.Object_Type__c     = parentType;
             cfg.Is_Active__c       = true;
             cfg.Sort_Order__c      = order++;
             toInsert.add(cfg);
         }
         if (!toInsert.isEmpty()) insert toInsert;
+    }
+
+    /**
+     * Called once on app startup. For each parent type (Contact, Account), if no
+     * Related_Object_Config__c records exist yet, discovers all child objects and
+     * auto-saves them so the carousel works out of the box without the admin needing
+     * to open Settings first.
+     */
+    @AuraEnabled
+    public static void initDefaultConfigsIfEmpty() {
+        if (!Related_Object_Config__c.SObjectType.getDescribe().isCreateable()
+            || !Related_Object_Config__c.SObjectType.getDescribe().isDeletable()
+            || TEST_FORCE_NO_INIT_PERMISSION) {
+            return; // insufficient permissions — silently skip
+        }
+        for (String parentType : new List<String>{ 'Contact', 'Account' }) {
+            Integer cnt = Database.countQuery(
+                'SELECT COUNT() FROM Related_Object_Config__c WHERE Object_Type__c = :parentType'
+            );
+            if (cnt > 0) continue;
+            List<Map<String,Object>> discovered = getDiscoverableObjects(parentType);
+            if (discovered.isEmpty()) continue;
+            List<Map<String,Object>> payload = new List<Map<String,Object>>();
+            for (Map<String,Object> d : discovered) {
+                payload.add(new Map<String,Object>{
+                    'apiName'     => d.get('apiName'),
+                    'lookupField' => d.get('lookupField'),
+                    'customLabel' => d.get('label')
+                });
+            }
+            saveObjectConfigsBatch(parentType, JSON.serialize(payload));
+        }
     }
 
     // ─── Reset (sandbox testing only) ────────────────────────────────────────
@@ -746,15 +1446,31 @@ public with sharing class MergeController {
         ]) {
             String s   = (String) ar.get('s');
             Integer cnt = ((Decimal) ar.get('cnt')).intValue();
-            byStatus.put(s, cnt);
             total += cnt;
             if (s == 'New' || s == 'Reopened') pending += cnt;
             if (s == 'Error')                  errors  += cnt;
+            // 'New'/'Reopened' are folded below into New/Pending/Stale age buckets.
+            if (s != 'New' && s != 'Reopened') byStatus.put(s, cnt);
         }
-        stats.put('byStatus',       byStatus);
         stats.put('totalTickets',   total);
         stats.put('pendingTickets', pending);
         stats.put('errorCount',     errors);
+
+        // New/Reopened tickets bucketed by days since CreatedDate, folded
+        // into byStatus instead of a separate chart. Same thresholds as the
+        // mergeTicketList badge (0-2 New, 3-7 Pending, 8+ Stale). Status__c
+        // itself is untouched; this is a derived reporting view.
+        byStatus.put('New',     0);
+        byStatus.put('Pending', 0);
+        byStatus.put('Stale',   0);
+        for (Merge_Ticket__c t : [
+            SELECT CreatedDate FROM Merge_Ticket__c WHERE Status__c IN ('New', 'Reopened')
+        ]) {
+            Integer ageDays = t.CreatedDate.date().daysBetween(Date.today());
+            String bucket = ageDays >= 8 ? 'Stale' : (ageDays >= 3 ? 'Pending' : 'New');
+            byStatus.put(bucket, byStatus.get(bucket) + 1);
+        }
+        stats.put('byStatus', byStatus);
 
         // Merged this month
         Datetime som = Datetime.newInstance(Date.today().toStartOfMonth(), Time.newInstance(0,0,0,0));

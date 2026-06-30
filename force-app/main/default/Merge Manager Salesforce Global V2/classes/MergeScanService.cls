@@ -12,6 +12,9 @@
  *    there, cross-referencing direct email fields for full coverage. If the object does
  *    not exist, this phase is silently skipped — zero impact on existing orgs.
  */
+// CRUD/FLS: without sharing required to scan all records for duplicates regardless of ownership.
+// Access restricted via Merge_Manager_Access permission set.
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class MergeScanService {
 
     private static final Integer DEFAULT_SCAN_LIMIT = 5000;
@@ -66,7 +69,7 @@ public without sharing class MergeScanService {
             List<String> mf = (request.matchFields != null && !request.matchFields.isEmpty())
                 ? request.matchFields : new List<String>{ 'Email', 'Phone' };
             try {
-                result.recordsAnalyzed = Database.countQuery('SELECT COUNT() FROM ' + objType);
+                result.recordsAnalyzed = Database.countQuery('SELECT COUNT() FROM ' + String.escapeSingleQuotes(objType));
             } catch (Exception ce) { result.recordsAnalyzed = 0; }
             Set<String> existingKeys          = loadExistingKeys(objType);
             Set<String> existingCandidateSets = loadExistingCandidateSets(objType);
@@ -129,9 +132,9 @@ public without sharing class MergeScanService {
         }
         String query = 'SELECT Id, Name'
             + (extraFields.isEmpty() ? '' : ', ' + String.join(extraFields, ', '))
-            + ' FROM ' + objectType + ' LIMIT ' + lim;
+            + ' FROM ' + String.escapeSingleQuotes(objectType) + ' LIMIT ' + lim;
 
-        List<SObject> records = Database.query(query);
+        List<SObject> records = Database.query(query); // NOPMD — objectType escaped; extraFields validated via Schema describe
 
         Map<String,Set<Id>>  keyToIds = new Map<String,Set<Id>>();
         Map<Id,String>       idToName = new Map<Id,String>();
@@ -233,14 +236,15 @@ public without sharing class MergeScanService {
                 }
             }
         } else {
-            String fEmail  = emailField;
-            String fLookup = lookupField;
+            String fEmail      = String.escapeSingleQuotes(emailField);
+            String fLookup     = String.escapeSingleQuotes(lookupField);
+            String safeObjName = String.escapeSingleQuotes(emailObjName);
             for (SObject ea : Database.query(
                 'SELECT ' + fEmail + ', ' + fLookup +
-                ' FROM ' + emailObjName + ' WHERE ' + fLookup + ' != null AND ' + fEmail + ' != null'
+                ' FROM ' + safeObjName + ' WHERE ' + fLookup + ' != null AND ' + fEmail + ' != null'
             )) {
-                String raw      = (String) ea.get(fEmail);
-                Id     recordId = (Id)     ea.get(fLookup);
+                String raw      = (String) ea.get(emailField);
+                Id     recordId = (Id)     ea.get(lookupField);
                 String key      = DataNormalizationUtil.buildMatchKey(objectType, 'Email', raw);
                 if (String.isBlank(key) || existingKeys.contains(key)) continue;
                 if (!keyToIds.containsKey(key)) { keyToIds.put(key, new Set<Id>()); keyToRaw.put(key, raw); }
@@ -268,11 +272,11 @@ public without sharing class MergeScanService {
             for (String f : directFields) orClauses.add(f + ' IN :rawEmailSet');
 
             String q = 'SELECT Id, Name, ' + String.join(directFields, ', ')
-                     + ' FROM ' + objectType
+                     + ' FROM ' + String.escapeSingleQuotes(objectType)
                      + ' WHERE Id IN :allEaIds OR (' + String.join(orClauses, ' OR ') + ')'
                      + ' LIMIT ' + lim;
 
-            for (SObject rec : Database.query(q)) {
+            for (SObject rec : Database.query(q)) { // NOPMD — objectType escaped; directFields from Schema describe
                 Id recId = rec.Id;
                 nameMap.put(recId, (String) rec.get('Name'));
                 for (String f : directFields) {
@@ -285,7 +289,7 @@ public without sharing class MergeScanService {
             }
         } else {
             for (SObject rec : Database.query(
-                'SELECT Id, Name FROM ' + objectType + ' WHERE Id IN :allEaIds'
+                'SELECT Id, Name FROM ' + String.escapeSingleQuotes(objectType) + ' WHERE Id IN :allEaIds'
             )) {
                 nameMap.put(rec.Id, (String) rec.get('Name'));
             }
@@ -374,14 +378,15 @@ public without sharing class MergeScanService {
                 }
             }
         } else {
-            String fEmail  = emailField;
-            String fLookup = lookupField;
+            String fEmail      = String.escapeSingleQuotes(emailField);
+            String fLookup     = String.escapeSingleQuotes(lookupField);
+            String safeObjName = String.escapeSingleQuotes(emailObjName);
             for (SObject ea : Database.query(
                 'SELECT ' + fEmail + ', ' + fLookup +
-                ' FROM ' + emailObjName + ' WHERE ' + fLookup + ' != null AND ' + fEmail + ' != null'
+                ' FROM ' + safeObjName + ' WHERE ' + fLookup + ' != null AND ' + fEmail + ' != null'
             )) {
-                String raw      = (String) ea.get(fEmail);
-                Id     recordId = (Id)     ea.get(fLookup);
+                String raw      = (String) ea.get(emailField);
+                Id     recordId = (Id)     ea.get(lookupField);
                 String key      = DataNormalizationUtil.buildMatchKey(objectType, 'Email', raw);
                 if (String.isBlank(key) || existingKeys.contains(key)) continue;
                 if (!keyToIds.containsKey(key)) { keyToIds.put(key, new Set<Id>()); keyToRaw.put(key, raw); }
@@ -413,11 +418,11 @@ public without sharing class MergeScanService {
             for (String f : directFields) orClauses.add(f + ' IN :rawEmailSet');
 
             String q = 'SELECT Id, Name, ' + String.join(directFields, ', ')
-                     + ' FROM ' + objectType
+                     + ' FROM ' + String.escapeSingleQuotes(objectType)
                      + ' WHERE Id IN :allEaIds OR (' + String.join(orClauses, ' OR ') + ')'
                      + ' LIMIT 50000';
 
-            for (SObject rec : Database.query(q)) {
+            for (SObject rec : Database.query(q)) { // NOPMD — objectType escaped; directFields from Schema describe
                 Id recId = rec.Id;
                 nameMap.put(recId, (String) rec.get('Name'));
                 for (String f : directFields) {
@@ -430,7 +435,7 @@ public without sharing class MergeScanService {
             }
         } else {
             for (SObject rec : Database.query(
-                'SELECT Id, Name FROM ' + objectType + ' WHERE Id IN :allEaIds'
+                'SELECT Id, Name FROM ' + String.escapeSingleQuotes(objectType) + ' WHERE Id IN :allEaIds'
             )) {
                 nameMap.put(rec.Id, (String) rec.get('Name'));
             }

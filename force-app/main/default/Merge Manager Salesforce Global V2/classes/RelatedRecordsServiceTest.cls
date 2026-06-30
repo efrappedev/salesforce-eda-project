@@ -310,6 +310,22 @@ private class RelatedRecordsServiceTest {
         System.assert(result.containsKey(c.Id), 'Contact should still be in result map');
     }
 
+    // ── Account type: EDA fallback (Affiliations via hed__Account__c) ────────
+
+    @IsTest
+    static void getBulkCounts_accountType_returnsMappedAccount() {
+        Account acc = makeAccount('RelSvc_AccType');
+
+        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = true;
+        Test.startTest();
+        Map<Id, MergeWrappers.RelatedCountsWrapper> result =
+            RelatedRecordsService.getBulkCounts(new Set<Id>{ acc.Id }, 'Account');
+        Test.stopTest();
+        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = false;
+
+        System.assert(result.containsKey(acc.Id), 'Account should be in result map');
+    }
+
     // ── resolveActiveStatuses catch block ─────────────────────────────────────
 
     @IsTest

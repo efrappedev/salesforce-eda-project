@@ -53,6 +53,20 @@ force-app/main/default/Merge app Salesforce/DIAGNOSTIC_ACCOUNT_SCAN.apex
 force-app/main/default/Screenshots Merge/
 force-app/main/default/Merge app Salesforce v2/
 
+# Notion exports — Private & Shared folders contain credentials (Communication Hub files)
+Manuales y SOWs/*/Private & Shared/
+Manuales y SOWs/Matrize degree/Degree Matriz complete/
+
+# Bulk API job result CSVs at root — datos de org, no son código
+750b*.csv
+
+# Test data bulk files — not code
+test-data/
+test-data/*.csv
+
+# Fundraising demo data CSVs — datos demo de AEBEQ, no son código
+force-app/main/default/Fundraising/Demo SF Aebeq/
+
 # Android — binaries y APKs locales, NO subir a GitHub
 *.apk
 *.idsig

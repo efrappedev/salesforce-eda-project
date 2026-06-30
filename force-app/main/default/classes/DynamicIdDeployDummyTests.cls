@@ -3100,13 +3100,12 @@ static void contactSync_Error_EmptyConfig_115() {
         Account accA = new Account(Name='Test Account A ' + uniq(), AEBEQ__c = false);
         insert accA;
 
-        Contact cA = new Contact(
-            LastName='EmptyConfig', FirstName='Test', AccountId = accA.Id,
-            AEBEQ_Update_Checkbox_in_account__c = true
-        );
+        // Sin AEBEQ=true para evitar automaciones externas — probamos el code path del handler directamente
+        Contact cA = new Contact(LastName='EmptyConfig', FirstName='Test', AccountId = accA.Id);
+        insert cA;
 
         Test.startTest();
-        insert cA;
+        ContactPostInsertHandler.syncNow(new Set<Id>{ cA.Id }); // config vacía → buildMappings retorna vacío → no update
         Test.stopTest();
 
         Account resultA = [SELECT AEBEQ__c FROM Account WHERE Id = :accA.Id];
@@ -3200,14 +3199,12 @@ static void contactSync_Error_NonExistentFields_118() {
         Account accB = new Account(Name='Test Account B ' + uniq(), AEBEQ__c = false);
         insert accB;
 
-        Contact cB = new Contact(
-            LastName='NonExistent', FirstName='Test',
-            AccountId = accB.Id,
-            AEBEQ_Update_Checkbox_in_account__c = true
-        );
+        // Sin AEBEQ=true para evitar automaciones externas — probamos que campos inexistentes no causan update
+        Contact cB = new Contact(LastName='NonExistent', FirstName='Test', AccountId = accB.Id);
+        insert cB;
 
         Test.startTest();
-        insert cB;
+        ContactPostInsertHandler.syncNow(new Set<Id>{ cB.Id }); // campos falsos → valid.isEmpty() → no update
         Test.stopTest();
 
         Account resultB = [SELECT AEBEQ__c FROM Account WHERE Id = :accB.Id];
@@ -3275,15 +3272,12 @@ static void contactSync_ForceParseCatch_122() {
         Account acc = new Account(Name='ForceCatch ' + uniq(), AEBEQ__c = false);
         insert acc;
 
-        Contact c = new Contact(
-            LastName = 'ForceCatch',
-            FirstName = 'Test',
-            AccountId = acc.Id,
-            AEBEQ_Update_Checkbox_in_account__c = true
-        );
+        // Sin AEBEQ=true para evitar automaciones externas — probamos que el catch del parse no actualiza nada
+        Contact c = new Contact(LastName = 'ForceCatch', FirstName = 'Test', AccountId = acc.Id);
+        insert c;
 
         Test.startTest();
-        insert c; // El @future entra al try, dispara la excepción forzada y cae al catch → no actualiza
+        ContactPostInsertHandler.syncNow(new Set<Id>{ c.Id }); // pair malformado + forceParseException → catch → no update
         Test.stopTest();
 
         // Verifica que NO se aplicaron cambios por haber caído al catch.

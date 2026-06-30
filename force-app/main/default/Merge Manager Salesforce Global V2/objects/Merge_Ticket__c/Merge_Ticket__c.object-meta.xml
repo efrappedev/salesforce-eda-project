@@ -156,7 +156,7 @@
     <externalSharingModel>Private</externalSharingModel>
     <label>Merge Ticket</label>
     <nameField>
-        <displayFormat>TKT-{0000000}</displayFormat>
+        <displayFormat>{000000000}</displayFormat>
         <label>Ticket Number</label>
         <trackHistory>false</trackHistory>
         <type>AutoNumber</type>

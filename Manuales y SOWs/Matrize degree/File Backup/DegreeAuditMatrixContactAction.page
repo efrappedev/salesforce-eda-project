@@ -1,0 +1,478 @@
+<apex:page standardController="Contact" extensions="DegreeAuditMatrixController"
+           sidebar="false" showHeader="false" docType="html-5.0" lightningStylesheets="false">
+
+    <!-- CSS global de la app -->
+    <apex:stylesheet value="{!URLFOR($Resource.DegreeAuditCSS)}"/>
+
+    <apex:form id="contactActionForm">
+    <apex:pageMessages id="msgs"/>
+        <apex:actionStatus id="stOpt" onstop="setTimeout(normalizeDetailCourseNames,0)"/>
+
+                <!-- Caso: varios planes -->
+        <apex:outputPanel id="selectorPanel"
+                          rendered="{!NOT(ISBLANK(studentPlanOptions))}">
+          <div class="da-container">
+            <div class="da-title">Sélectionnez un programme</div>
+        
+            <!-- SELECT del PE -->
+            <apex:selectList id="pePick"
+                             value="{!selectedStudentPlanId}"
+                             size="1"
+                             required="true"
+                             styleClass="da-select">
+              <apex:selectOptions value="{!studentPlanOptions}"/>
+            </apex:selectList>
+        
+            <!-- Botón -->
+            <apex:commandButton value="Afficher" 
+                action="{!choosePlanForAction}" 
+                rerender="contactActionForm" 
+                status="stOpt"
+                styleClass="da-btn"/>
+          </div>
+        </apex:outputPanel>      
+        <!-- Caso: detalle directo -->
+        <apex:outputPanel id="studentDetailPanel" rendered="{!showDetail}">
+                  <div id="daContactVF">
+                    <div class="da-container">
+                
+                      <div class="da-title">Détail de l’étudiant</div>
+                
+                      <!-- CSV oculto (para exportación) -->
+                      <pre id="detailCsv" class="csv-hidden">{!detailCsvContent}</pre>
+                
+                      <div id="studentDetailCapture">
+                    <div class="detail-grid">
+                        <div><span class="muted">Nom:</span> <strong>{!studentDetail.DisplayName}</strong></div>
+                        <div><span class="muted">Plan:</span> <strong>{!studentDetail.PlanName}</strong></div>
+                        <div><span class="muted">Avancement:</span> <strong>{!studentDetail.ProgressPercentText}</strong></div>
+                        <div><span class="muted">Dernier cours:</span> <strong>{!studentDetail.LastCourseDateText}</strong></div>
+                        <div><span class="muted">7+ ans:</span>
+                            <strong>
+                                <apex:outputText rendered="{!studentDetail.OlderThan7Years}" value="&#x26D4;" styleClass="ico miss" escape="false"/>
+                                <apex:outputText rendered="{!NOT(studentDetail.OlderThan7Years)}" value="&#x2705;" styleClass="ico ok" escape="false"/>
+                            </strong>
+                        </div>
+                        <div><span class="muted">Manquants:</span> <strong>{!studentDetail.MissingCount}</strong></div>
+                        <div><span class="muted">Email:</span> <strong>{!studentDetail.Email}</strong></div>
+                        <!-- NUEVO: ID Contact visible en modal -->
+                        <div><span class="muted">ID Contact:</span> <strong id="contactExternalId">{!studentDetail.ContactExternalId}</strong></div>
+                    </div>
+
+                    <div class="detail-table-wrap">
+                        <table class="detail-table" id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:80px;text-align:center;">Statut</th>
+                                    <th>Nom du cours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <apex:repeat value="{!studentDetail.Courses}" var="c">
+                                    <tr>
+                                        <td style="text-align:center;">
+                                            <apex:outputText rendered="{!c.IsOk}" value="&#10003;" styleClass="ico ok"
+                                                             title="{!c.Tooltip}" escape="false"/>
+                                            <apex:outputText rendered="{!NOT(c.IsOk)}" value="&#10005;" styleClass="ico miss"
+                                                             title="{!c.Tooltip}" escape="false"/>
+                                        </td>
+                                        <td class="js-course-name">{!c.CourseName}</td>
+                                    </tr>
+                                </apex:repeat>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+                
+                <!-- ====== Fuente oculta para OPTATIVOS (solo Contacto) ====== -->
+                <apex:outputPanel id="optHidden" layout="none" rendered="{!hasOptBlocks}">
+                  <div id="optSource" style="display:none;">
+                    <table>
+                      <thead>
+                        <tr>
+                          <apex:repeat value="{!optBlocks}" var="block">
+                            <th data-opt="1">
+                              {!block.name}
+                              <br/>
+                              <span class="muted">({!block.requiredCredits} u.)</span>
+                            </th>
+                          </apex:repeat>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <apex:repeat value="{!optBlocks}" var="block">
+                            <td data-opt="1"
+                                title="{!detailOptTipByPrId[block.prId]} — {!IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])} / {!IF(AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits>0), block.requiredCredits, '—')}">
+                              <apex:outputText value="{!
+                                  IF(
+                                    AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits > 0),
+                                    IF(
+                                      IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId]) > block.requiredCredits,
+                                      block.requiredCredits,
+                                      IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])
+                                    ),
+                                    IF(ISNULL(detailOptEarnByPrId[block.prId]), 0, detailOptEarnByPrId[block.prId])
+                                  )
+                                }"/>
+                              <apex:outputText value=" / "/>
+                              <apex:outputText rendered="{!AND(NOT(ISNULL(block.requiredCredits)), block.requiredCredits > 0)}" value="{!block.requiredCredits}"/>
+                              <apex:outputText rendered="{!OR(ISNULL(block.requiredCredits), block.requiredCredits = 0)}" value="—"/>
+                            </td>
+                          </apex:repeat>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </apex:outputPanel>
+                
+                <!-- Disparador seguro: se ejecuta cuando optHidden se re-renderiza -->
+                    <apex:outputPanel id="optTrigger" layout="none" rendered="{!hasOptBlocks}">
+                      <script>
+                        // corre tras el PPR, cuando #optSource YA existe en el DOM
+                        setTimeout(function(){ try{ buildStudentOptionalBlocks(); }catch(e){} }, 0);
+                      </script>
+                    </apex:outputPanel>
+
+
+                <!-- BOTONES (forzados visibles en Quick Action) -->
+                <div class="modal-actions qa-actions" id="qaActions">
+                    <a href="javascript:void(0)" class="da-btn-secondary" onclick="exportDetailCsv()">Exporter CSV</a>
+                    <a href="javascript:void(0)" class="da-btn" onclick="exportDetailPdf()">Exporter PDF</a>
+
+
+                    <a href="javascript:void(0)" class="da-btn" onclick="window.close()">Fermer</a>
+                </div>
+            </div>
+        </apex:outputPanel>
+
+        <!-- Caso: sin programas -->
+        <apex:outputPanel rendered="{!AND( OR(ISNULL(studentPlanOptions), studentPlanOptions.size = 0), NOT(showDetail))}">
+                <div class="da-container">
+                    <div class="note-fr">Aucun programme trouvé pour cet étudiant.</div>
+                </div>
+                </apex:outputpanel>
+    </apex:form>
+
+    <!-- Librerías (mismas que en la página principal) -->
+    <apex:includeScript value="{!URLFOR($Resource.html2canvas_min)}"/>
+    <apex:includeScript value="{!URLFOR($Resource.jsPDF, 'jspdf.umd.min.js')}"/>
+
+    <!-- Logo oculto para PDF -->
+    <img id="pdfLogo" src="{!URLFOR($Resource.logo)}" alt="logo" style="display:none;" />
+
+    <!-- JS: exportaciones -->
+    <script>
+        //<![CDATA[
+        function exportDetailCsv(){
+          const el = document.getElementById('detailCsv');
+          let csv = el ? (el.textContent || el.innerText || '') : '';
+          if (!csv || !csv.trim()){ alert('Aucun contenu CSV.'); return; }
+        
+          // Normaliza EOL
+          let lines = csv.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+          if (lines.length && !lines[lines.length-1].trim()) lines.pop();
+        
+          // ⬅️ Nuevo: detecta el delimitador del CSV base
+          const headerLine = lines[0] || '';
+          const count = (s,ch)=> (s.match(new RegExp(ch,'g'))||[]).length;
+          const DELIM = count(headerLine,';') > count(headerLine,',') ? ';' : ',';  // usa el que más aparece
+        
+          // Apéndice de OPTATIVOS
+          try{
+            const host = document.getElementById('optSource');
+            if (host){
+              const ths = host.querySelectorAll('thead th[data-opt="1"]');
+              const row = host.querySelector('tbody tr');
+              const tds = row ? row.querySelectorAll('td[data-opt="1"]') : [];
+              if (ths.length && tds.length){
+                lines.push('');
+                for (let k=0; k<Math.min(ths.length, tds.length); k++){
+                  const th = ths[k], td = tds[k];
+                  const blockTitle = titleFromTH(th);
+        
+                  // ⬅️ Usa el mismo DELIM detectado
+                  lines.push(['', blockTitle].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(DELIM));
+        
+                  const courses = parseOptTooltip(td.getAttribute('title')||'');
+                  courses.forEach(name=>{
+                    lines.push(['✔', name].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(DELIM));
+                  });
+                  lines.push('');
+                }
+              }
+            }
+          }catch(e){ console.warn('CSV optatifs', e); }
+        
+          // Descarga (igual que tenías)
+          const BOM = '\uFEFF';
+          const out = lines.join('\r\n');
+          const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + out);
+          const a = document.createElement('a');
+          a.style.display = 'none'; a.href = dataUrl; a.download = 'telechargement.csv';
+          document.body.appendChild(a); a.click(); setTimeout(()=>document.body.removeChild(a),0);
+        }
+
+        
+        async function exportDetailPdf(){
+          try{
+            const wrap = document.getElementById('studentDetailCapture');
+            if(!wrap){ alert('Aucun contenu à exporter.'); return; }
+        
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const marginX = 40, marginTopFirst = 80, marginTopNext = 40, marginBottom = 40;
+        
+            const logoEl = document.getElementById('pdfLogo');
+            const drawLogo = () => {
+              if (logoEl && (logoEl.complete || logoEl.naturalWidth)) {
+                const targetH = 32;
+                const ratio   = logoEl.naturalWidth ? (logoEl.naturalWidth / logoEl.naturalHeight) : 3;
+                const targetW = targetH * ratio;
+                pdf.addImage(logoEl, 'PNG', marginX, 24, targetW, targetH);
+              }
+            };
+        
+            const canvas = await html2canvas(wrap, { scale: 2, backgroundColor:'#ffffff', useCORS:true });
+        
+            const usableWpt = pageW - marginX * 2;
+            const ptPerPx = usableWpt / canvas.width;
+            const availFirstPt = pageH - marginTopFirst - marginBottom;
+            const availNextPt  = pageH - marginTopNext - marginBottom;
+            const availFirstPx = Math.floor(availFirstPt / ptPerPx);
+            const availNextPx  = Math.floor(availNextPt  / ptPerPx);
+        
+            const tmp = document.createElement('canvas');
+            const ctx = tmp.getContext('2d');
+            let sy = 0, first = true;
+        
+            while (sy < canvas.height) {
+              const slicePx = first ? availFirstPx : availNextPx;
+              const hPx = Math.min(slicePx, canvas.height - sy);
+        
+              tmp.width  = canvas.width;
+              tmp.height = hPx;
+              ctx.clearRect(0,0,tmp.width,tmp.height);
+              ctx.drawImage(canvas, 0, sy, canvas.width, hPx, 0, 0, tmp.width, hPx);
+        
+              const dataUrl = tmp.toDataURL('image/jpeg', 0.7);
+              const targetHpt = hPx * ptPerPx;
+        
+              if (first) { drawLogo(); }
+              pdf.addImage(dataUrl, 'JPEG', marginX, first ? marginTopFirst : marginTopNext, usableWpt, targetHpt, undefined, 'FAST');
+        
+              sy += hPx;
+              first = false;
+              if (sy < canvas.height) { pdf.addPage(); }
+            }
+        
+            const nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
+            const nameTxt = (nameEl && nameEl.textContent) ? nameEl.textContent.trim().replace(/\s+/g,'_') : 'etudiant';
+            const d = new Date(), y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
+            pdf.save('Degree_audit_'+nameTxt+'_'+y+m+day+'.pdf');
+          }catch(e){
+            console.error(e);
+            alert('Impossible de générer le PDF.');
+          }
+        }
+        //]]>
+        
+                    // === helpers iguales a la principal ===
+            function cleanCourseName(s){
+          if(!s) return '';
+          s = String(s).replace(/&nbsp;/gi, ' ');
+        
+          // Quita viñetas/checks/dashes al inicio
+          s = s.replace(/^[\s\u2713\u2714\u2705\u2022•\-]+/, '');
+        
+          // Quita banderas en cualquier parte
+          s = s.replace(/\s*\((?:R|EQV|TR\/?EX?|EXV?)\)\s*/gi, ' ');
+        
+          // Quita prefijos acumulados: A/H/P 20xx, rangos 019-20/2020-21, año suelto 2021, etc.
+          const rePrefix = /^\s*(?:[AHP]\s*20\d{2}|[AHP]\d{4}|\d{4}\s*-\s*\d{2}|\d{3}\s*-\s*\d{2}|\d{2}\s*-\s*\d{2}|\d{4})\s*/i;
+          while (rePrefix.test(s)) s = s.replace(rePrefix, '');
+        
+          return s.replace(/\s{2,}/g, ' ').trim();
+        }
+            function parseOptTooltip(ttl){
+              if (!ttl) return [];
+              ttl = ttl.replace(/&nbsp;/gi,' ')
+                       .replace(/&lt;br\s*\/?&gt;|<br\s*\/?>/gi,'\n')
+                       .replace(/&#10;|&NewLine;|\\n/g,'\n')
+                       .replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+              var left = ttl.split(' — ')[0] || ttl;
+            
+              var items = left.split(/[\n\u2022•;|,]+/g)
+                              .map(s=> (s||'').trim()).filter(Boolean);
+              function onlyName(s){
+                var ix = s.indexOf(' · ');
+                var raw = (ix>=0 ? s.substring(0,ix) : s).trim();
+                return cleanCourseName(raw);
+              }
+              if (items.length>1){
+                var seen={}, out=[];
+                items.forEach(s=>{ var n=onlyName(s); if(n && !seen[n]){ seen[n]=1; out.push(n); }});
+                if (out.length) return out;
+              }
+              var re=/\s*(.+?)\s*·\s*[\d.,]+u\s*·\s*(?:[^—]+?)(?=(?:\s*.+?\s*·\s*[\d.,]+u\s*·)|\s*$|\s*—)/g;
+              var m, seen2={}, out2=[];
+              while((m=re.exec(left))!==null){
+                var n=cleanCourseName((m[1]||'').trim());
+                if(n && !seen2[n]){ seen2[n]=1; out2.push(n); }
+              }
+              if (out2.length) return out2;
+              var ix = left.indexOf(' · ');
+              return (ix>0)?[ cleanCourseName(left.substring(0,ix).trim()) ]:[];
+            }
+            function titleFromTH(th){
+              if(!th) return '';
+              var base = (th.childNodes && th.childNodes[0] && th.childNodes[0].nodeType===3)
+                ? (th.childNodes[0].nodeValue||'').trim()
+                : ((th.textContent||'').split('\n')[0]||'').trim();
+              base = base.replace(/\s*\(.*?\)\s*$/,'');
+              var muted = th.querySelector('.muted');
+              var credits = muted ? (muted.textContent||'').trim() : '';
+              return credits ? (base+' '+credits) : base;
+            }
+            
+            // === pinta los optativos en la tabla de detalle del Contacto ===
+            function buildStudentOptionalBlocks(){
+              try{
+                var tbody = document.querySelector('#detailTable tbody');
+                if(!tbody) return;
+            
+                // limpia anteriores
+                Array.from(tbody.querySelectorAll('.js-opt-row')).forEach(tr=>tr.remove());
+            
+                // fuente oculta
+                var host = document.getElementById('optSource');
+                if(!host) return;
+            
+                var ths = host.querySelectorAll('thead th[data-opt="1"]');
+                var row = host.querySelector('tbody tr');
+                var tds = row ? row.querySelectorAll('td[data-opt="1"]') : [];
+                if(!ths.length || !tds.length) return;
+            
+                for (var k=0; k<Math.min(ths.length, tds.length); k++){
+                  var th = ths[k], td = tds[k];
+            
+                  // fila subtítulo del bloque
+                  var sub = document.createElement('tr');
+                  sub.className = 'opt-sub js-opt-row';
+                  var thSub = document.createElement('th');
+                  thSub.colSpan = 2;
+                  thSub.textContent = titleFromTH(th);     // ⬅️ usa la GLOBAL
+                  sub.appendChild(thSub);
+                  tbody.appendChild(sub);
+            
+                  // cursos (desde el title del td)
+                  var courses = parseOptTooltip(td.getAttribute('title')||''); // ⬅️ usa la GLOBAL
+                  courses.forEach(function(course){
+                    var tr = document.createElement('tr'); tr.className='js-opt-row';
+                    var td1 = document.createElement('td'); td1.style.textAlign='center';
+                    var chk = document.createElement('span'); chk.className='ico ok'; chk.innerHTML='&#10003;';
+                    td1.appendChild(chk);
+                    var td2 = document.createElement('td');
+                    td2.textContent = cleanCourseName(course);
+                    tr.appendChild(td1); tr.appendChild(td2);
+                    tbody.appendChild(tr);
+                  });
+                }
+            
+                // seguridad extra: limpiar cualquier 2ª celda agregada
+                Array.from(tbody.querySelectorAll('.js-opt-row td:nth-child(2)')).forEach(function(td){
+                  td.textContent = cleanCourseName(td.textContent || '');
+                });
+              }catch(e){ console.warn('buildStudentOptionalBlocks (Contact)', e); }
+            }
+           
+            function ensurePlanSelected(){
+                  try{
+                    var sel = document.querySelector('select[id$="pePick"]');
+                    if(!sel) return true;
+                
+                    var v = sel.value;
+                    if(!v){
+                      alert("Veuillez sélectionner un programme.");
+                      try{ sel.focus(); }catch(_e){}
+                      return false;
+                    }
+                    var lbl = (sel.options[sel.selectedIndex] || {}).text || '';
+                    if((lbl||'').toLowerCase().indexOf('hors programme') >= 0){
+                      alert("Sélection non valide.");
+                      return false;
+                    }
+                
+                    return true;
+                  }catch(e){
+                    return true;
+                  }
+                }
+            
+            // ejecútalo al cargar
+            window.addEventListener('load', function(){ try{ buildStudentOptionalBlocks(); }catch(e){} });
+            
+            function normalizeDetailCourseNames(){
+                try{
+                  var cells = document.querySelectorAll('#detailTable tbody td.js-course-name');
+                  cells.forEach(function(td){
+                    td.textContent = cleanCourseName(td.textContent || '');
+                  });
+                }catch(e){}
+              }
+            
+              // también al cargar la página (vista directa sin rerender)
+              window.addEventListener('load', function(){ setTimeout(normalizeDetailCourseNames,0); });
+            
+    </script>
+
+    <!-- Overrides CSS específicos para Quick Action -->
+<style>
+/* Scroll en el iframe de la Quick Action */
+html, body {
+  height: auto !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Botonera fija en la parte inferior */
+.qa-actions {
+  position: fixed !important;
+  left: 16px; right: 16px; bottom: 12px;
+  z-index: 9999;
+  display: flex !important;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.10);
+}
+#studentDetailCapture { padding-bottom: 96px !important; }
+
+/* Wrapper de la tabla */
+#daContactVF .detail-table-wrap {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* ── Sin zebra ── */
+#daContactVF .detail-table tbody tr:nth-child(even) td {
+  background: #fff;
+}
+
+/* ── Quitar borde inferior de la fila que precede a un encabezado de bloque ── */
+#daContactVF .detail-table tbody tr:has(+ .opt-sub) td {
+  border-bottom: none;
+}
+</style>
+
+
+</apex:page>

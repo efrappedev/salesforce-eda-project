@@ -756,6 +756,21 @@ public with sharing class MergeController {
         stats.put('pendingTickets', pending);
         stats.put('errorCount',     errors);
 
+        // By age — New/Reopened tickets bucketed by days since CreatedDate.
+        // Same thresholds as the mergeTicketList badge (0-2 New, 3-7 Pending,
+        // 8+ Stale). Status__c is untouched; this is a derived reporting view.
+        Map<String, Integer> byAge = new Map<String, Integer>{
+            'New' => 0, 'Pending' => 0, 'Stale' => 0
+        };
+        for (Merge_Ticket__c t : [
+            SELECT CreatedDate FROM Merge_Ticket__c WHERE Status__c IN ('New', 'Reopened')
+        ]) {
+            Integer ageDays = Date.today().daysBetween(t.CreatedDate.date());
+            String bucket = ageDays >= 8 ? 'Stale' : (ageDays >= 3 ? 'Pending' : 'New');
+            byAge.put(bucket, byAge.get(bucket) + 1);
+        }
+        stats.put('byAge', byAge);
+
         // Merged this month
         Datetime som = Datetime.newInstance(Date.today().toStartOfMonth(), Time.newInstance(0,0,0,0));
         stats.put('mergedThisMonth', [

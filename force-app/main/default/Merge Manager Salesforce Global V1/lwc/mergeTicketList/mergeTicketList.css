@@ -91,6 +91,10 @@
 .ticket-badge_reopened { background: #ddeeff; color: #0176d3; border-color: #4ba3e3; font-weight: 700; }
 .ticket-badge_error    { background: #fde8e8; color: #ba0517; border-color: #f0a0a0; }
 
+/* Aging override for stale 'New'/'Reopened' tickets — Status__c unchanged, badge only */
+.ticket-badge_pending { background: #fff8ec; color: #9a5000; border-color: #f0b96d; }
+.ticket-badge_stale   { background: #fdeee8; color: #c23934; border-color: #f0a0a0; }
+
 .ticket-list__filters {
     background-color: #fafaf9;
 }

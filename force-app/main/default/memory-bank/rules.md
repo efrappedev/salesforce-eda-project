@@ -22,13 +22,22 @@
 
 ---
 
-## 3. Salesforce — 3 orgs conectadas
+## 3. Salesforce — 5 orgs conectadas
 
+### SEMBEQ
 | Org | Username | Alias | Permisos Claude |
 |---|---|---|---|
 | Producción | `e.frappe@sembeq.qc.ca` | `production` | Solo dry-run. Deploy lo hace el usuario. |
 | Sandbox partial | `e.frappe@sembeq.qc.ca.partialdev` | _(default)_ | Deploy permitido con NoTestRun |
 | Sandbox newdevpro | `e.frappe@sembeq.qc.ca.newdevpro` | — | Libre |
+
+### AEBEQ (Nonprofit Cloud + Fundraising)
+| Org | Username | Org ID | Permisos Claude |
+|---|---|---|---|
+| Producción | `e.frappe@aebeq.qc.ca` | `00Dau00000AyW45EAF` | **SOLO LECTURA** — nunca escribir, nunca deployar |
+| Sandbox partial | `e.frappe@aebeq.qc.ca.partialae` | — | Deploy/pruebas permitido (tiene datos demo) |
+
+**Regla AEBEQ producción:** usar solo para entender configuración y metadatos (SOQL readonly). Cualquier operación de escritura o deploy — pedir confirmación explícita del usuario primero.
 
 ---
 
@@ -41,11 +50,11 @@
   "mcpServers": {
     "salesforce-sandbox": {
       "toolsets": "all",
-      "orgs": "partialdev, newdevpro"
+      "orgs": "partialdev, newdevpro, partialae"
     },
     "salesforce-prod": {
       "toolsets": "data (solo lectura SOQL)",
-      "orgs": "production"
+      "orgs": "production, aebeq-production"
     }
   }
 }
@@ -55,7 +64,14 @@
 ```json
 "permissions": { "ask": ["mcp__salesforce-prod__*"] }
 ```
-→ Cualquier operación MCP contra producción pide confirmación manual del usuario.
+→ Cualquier operación MCP contra producción (SEMBEQ o AEBEQ) pide confirmación manual del usuario.
+
+## 8. AEBEQ — Datos demo y estructura
+
+- **Carpeta local de datos demo:** `force-app/main/default/Fundraising/` — 17 archivos CSV exportados de AEBEQ demo via SOQL
+- **Propósito:** Solo para entender el modelo de datos de Nonprofit Cloud/Fundraising — NO son datos reales
+- **Plan del usuario:** Eliminar el demo de producción AEBEQ y poblar con contactos reales; el sandbox `partialae` conservará el demo para pruebas
+- **No leer los CSVs proactivamente** — solo consultarlos cuando el usuario lo pida o sea necesario para diseñar algo específico
 
 ---
 

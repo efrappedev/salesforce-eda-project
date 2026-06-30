@@ -13,6 +13,9 @@
  *   3a. recordMergeSuccess()  → update log with after-snapshot, set Action_Type = COMPLETED
  *   3b. recordMergeFailure()  → update log with error, set ticket Status = Error
  */
+// CRUD/FLS: without sharing required to write audit logs for any merge regardless of ownership.
+// Access restricted via Merge_Manager_Access permission set.
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class MergeAuditService {
 
     // ─── Pre-merge log ────────────────────────────────────────────────────────
@@ -27,7 +30,8 @@ public without sharing class MergeAuditService {
         Id               masterId,
         List<Id>         losingIds,
         List<SObject>    allCandidates,
-        Map<String,String> fieldDecisions
+        Map<String,String> fieldDecisions,
+        String           relatedRecordsJson
     ) {
         // Bulk-capture snapshots: { recordIdString -> { fieldName -> value } }
         Map<String,Map<String,Object>> snapshots =
@@ -83,6 +87,11 @@ public without sharing class MergeAuditService {
             Performed_By__c           = UserInfo.getUserId(),
             Performed_Date__c         = System.now()
         );
+        // Guard: only write Related_Records_JSON__c if the field exists in this org.
+        if (!String.isBlank(relatedRecordsJson)
+                && Schema.SObjectType.Merge_Log__c.fields.getMap().containsKey('merge_related_records__c')) {
+            log.put('Merge_Related_Records__c', relatedRecordsJson);
+        }
 
         insert log;
         return log;

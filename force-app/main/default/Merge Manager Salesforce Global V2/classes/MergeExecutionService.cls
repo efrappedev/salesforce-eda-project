@@ -8,16 +8,19 @@
  *   3.  Load all candidate records with the comparison field set.
  *   4.  Insert pre-merge audit log  ← BEFORE any merge DML (critical).
  *   5.  Apply field decisions to the master SObject in memory.
- *   6.  Execute Database.merge() — supports 1 or 2 losing records per call;
- *       chains automatically for 3+ losers.
+ *   6.  Reparent EDA-specific + standard SF related records to master,
+ *       then Database.delete() losers (no MasterRecordId → undelete works in undoMerge).
  *   7.  Re-query master for after-snapshot.
  *   8.  Update log (success) and ticket (Merged).
  *   On any exception: update log + ticket with error details; NO rollback so
  *   the pre-merge snapshot persists.
  *
- * Database.merge() is used with allOrNone=false so we get a result object
- * instead of an uncatchable DmlException — gives us richer error details.
+ * Database.delete() (not Database.merge()) is used so the loser is soft-deleted
+ * WITHOUT MasterRecordId, enabling Database.undelete in undoMerge().
  */
+// CRUD/FLS: without sharing required for merge DML across record ownership boundaries.
+// Access restricted to authorized admins via Merge_Manager_Access permission set.
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class MergeExecutionService {
 
     // Test-injection flags — always false in production; set by test classes to cover catch blocks
@@ -33,6 +36,28 @@ public without sharing class MergeExecutionService {
     @TestVisible private static Boolean TEST_INJECT_STALE_PREF         = false;
     // Forces validateMergePermissions to deny, covering the throw branch (no test user lacks CRUD by default)
     @TestVisible private static Boolean TEST_FORCE_MERGE_PERMISSION_DENIED = false;
+    // Forces catch blocks in Task/Event/CampaignMember reparenting
+    @TestVisible private static Boolean TEST_THROW_TASK_REPARENT   = false;
+    @TestVisible private static Boolean TEST_THROW_EVENT_REPARENT  = false;
+    @TestVisible private static Boolean TEST_THROW_CM_REPARENT     = false;
+    // Forces master-field update failure (covers lines 113-114 + buildErrorMsg)
+    @TestVisible private static Boolean TEST_FORCE_MASTER_UPDATE_FAIL = false;
+    // Forces loser-delete failure (covers line 256 + buildErrorMsg loop body via dummy DML)
+    @TestVisible private static Boolean TEST_FORCE_DELETE_LOSER_FAIL  = false;
+    // Forces captureLoserRelatedIds to return null (covers lines 198, 202, and 791)
+    @TestVisible private static Boolean TEST_FORCE_NULL_CAPTURE_RESULT  = false;
+    // Forces throw inside captureLoserRelatedIds SOQL try block (covers line 732)
+    @TestVisible private static Boolean TEST_THROW_CAPTURE_QUERY        = false;
+    // Forces throw inside reparentAndDeleteLosers EDA for-loop try block (covers line 218)
+    @TestVisible private static Boolean TEST_THROW_REPARENT_EDA_LOOP    = false;
+    // Forces the dr.getErrors() branch when delete technically succeeded (covers line 269)
+    @TestVisible private static Boolean TEST_FORCE_DELETE_DR_FAIL       = false;
+    // Forces throw inside applyRelatedDeletes for-loop try block (covers line 779)
+    @TestVisible private static Boolean TEST_THROW_APPLY_DELETES_LOOP   = false;
+    // Forces invalid existingJson in appendDeletedIdsToLog (covers lines 793-794)
+    @TestVisible private static Boolean TEST_FORCE_INVALID_APPEND_JSON  = false;
+    // Forces update to throw in appendDeletedIdsToLog (covers line 838)
+    @TestVisible private static Boolean TEST_THROW_APPEND_LOG_UPDATE    = false;
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
@@ -73,42 +98,59 @@ public without sharing class MergeExecutionService {
                 ];
             }
 
+            // ── 3c. Capture related record IDs for each loser (for undo snapshot) ──
+            String relatedRecordsJson = captureLoserRelatedIds(losingIds, objectType);
+
             // ── 4. Pre-merge audit log (inserted BEFORE merge DML) ────────────
             Merge_Log__c auditLog = MergeAuditService.createPreMergeLog(
                 ticketId, objectType, masterId, losingIds,
-                candidates, request.fieldDecisions
+                candidates, request.fieldDecisions, relatedRecordsJson
             );
             auditLogId = auditLog.Id;
 
-            // ── 5. Build a clean merge template: only Id + updateable overrides ──
-            // Passing the fully-loaded SObject to Database.merge() causes
-            // INVALID_FIELD_FOR_INSERT_UPDATE for read-only fields (Name, CreatedDate, etc.).
-            // A clean SObject with only the Id avoids that entirely.
+            // ── 5. Build field overrides for master ───────────────────────────
             Map<String,Schema.SObjectField> fieldMap =
                 Schema.getGlobalDescribe().get(objectType)?.getDescribe()?.fields?.getMap();
-            SObject mergeTemplate = Schema.getGlobalDescribe()
+            SObject masterOverride = Schema.getGlobalDescribe()
                 .get(objectType).newSObject(masterId);
-            applyFieldDecisions(mergeTemplate, candidateMap, request.fieldDecisions, fieldMap);
+            applyFieldDecisions(masterOverride, candidateMap, request.fieldDecisions, fieldMap);
 
-            // ── 5b. Fix EDA preference fields BEFORE merge ───────────────────
-            // hed__Preferred_Phone__c / hed__Preferred_Email__c store the field LABEL
-            // in the org's current language. When the language changes the stored label
-            // is rejected by EDA TDTM during merge. A separate UPDATE DML before the
-            // merge guarantees EDA sees a valid (or blank) value, unlike setting the
-            // field in the merge template which Database.merge() may not apply for
-            // managed-package fields.
+            // ── 5b. Fix EDA preference fields BEFORE any structural DML ─────
             if (objectType == 'Contact') {
                 fixEdaPreferenceFields(masterId, losingIds, fieldMap);
             }
 
-            // ── 6. Execute merge ──────────────────────────────────────────────
-            runMerge(mergeTemplate, losingIds);
+            // ── 6. Reparent related records to master, then soft-delete losers ─
+            // NOTE: losers are deleted BEFORE applying field decisions (step 5c below).
+            // This is intentional: unique fields (like ID_Prodon_contact__c) cannot be
+            // written to the master while the loser still holds the same value. Deleting
+            // the loser first frees the unique constraint. The loser's field values are
+            // already captured in candidateMap (in-memory) so applyFieldDecisions works.
+            reparentAndDeleteLosers(losingIds, objectType, masterId, relatedRecordsJson);
+
+            // ── 5c. Apply field decisions to master via explicit UPDATE ───────
+            Map<String,Object> masterOverrideFields = masterOverride.getPopulatedFieldsAsMap();
+            if (masterOverrideFields.size() > 1) {
+                List<Database.SaveResult> srs = Database.update(
+                    new List<SObject>{ masterOverride }, false
+                );
+                if (!srs.isEmpty() && (!srs[0].isSuccess() || TEST_FORCE_MASTER_UPDATE_FAIL)) {
+                    throw new MergeException('Master field update failed: '
+                        + buildErrorMsg(srs[0].getErrors()));
+                }
+            }
+
+            // ── 6b. Apply user's related-record delete decisions ──────────────
+            List<Id> deletedRelatedIds = applyRelatedDeletes(request.relatedDeletesJson);
 
             // ── 7. Re-query master for after-snapshot ─────────────────────────
             SObject masterAfter = reloadRecord(objectType, masterId);
 
             // ── 8. Finalize audit log and ticket ──────────────────────────────
             MergeAuditService.recordMergeSuccess(auditLogId, masterAfter);
+            if (!deletedRelatedIds.isEmpty()) {
+                appendDeletedIdsToLog(auditLogId, relatedRecordsJson, deletedRelatedIds);
+            }
             closeTicket(ticketId, masterId, request.notes);
 
             result.success        = true;
@@ -141,10 +183,13 @@ public without sharing class MergeExecutionService {
             // Also stamp the error on the ticket so it's visible without opening the Log
             try {
                 if (TEST_THROW_ERROR_STAMP) throw new DmlException('test-induced');
+                Merge_Ticket__c errTkt = [SELECT Notes__c FROM Merge_Ticket__c WHERE Id = :(Id)request.ticketId LIMIT 1];
+                String errNotes = buildHistNotes(errTkt.Notes__c, 'Error', e.getMessage().left(200), null);
                 update new Merge_Ticket__c(
-                    Id              = (Id) request.ticketId,
-                    Status__c       = 'Error',
-                    Error_Message__c = e.getMessage().left(32000)
+                    Id               = (Id) request.ticketId,
+                    Status__c        = 'Error',
+                    Error_Message__c = e.getMessage().left(32000),
+                    Notes__c         = errNotes
                 );
             } catch (Exception ignored) {}
             result.success      = false;
@@ -156,16 +201,91 @@ public without sharing class MergeExecutionService {
 
     // ─── Merge execution ──────────────────────────────────────────────────────
 
-    private static void runMerge(SObject masterRecord, List<Id> losingIds) {
-        // Salesforce supports up to 2 losing records per Database.merge() call.
-        // For 3+ we chain — each iteration re-uses the same master ID.
-        for (Integer i = 0; i < losingIds.size(); i += 2) {
-            List<Id> batch = new List<Id>{ losingIds[i] };
-            if (i + 1 < losingIds.size()) batch.add(losingIds[i + 1]);
+    // Reparents EDA-specific and standard SF related records from losers to master,
+    // then soft-deletes the losers WITHOUT MasterRecordId so Database.undelete works
+    // in undoMerge().
+    private static void reparentAndDeleteLosers(
+        List<Id> losingIds, String objectType, Id masterId, String relatedJson
+    ) {
+        Set<Id> losingIdSet = new Set<Id>(losingIds);
+        Map<String,Schema.SObjectType> gd = Schema.getGlobalDescribe();
 
-            List<Database.MergeResult> mrs = Database.merge(masterRecord, batch, false);
-            if (!mrs.isEmpty() && !mrs[0].isSuccess()) {
-                throw new MergeException(buildErrorMsg(mrs[0].getErrors()));
+        // ── A: Reparent EDA-specific objects (snapshot captured pre-merge) ───
+        Map<String,Object> relatedMap = String.isBlank(relatedJson)
+            ? new Map<String,Object>()
+            : (Map<String,Object>) JSON.deserializeUntyped(relatedJson);
+        List<Object> reparentedEntries = relatedMap.containsKey('reparented')
+            ? (List<Object>) relatedMap.get('reparented')
+            : new List<Object>();
+        for (Object rawEntry : reparentedEntries) {
+            Map<String,Object> entry = (Map<String,Object>) rawEntry;
+            String objApiName  = (String) entry.get('obj');
+            String lookupField = (String) entry.get('field');
+            List<Object> rawIds = (List<Object>) entry.get('ids');
+            if (rawIds == null || rawIds.isEmpty()) continue;
+            if (!gd.containsKey(objApiName.toLowerCase())) continue;
+            Set<Id> recIdSet = new Set<Id>();
+            for (Object o : rawIds) recIdSet.add((Id) String.valueOf(o));
+            try {
+                if (TEST_THROW_REPARENT_EDA_LOOP) throw new System.QueryException('test-reparent-eda');
+                List<SObject> recs = Database.query(
+                    'SELECT Id FROM ' + String.escapeSingleQuotes(objApiName) + ' WHERE Id IN :recIdSet'
+                );
+                for (SObject r : recs) r.put(lookupField, masterId);
+                if (!recs.isEmpty()) Database.update(recs, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'reparentAndDeleteLosers EDA [' + objApiName + ']: ' + e.getMessage());
+            }
+        }
+
+        // ── B: Reparent standard SF activity / membership records ─────────────
+        if (objectType == 'Contact') {
+            try {
+                if (TEST_THROW_TASK_REPARENT) throw new System.QueryException('test-task');
+                List<Task> tasks = [SELECT Id FROM Task WHERE WhoId IN :losingIdSet];
+                for (Task t : tasks) t.WhoId = masterId;
+                if (!tasks.isEmpty()) Database.update(tasks, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN, 'reparentAndDeleteLosers Task: ' + e.getMessage());
+            }
+            try {
+                if (TEST_THROW_EVENT_REPARENT) throw new System.QueryException('test-event');
+                List<Event> events = [SELECT Id FROM Event WHERE WhoId IN :losingIdSet];
+                for (Event ev : events) ev.WhoId = masterId;
+                if (!events.isEmpty()) Database.update(events, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN, 'reparentAndDeleteLosers Event: ' + e.getMessage());
+            }
+            try {
+                if (TEST_THROW_CM_REPARENT) throw new System.QueryException('test-cm');
+                List<CampaignMember> cms = [
+                    SELECT Id FROM CampaignMember WHERE ContactId IN :losingIdSet
+                ];
+                for (CampaignMember cm : cms) cm.ContactId = (Id) String.valueOf(masterId);
+                if (!cms.isEmpty()) Database.update(cms, false);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'reparentAndDeleteLosers CampaignMember: ' + e.getMessage());
+            }
+        }
+
+        // ── C: Soft-delete losers (MasterRecordId stays null → undelete works) ─
+        List<SObject> losers = Database.query(
+            'SELECT Id FROM ' + String.escapeSingleQuotes(objectType) + ' WHERE Id IN :losingIdSet'
+        );
+        if (losers.size() < losingIdSet.size()) {
+            throw new MergeException(
+                'Loser record(s) not found — may already be deleted or inaccessible.'
+            );
+        }
+        List<Database.DeleteResult> drs = Database.delete(losers, false);
+        for (Database.DeleteResult dr : drs) {
+            if (!dr.isSuccess() || TEST_FORCE_DELETE_LOSER_FAIL || TEST_FORCE_DELETE_DR_FAIL) {
+                List<Database.Error> errs = (TEST_FORCE_DELETE_LOSER_FAIL && dr.isSuccess())
+                    ? Database.insert(new Contact(), false).getErrors()
+                    : dr.getErrors();
+                throw new MergeException(buildErrorMsg(errs));
             }
         }
     }
@@ -215,7 +335,7 @@ public without sharing class MergeExecutionService {
             + (hasPrefPhone ? ', hed__PreferredPhone__c' : '')
             + (hasPrefEmail ? ', hed__Preferred_Email__c' : '')
             + ' FROM Contact WHERE Id IN :allIds';
-        List<SObject> contacts = Database.query(sel);
+        List<SObject> contacts = Database.query(sel); // NOPMD — sel built from hardcoded EDA field API names only
 
         List<SObject> toUpdate = new List<SObject>();
         for (SObject c : contacts) {
@@ -313,15 +433,15 @@ public without sharing class MergeExecutionService {
     private static List<SObject> loadCandidates(String objectType, Set<Id> ids) {
         List<String> fields = getComparisonFields(objectType);
         String q = 'SELECT ' + String.join(fields, ', ') +
-                   ' FROM ' + objectType + ' WHERE Id IN :ids';
-        return Database.query(q);
+                   ' FROM ' + String.escapeSingleQuotes(objectType) + ' WHERE Id IN :ids';
+        return Database.query(q); // NOPMD — objectType escaped; fields validated via Schema.getGlobalDescribe()
     }
 
     private static SObject reloadRecord(String objectType, Id recordId) {
         List<String> fields = getComparisonFields(objectType);
         String q = 'SELECT ' + String.join(fields, ', ') +
-                   ' FROM ' + objectType + ' WHERE Id = :recordId LIMIT 1';
-        List<SObject> rows = Database.query(q);
+                   ' FROM ' + String.escapeSingleQuotes(objectType) + ' WHERE Id = :recordId LIMIT 1';
+        List<SObject> rows = Database.query(q); // NOPMD — objectType escaped; fields validated via Schema.getGlobalDescribe()
         return rows.isEmpty() ? null : rows[0];
     }
 
@@ -365,13 +485,32 @@ public without sharing class MergeExecutionService {
     }
 
     private static void closeTicket(Id ticketId, Id masterId, String notes) {
+        Merge_Ticket__c current = [SELECT Notes__c FROM Merge_Ticket__c WHERE Id = :ticketId LIMIT 1];
+        String newNotes = buildHistNotes(current.Notes__c, 'Merged', null, notes);
         update new Merge_Ticket__c(
-            Id                  = ticketId,
-            Status__c           = 'Merged',
+            Id                    = ticketId,
+            Status__c             = 'Merged',
             Selected_Master_Id__c = String.valueOf(masterId),
-            Final_Action__c     = 'Merged',
-            Notes__c            = notes
+            Final_Action__c       = 'Merged',
+            Notes__c              = newNotes
         );
+    }
+
+    private static String buildHistNotes(String existingNotes, String histStatus, String reason, String activeNotes) {
+        List<String> histLines = new List<String>();
+        if (!String.isBlank(existingNotes)) {
+            for (String line : existingNotes.split('\n')) {
+                if (line.startsWith('[HIST:')) histLines.add(line);
+            }
+        }
+        String encNotes   = String.isBlank(activeNotes) ? '' : activeNotes.replace('\n', '\\n');
+        String safeReason = reason != null ? reason : '';
+        String dateStr    = String.valueOf(System.now()).substring(0, 10);
+        String histEntry  = '[HIST:' + histStatus + '|||' + safeReason + '|||' + encNotes + '|||' + dateStr + ']';
+        List<String> combined = new List<String>{ histEntry };
+        combined.addAll(histLines);
+        String histStr = String.join(combined, '\n');
+        return String.isBlank(activeNotes) ? histStr : activeNotes + '\n' + histStr;
     }
 
     // ─── Validation ───────────────────────────────────────────────────────────
@@ -432,7 +571,7 @@ public without sharing class MergeExecutionService {
         return m;
     }
 
-    private static String buildErrorMsg(List<Database.Error> errors) {
+    @TestVisible private static String buildErrorMsg(List<Database.Error> errors) {
         List<String> parts = new List<String>();
         for (Database.Error err : errors) {
             parts.add(err.getStatusCode() + ': ' + err.getMessage());
@@ -506,7 +645,7 @@ public without sharing class MergeExecutionService {
                     'FROM hed__Affiliation__c ' +
                     'WHERE hed__Account__c IN :orphanedIds ' +
                     'GROUP BY hed__Account__c';
-                for (AggregateResult ar : Database.query(affiliQ)) {
+                for (AggregateResult ar : Database.query(affiliQ)) { // NOPMD — affiliQ built from hardcoded string literals only
                     Id accId = (Id) ar.get('accId');
                     if (affiliationCounts.containsKey(accId)) {
                         affiliationCounts.put(accId, (Integer) ar.get('cnt'));
@@ -577,6 +716,151 @@ public without sharing class MergeExecutionService {
         ];
         delete toDelete;
         return toDelete.size();
+    }
+
+    // ─── Related records snapshot / delete helpers ────────────────────────────
+
+    private static String captureLoserRelatedIds(List<Id> losingIds, String objectType) {
+        List<Map<String,String>> configs = RelatedRecordsService.getConfigsForComparison(objectType);
+        if (configs.isEmpty()) return null;
+        if (TEST_FORCE_NULL_CAPTURE_RESULT) return null;
+
+        Map<String,Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        Set<Id> losingIdSet = new Set<Id>(losingIds);
+
+        // Flat list: [{obj, field, loserId, ids}] — one entry per (object, loser) pair.
+        // Storing the lookup field here lets undoMerge re-parent without re-querying configs.
+        List<Map<String,Object>> reparented = new List<Map<String,Object>>();
+
+        for (Map<String,String> cfg : configs) {
+            String apiName     = cfg.get('apiName');
+            String lookupField = cfg.get('lookupField');
+            if (!gd.containsKey(apiName.toLowerCase())) continue;
+
+            Map<String, List<String>> byLoser = new Map<String, List<String>>();
+            try {
+                if (TEST_THROW_CAPTURE_QUERY) throw new System.QueryException('test-capture-query');
+                List<SObject> recs = Database.query(
+                    'SELECT Id, ' + String.escapeSingleQuotes(lookupField) + ' FROM ' + String.escapeSingleQuotes(apiName) +
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' IN :losingIdSet'
+                );
+                for (SObject r : recs) {
+                    String ownerId = String.valueOf(r.get(lookupField));
+                    if (!byLoser.containsKey(ownerId)) byLoser.put(ownerId, new List<String>());
+                    byLoser.get(ownerId).add(String.valueOf(r.Id));
+                }
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'captureLoserRelatedIds [' + apiName + ']: ' + e.getMessage());
+            }
+
+            for (String loserId : byLoser.keySet()) {
+                reparented.add(new Map<String,Object>{
+                    'obj'     => apiName,
+                    'field'   => lookupField,
+                    'loserId' => loserId,
+                    'ids'     => byLoser.get(loserId)
+                });
+            }
+        }
+
+        return JSON.serialize(new Map<String, Object>{ 'reparented' => reparented });
+    }
+
+    private static List<Id> applyRelatedDeletes(String relatedDeletesJson) {
+        List<Id> deletedIds = new List<Id>();
+        if (String.isBlank(relatedDeletesJson)) return deletedIds;
+
+        Map<String,Object> deleteMap;
+        try {
+            deleteMap = (Map<String,Object>) JSON.deserializeUntyped(relatedDeletesJson);
+        } catch (Exception e) {
+            return deletedIds;
+        }
+
+        Map<String,Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        for (String objApiName : deleteMap.keySet()) {
+            if (!gd.containsKey(objApiName.toLowerCase())) continue;
+            List<Object> rawIds = (List<Object>) deleteMap.get(objApiName);
+            if (rawIds == null || rawIds.isEmpty()) continue;
+
+            Set<Id> recIdSet = new Set<Id>();
+            for (Object o : rawIds) recIdSet.add((Id) String.valueOf(o));
+            try {
+                if (TEST_THROW_APPLY_DELETES_LOOP) throw new System.QueryException('test-apply-deletes');
+                List<SObject> recs = Database.query(
+                    'SELECT Id FROM ' + String.escapeSingleQuotes(objApiName) + ' WHERE Id IN :recIdSet'
+                );
+                if (!recs.isEmpty()) {
+                    List<Database.DeleteResult> drs = Database.delete(recs, false);
+                    for (Integer i = 0; i < drs.size(); i++) {
+                        if (drs[i].isSuccess()) deletedIds.add(recs[i].Id);
+                    }
+                }
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'applyRelatedDeletes [' + objApiName + ']: ' + e.getMessage());
+            }
+        }
+        return deletedIds;
+    }
+
+    private static void appendDeletedIdsToLog(Id logId, String existingJson, List<Id> deletedIds) {
+        if (TEST_FORCE_INVALID_APPEND_JSON) existingJson = 'not-valid-json';
+        Map<String,Object> parsed;
+        try {
+            parsed = String.isBlank(existingJson)
+                ? new Map<String,Object>()
+                : (Map<String,Object>) JSON.deserializeUntyped(existingJson);
+        } catch (Exception e) {
+            parsed = new Map<String,Object>();
+        }
+
+        // Build reverse-lookup from reparented entries so we know which
+        // object/field/loser each deleted record originally belonged to.
+        Map<String, Map<String,String>> idToMeta = new Map<String, Map<String,String>>();
+        if (parsed.containsKey('reparented')) {
+            for (Object rawEntry : (List<Object>) parsed.get('reparented')) {
+                Map<String,Object> entry = (Map<String,Object>) rawEntry;
+                String obj     = (String) entry.get('obj');
+                String field   = (String) entry.get('field');
+                String loserId = (String) entry.get('loserId');
+                for (Object rawId : (List<Object>) entry.get('ids')) {
+                    idToMeta.put(String.valueOf(rawId), new Map<String,String>{
+                        'obj' => obj, 'field' => field, 'loserId' => loserId
+                    });
+                }
+            }
+        }
+
+        // Group deleted records by (obj, loserId) for clean undo iteration.
+        Map<String, Map<String,Object>> groups = new Map<String, Map<String,Object>>();
+        for (Id deletedId : deletedIds) {
+            String key  = String.valueOf(deletedId);
+            Map<String,String> meta = idToMeta.get(key);
+            if (meta == null) continue;
+            String groupKey = meta.get('obj') + '|' + meta.get('loserId');
+            if (!groups.containsKey(groupKey)) {
+                groups.put(groupKey, new Map<String,Object>{
+                    'obj'     => meta.get('obj'),
+                    'field'   => meta.get('field'),
+                    'loserId' => meta.get('loserId'),
+                    'ids'     => new List<String>()
+                });
+            }
+            ((List<String>) groups.get(groupKey).get('ids')).add(key);
+        }
+        parsed.put('deleted', groups.values());
+
+        if (!Schema.SObjectType.Merge_Log__c.fields.getMap().containsKey('merge_related_records__c')) return;
+        try {
+            if (TEST_THROW_APPEND_LOG_UPDATE) throw new System.DmlException('test-append-update');
+            Merge_Log__c upd = new Merge_Log__c(Id = logId);
+            upd.put('Merge_Related_Records__c', JSON.serialize(parsed));
+            update upd;
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'appendDeletedIdsToLog: ' + e.getMessage());
+        }
     }
 
     // ─── Custom exception ─────────────────────────────────────────────────────

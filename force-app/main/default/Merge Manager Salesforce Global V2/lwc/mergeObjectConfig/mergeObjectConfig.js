@@ -9,6 +9,7 @@ const CUSTOM_REASONS_KEY = 'mergeManager_customCloseReasons';
 
 export default class MergeObjectConfig extends LightningElement {
     @api lang = 'fr';
+    @track _pendingLang = 'fr';
 
     @track activeSection     = 'language';
     @track selectedType      = 'Contact';
@@ -22,16 +23,16 @@ export default class MergeObjectConfig extends LightningElement {
     get i18n() { return getLabels(this.lang); }
 
     // ── Language ─────────────────────────────────────────────────────────────
-    get langFrClass() { return 'cfg-lang-btn' + (this.lang === 'fr' ? ' cfg-lang-btn_active' : ''); }
-    get langEnClass() { return 'cfg-lang-btn' + (this.lang === 'en' ? ' cfg-lang-btn_active' : ''); }
-    get langEsClass() { return 'cfg-lang-btn' + (this.lang === 'es' ? ' cfg-lang-btn_active' : ''); }
+    get langFrClass() { return 'cfg-lang-btn' + (this._pendingLang === 'fr' ? ' cfg-lang-btn_active' : ''); }
+    get langEnClass() { return 'cfg-lang-btn' + (this._pendingLang === 'en' ? ' cfg-lang-btn_active' : ''); }
+    get langEsClass() { return 'cfg-lang-btn' + (this._pendingLang === 'es' ? ' cfg-lang-btn_active' : ''); }
 
     handleLangChange(event) {
-        const newLang = event.currentTarget.dataset.lang;
-        if (newLang && newLang !== this.lang) {
-            this.lang = newLang;
-            this.dispatchEvent(new CustomEvent('langchange', { detail: { lang: newLang } }));
-        }
+        this._pendingLang = event.currentTarget.dataset.lang;
+    }
+
+    handleLangSave() {
+        this.dispatchEvent(new CustomEvent('langchange', { detail: { lang: this._pendingLang } }));
     }
 
     // ── Section nav ───────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ export default class MergeObjectConfig extends LightningElement {
 
     // ── Objects data loading ──────────────────────────────────────────────────
     connectedCallback() {
+        this._pendingLang = this.lang;
         this._loadCustomReasons();
         this.loadAll();
     }
@@ -74,11 +76,11 @@ export default class MergeObjectConfig extends LightningElement {
     }
 
     _buildItems(discoverable, allConfigs) {
+        const typeConfigs = allConfigs.filter(c => c.Object_Type__c === this.selectedType);
+        const firstTime   = typeConfigs.length === 0;
         const cfgMap = {};
-        for (const c of allConfigs) {
-            if (c.Object_Type__c === this.selectedType) {
-                cfgMap[c.Object_API_Name__c] = c;
-            }
+        for (const c of typeConfigs) {
+            cfgMap[c.Object_API_Name__c] = c;
         }
         this.items = discoverable.map(d => {
             const existing = cfgMap[d.apiName];
@@ -88,7 +90,7 @@ export default class MergeObjectConfig extends LightningElement {
                 lookupField: d.lookupField,
                 schemaLabel: d.label,
                 customLabel: existing ? existing.Name : d.label,
-                checked:     !!existing
+                checked:     firstTime ? true : !!existing
             };
         });
     }
@@ -123,6 +125,9 @@ export default class MergeObjectConfig extends LightningElement {
         this.loadAll();
     }
 
+    handleSelectAll()   { this.items = this.items.map(i => ({ ...i, checked: true  })); }
+    handleUnselectAll() { this.items = this.items.map(i => ({ ...i, checked: false })); }
+
     handleToggle(evt) {
         const api     = evt.currentTarget.dataset.api;
         const checked = evt.target.checked;
@@ -154,7 +159,11 @@ export default class MergeObjectConfig extends LightningElement {
                 this.dispatchEvent(new CustomEvent('configsaved'));
                 this.handleClose();
             })
-            .catch(err => { this.errorMessage = this._msg(err); })
+            .catch(err => {
+                const msg = this._msg(err);
+                this.errorMessage = msg;
+                this.dispatchEvent(new ShowToastEvent({ title: this.i18n.error, message: msg, variant: 'error' }));
+            })
             .finally(() => { this.isSaving = false; });
     }
 

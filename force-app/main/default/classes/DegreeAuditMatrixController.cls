@@ -1150,6 +1150,13 @@ public with sharing class DegreeAuditMatrixController {
             try { offLeaf.put('hed__Account__c', inst.Id); } catch (Exception ignore) {}
             try { offX.put('hed__Account__c',    inst.Id); } catch (Exception ignore) {}
             try { offY.put('hed__Account__c',    inst.Id); } catch (Exception ignore) {}
+            String offeringTypeVal = '';
+            for (Schema.PicklistEntry pe : hed__Course_Offering__c.type_of_course_c__c.getDescribe().getPicklistValues()) {
+                if (pe.isActive()) { offeringTypeVal = pe.getValue(); break; }
+            }
+            try { offLeaf.put('type_of_course_c__c', offeringTypeVal); } catch (Exception ignore) {}
+            try { offX.put('type_of_course_c__c',    offeringTypeVal); } catch (Exception ignore) {}
+            try { offY.put('type_of_course_c__c',    offeringTypeVal); } catch (Exception ignore) {}
             insert new List<hed__Course_Offering__c>{ offLeaf, offX, offY };
             
             hed__Program_Plan__c plan = new hed__Program_Plan__c(Name='SEED_PLAN', hed__Status__c='Current');

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Deletes ReleveDesNotes module (created by c3c software) -->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>ReleveDesNotes</members>
+        <members>ReleveDesNotesTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>GenererReleveDesNotes</members>
+        <name>AuraDefinitionBundle</name>
+    </types>
+    <version>64.0</version>
+</Package>

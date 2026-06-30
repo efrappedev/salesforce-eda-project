@@ -1,4 +1,17 @@
 <template>
+    <!-- Mobile / small-screen block -->
+    <template if:true={isMobileDevice}>
+        <div class="mobile-block">
+            <lightning-icon icon-name="utility:desktop" size="large"
+                class="mobile-block__icon">
+            </lightning-icon>
+            <h2 class="mobile-block__title">{i18n.mobileTitle}</h2>
+            <p class="mobile-block__msg">{i18n.mobileMsg}</p>
+        </div>
+    </template>
+
+    <!-- Desktop app -->
+    <template if:false={isMobileDevice}>
     <div class="merge-manager">
         <div class="slds-grid slds-grid_vertical-stretch merge-manager__layout">
 
@@ -66,28 +79,40 @@
             <div class="merge-manager__right slds-col slds-size_2-of-3">
 
                 <!-- Tab bar — always visible; dashboard tab is permanent first tab -->
-                <div class="mm-tabs">
-                    <div class={dashboardTabClass} onclick={handleDashboardTabClick} title={i18n.dashboardTab}>
-                        <lightning-icon icon-name="utility:chart" size="xx-small" class="mm-tab__icon"></lightning-icon>
-                        <span class="mm-tab__label">{i18n.dashboardTab}</span>
-                    </div>
-                    <template for:each={enrichedTabs} for:item="tab">
-                        <div key={tab.ticketId}
-                             class={tab.tabClass}
-                             data-id={tab.ticketId}
-                             onclick={handleTabActivate}
-                             title={tab.label}>
-                            <lightning-icon
-                                icon-name={tab.icon}
-                                size="xx-small"
-                                class="mm-tab__icon">
-                            </lightning-icon>
-                            <span class="mm-tab__label">{tab.label}</span>
-                            <button class="mm-tab__close"
-                                    data-id={tab.ticketId}
-                                    onclick={handleTabClose}
-                                    title={i18n.tabClose}>&#x2715;</button>
+                <div class="mm-tabs-nav">
+                    <template if:true={_hasTabOverflow}>
+                    <button class="mm-tabs-arrow mm-tabs-arrow_left"
+                            onclick={scrollTabsLeft}
+                            title={i18n.tabScrollLeft}>&#8249;</button>
+                    </template>
+                    <div class="mm-tabs">
+                        <div class={dashboardTabClass} onclick={handleDashboardTabClick} title={i18n.dashboardTab}>
+                            <lightning-icon icon-name="utility:chart" size="xx-small" class="mm-tab__icon"></lightning-icon>
+                            <span class="mm-tab__label">{i18n.dashboardTab}</span>
                         </div>
+                        <template for:each={enrichedTabs} for:item="tab">
+                            <div key={tab.ticketId}
+                                 class={tab.tabClass}
+                                 data-id={tab.ticketId}
+                                 onclick={handleTabActivate}
+                                 title={tab.label}>
+                                <lightning-icon
+                                    icon-name={tab.icon}
+                                    size="xx-small"
+                                    class="mm-tab__icon">
+                                </lightning-icon>
+                                <span class="mm-tab__label">{tab.label}</span>
+                                <button class="mm-tab__close"
+                                        data-id={tab.ticketId}
+                                        onclick={handleTabClose}
+                                        title={i18n.tabClose}>&#x2715;</button>
+                            </div>
+                        </template>
+                    </div>
+                    <template if:true={_hasTabOverflow}>
+                    <button class="mm-tabs-arrow mm-tabs-arrow_right"
+                            onclick={scrollTabsRight}
+                            title={i18n.tabScrollRight}>&#8250;</button>
                     </template>
                 </div>
 
@@ -102,7 +127,9 @@
                         <c-merge-wizard
                             lang={lang}
                             ticket-id={tab.ticketId}
+                            object-type={tab.objectType}
                             onmergecomplete={handleMergeComplete}
+                            onundocomplete={handleUndoComplete}
                             ondismissed={handleDismissed}>
                         </c-merge-wizard>
                     </div>
@@ -110,6 +137,7 @@
             </div>
         </div>
     </div>
+    </template>
 
     <!-- Object config modal (la tuerca) -->
     <template if:true={showObjectConfigModal}>

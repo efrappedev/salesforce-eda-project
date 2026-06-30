@@ -46,6 +46,11 @@
                 <default>false</default>
                 <label>Other (see Notes)</label>
             </value>
+            <value>
+                <fullName>Record Deleted</fullName>
+                <default>false</default>
+                <label>Record Deleted After Merge</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

@@ -226,21 +226,28 @@ input[type="radio"]:checked ~ .matrix-master-radio__faux,
     --slds-c-icon-color-foreground: #dd7a01;
 }
 
-.related-contacts-table {
-    font-size: 11px;
+.contact-row {
+    border-bottom: 1px solid #f3f2f2;
+    padding: 0.35rem 0;
 }
 
-.related-contacts-name {
-    max-width: 160px;
+.contact-row:last-child {
+    border-bottom: none;
 }
 
-.contact-row_active td {
+.contact-row_active {
     background-color: #fff8ec;
+    border-radius: 4px;
+    padding: 0.35rem 0.4rem;
 }
 
-.contact-row_active .related-contacts-name {
+.contact-row_active .slds-text-body_small {
     font-weight: 600;
     color: #7a4f00;
+}
+
+.related-contact-name-row {
+    margin-bottom: 0.15rem;
 }
 
 /* ── EDA section ─────────────────────────────────────────────────────────── */

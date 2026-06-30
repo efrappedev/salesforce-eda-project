@@ -55,9 +55,20 @@ private class PlanCreditCalculatorTest {
         insert term;
 
         // 6. Crear Offerings
-        hed__Course_Offering__c off1 = new hed__Course_Offering__c(hed__Course__c = courseObli.Id, hed__Term__c = term.Id);
+        // Leer el primer valor activo del picklist dinámicamente para no depender de valores hardcodeados
+        // ni tener que deshabilitar el campo requerido en el org
+        String tipoCurso = '';
+        for (Schema.PicklistEntry entry : hed__Course_Offering__c.type_of_course_c__c.getDescribe().getPicklistValues()) {
+            if (entry.isActive()) { tipoCurso = entry.getValue(); break; }
+        }
+        hed__Course_Offering__c off1 = new hed__Course_Offering__c(hed__Course__c = courseObli.Id,  hed__Term__c = term.Id);
         hed__Course_Offering__c off2 = new hed__Course_Offering__c(hed__Course__c = courseGroup.Id, hed__Term__c = term.Id);
-        hed__Course_Offering__c off3 = new hed__Course_Offering__c(hed__Course__c = courseFree.Id, hed__Term__c = term.Id);
+        hed__Course_Offering__c off3 = new hed__Course_Offering__c(hed__Course__c = courseFree.Id,  hed__Term__c = term.Id);
+        if (!String.isBlank(tipoCurso)) {
+            try { off1.put('type_of_course_c__c', tipoCurso); } catch (Exception ignore) {}
+            try { off2.put('type_of_course_c__c', tipoCurso); } catch (Exception ignore) {}
+            try { off3.put('type_of_course_c__c', tipoCurso); } catch (Exception ignore) {}
+        }
         insert new List<hed__Course_Offering__c>{off1, off2, off3};
     }
 

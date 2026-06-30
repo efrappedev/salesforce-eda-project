@@ -2,6 +2,8 @@ import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { getLabels } from 'c/i18n';
 import getTickets       from '@salesforce/apex/MergeController.getTickets';
+import getTicketCount   from '@salesforce/apex/MergeController.getTicketCount';
+import resolveSearchIds from '@salesforce/apex/MergeController.resolveSearchIds';
 import reopenTicketApex from '@salesforce/apex/MergeController.reopenTicket';
 
 const CLOSED_REASON_KEY = {
@@ -11,7 +13,8 @@ const CLOSED_REASON_KEY = {
     'False Positive - Shared Email':      'reasonSharedEmail',
     'Already Resolved':                   'reasonResolved',
     'Out of Scope':                       'reasonOutOfScope',
-    'Other':                              'reasonOther'
+    'Other':                              'reasonOther',
+    'Record Deleted':                     'reasonDeleted'
 };
 
 const MATCH_TYPE_KEY = {
@@ -37,22 +40,28 @@ const STATUS_CLASS = {
     'Error':     'slds-badge ticket-badge ticket-badge_error'
 };
 
-// Tags always render in English regardless of UI language
-const STATUS_BADGE_LABEL = {
-    'New':       'New',
-    'In Review': 'In Review',
-    'Ready':     'Ready',
-    'Merged':    'Merged',
-    'Ignored':   'To Validate',
-    'Closed':    'Closed',
-    'Reopened':  'Reopened',
-    'Error':     'Error'
+const STATUS_BADGE_KEY = {
+    'New':       'statusNew',
+    'In Review': 'statusInReview',
+    'Ready':     'statusReady',
+    'Merged':    'statusMerged',
+    'Ignored':   'statusIgnored',
+    'Closed':    'statusClosed',
+    'Reopened':  'statusReopened',
+    'Error':     'statusErrors'
 };
+
+const PAGE_SIZE = 2000;
+
+// "New"/"Reopened" tickets get reclassified into Pending/Stale the longer
+// they sit untouched. Status__c itself never changes — display-only.
+const NEW_TICKET_AGE_DAYS = { PENDING: 3, STALE: 8 };
 
 export default class MergeTicketList extends LightningElement {
     @api selectedTicketId;
-    @api lang = 'fr';
 
+    @track _lang                 = 'fr';
+    @track _labels               = { ...getLabels('fr') };
     @track objectTypeFilter      = 'Contact';
     @track statusFilter          = 'All';
     @track closedReasonFilter    = null;
@@ -61,8 +70,25 @@ export default class MergeTicketList extends LightningElement {
     @track isReopening           = false;
     @track errorMessage          = null;
     @track _tickets              = [];
+    @track _totalCount           = 0;
+    // Keyset pagination: _cursors[i] = cursor to load page i; null = first page (no cursor)
+    @track _cursors              = [null];
+    @track _currentPageIdx       = 0;
 
-    get i18n() { return getLabels(this.lang); }
+    _searchTimer                 = null;
+    _editingPage                 = false;
+    _lastCandidateIds            = null;
+
+    @api
+    get lang() { return this._lang; }
+    set lang(v) {
+        if (v && v !== this._lang) {
+            this._lang   = v;
+            this._labels = { ...getLabels(v) };
+        }
+    }
+
+    get i18n() { return this._labels; }
 
     get objectTypeOptions() {
         const t = this.i18n;
@@ -91,18 +117,55 @@ export default class MergeTicketList extends LightningElement {
 
     async _loadTickets() {
         this.isLoading = true;
+        const cursor = this._cursors[this._currentPageIdx] ?? null;
         try {
-            this._tickets = await getTickets({
-                objectType:   this.objectTypeFilter,
-                statusFilter: this.statusFilter
-            });
+            // Candidate name search runs in its own transaction (own 50k governor limit).
+            // Must resolve first so both getTickets and getTicketCount receive the same IDs.
+            const candidateTicketIds = this.searchTerm
+                ? await resolveSearchIds({ searchTerm: this.searchTerm })
+                : null;
+            this._lastCandidateIds = candidateTicketIds;
+
+            const params = {
+                objectType:         this.objectTypeFilter,
+                statusFilter:       this.statusFilter,
+                searchTerm:         this.searchTerm || null,
+                candidateTicketIds: candidateTicketIds,
+                cursorTimestamp:    cursor ? cursor.ts : null,
+                cursorId:           cursor ? cursor.id : null
+            };
+            const [tickets, count] = await Promise.all([
+                getTickets(params),
+                getTicketCount({
+                    objectType:         params.objectType,
+                    statusFilter:       params.statusFilter,
+                    searchTerm:         params.searchTerm,
+                    candidateTicketIds: params.candidateTicketIds
+                })
+            ]);
+            this._tickets    = tickets;
+            this._totalCount = count ?? 0;
+            // Keyset: store cursor for the next page when we got a full page (search or not)
+            if (tickets.length === PAGE_SIZE
+                    && this._currentPageIdx + 1 >= this._cursors.length) {
+                const last = tickets[tickets.length - 1];
+                const newCursors = [...this._cursors];
+                newCursors.push({ ts: new Date(last.LastModifiedDate).getTime(), id: last.Id });
+                this._cursors = newCursors;
+            }
             this.errorMessage = null;
         } catch (err) {
             this.errorMessage = err.body?.message || this.i18n.errLoading;
-            this._tickets = [];
+            this._tickets    = [];
+            this._totalCount = 0;
         } finally {
             this.isLoading = false;
         }
+    }
+
+    _resetPagination() {
+        this._currentPageIdx = 0;
+        this._cursors = [null];
     }
 
     // ── Computed getters ──────────────────────────────────────────────────────
@@ -110,8 +173,7 @@ export default class MergeTicketList extends LightningElement {
     get enrichedTickets() {
         const data = this._tickets;
         if (!data || !data.length) return [];
-        const term = (this.searchTerm || '').toLowerCase().trim();
-        const t    = this.i18n;
+        const t = this.i18n;
         return data
             .map(ticket => {
                 const raw = ticket.Merge_Candidates__r;
@@ -123,14 +185,16 @@ export default class MergeTicketList extends LightningElement {
                     .filter(Boolean);
                 const matchTypeKey = MATCH_TYPE_KEY[ticket.Match_Type__c];
                 const closedReasonKey = CLOSED_REASON_KEY[ticket.Closed_Reason__c];
+                const aging = this._agingBadge(ticket.Status__c, ticket.CreatedDate, t);
+                const statusKey = STATUS_BADGE_KEY[ticket.Status__c];
                 return {
                     ...ticket,
                     matchValue:       this._extractMatchValue(ticket.Match_Key__c) || ticket.Name,
                     typeIcon:         ticket.Object_Type__c === 'Account' ? 'standard:account' : 'standard:contact',
                     matchTypeLabel:   matchTypeKey ? t[matchTypeKey] : (ticket.Match_Type__c || ''),
                     confidenceClass:  CONFIDENCE_CLASS[ticket.Match_Confidence__c] || 'slds-badge ticket-badge',
-                    statusClass:      STATUS_CLASS[ticket.Status__c] || 'slds-badge ticket-badge',
-                    statusBadgeLabel: STATUS_BADGE_LABEL[ticket.Status__c] || ticket.Status__c,
+                    statusClass:      aging ? aging.statusClass : (STATUS_CLASS[ticket.Status__c] || 'slds-badge ticket-badge'),
+                    statusBadgeLabel: aging ? aging.statusLabel : (statusKey ? t[statusKey] : ticket.Status__c),
                     errorTooltip:     ticket.Status__c === 'Error' && ticket.Error_Message__c ? ticket.Error_Message__c : null,
                     closedReasonLabel: ticket.Closed_Reason__c
                         ? (closedReasonKey ? t[closedReasonKey] : ticket.Closed_Reason__c)
@@ -145,10 +209,9 @@ export default class MergeTicketList extends LightningElement {
                 };
             })
             .filter(ticket => {
+                // closedReason is client-side (fast dropdown); text search is server-side
                 if (this.closedReasonFilter && ticket.Closed_Reason__c !== this.closedReasonFilter) return false;
-                if (!term) return true;
-                return ticket.matchValue.toLowerCase().includes(term)
-                    || ticket.candidateLabel.toLowerCase().includes(term);
+                return true;
             });
     }
 
@@ -165,12 +228,34 @@ export default class MergeTicketList extends LightningElement {
     }
 
     get countLabel() {
-        const filtered = this.enrichedTickets.length;
-        const total    = this._tickets?.length ?? 0;
-        const suffix   = this.i18n.casFound;
-        return this.searchTerm
-            ? `${filtered} / ${total} ${suffix}`
-            : `${total} ${suffix}`;
+        const loaded = this._tickets?.length ?? 0;
+        const total  = this._totalCount > 0 ? this._totalCount : loaded;
+        const base   = `${total.toLocaleString()} ${this.i18n.casFound}`;
+        if (loaded > 0 && loaded < total) {
+            return `${base} ${this.i18n.casShowing.replace('{0}', loaded.toLocaleString())}`;
+        }
+        return base;
+    }
+
+    get _totalPages() {
+        return Math.max(1, Math.ceil((this._totalCount || 1) / PAGE_SIZE));
+    }
+
+    get pageLabel() {
+        return `${this._currentPageIdx + 1}/${this._totalPages}`;
+    }
+
+    get showPageNav() {
+        return this._totalPages > 1;
+    }
+
+    get isPrevDisabled() {
+        return this._currentPageIdx === 0;
+    }
+
+    get isNextDisabled() {
+        return this._tickets.length < PAGE_SIZE
+            || this._currentPageIdx + 1 >= this._cursors.length;
     }
 
     get isEmpty() {
@@ -183,12 +268,14 @@ export default class MergeTicketList extends LightningElement {
 
     handleObjectTypeChange(event) {
         this.objectTypeFilter = event.detail.value;
+        this._resetPagination();
         this._loadTickets();
     }
 
     handleStatusChange(event) {
         this.statusFilter       = event.detail.value;
         this.closedReasonFilter = null;
+        this._resetPagination();
         this._loadTickets();
     }
 
@@ -196,26 +283,126 @@ export default class MergeTicketList extends LightningElement {
         this.closedReasonFilter = event.detail.value || null;
     }
 
-    handleSearchChange(event) { this.searchTerm = event.target.value; }
+    get hasSearch() { return !!this.searchTerm; }
+
+    handleSearchChange(event) {
+        this.searchTerm = event.target.value;
+        if (this._searchTimer) clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => {
+            this._resetPagination();
+            this._loadTickets();
+        }, 400);
+    }
+
+    handleClearSearch() {
+        this.searchTerm = '';
+        const input = this.template.querySelector('.ticket-list__search-input');
+        if (input) input.value = '';
+        if (this._searchTimer) clearTimeout(this._searchTimer);
+        this._resetPagination();
+        this._loadTickets();
+    }
+
+    handlePrevPage() {
+        if (!this.isPrevDisabled) {
+            this._currentPageIdx--;
+            this._loadTickets();
+        }
+    }
+
+    handleNextPage() {
+        if (!this.isNextDisabled) {
+            this._currentPageIdx++;
+            this._loadTickets();
+        }
+    }
+
+    handlePageLabelClick() {
+        this._editingPage = true;
+        Promise.resolve().then(() => {
+            const inp = this.template.querySelector('.page-nav-input');
+            if (inp) {
+                inp.value = this._currentPageIdx + 1;
+                inp.select();
+                inp.focus();
+            }
+        });
+    }
+
+    handlePageInputBlur() {
+        this._editingPage = false;
+    }
+
+    async handlePageInputKey(event) {
+        if (event.key === 'Escape') {
+            this._editingPage = false;
+            return;
+        }
+        if (event.key !== 'Enter') return;
+        const target = parseInt(event.target.value, 10);
+        this._editingPage = false;
+        if (isNaN(target) || target < 1 || target > this._totalPages) return;
+        if (target - 1 !== this._currentPageIdx) {
+            await this._jumpToPage(target - 1);
+        }
+    }
+
+    async _jumpToPage(targetIdx) {
+        this.isLoading = true;
+        // Silently prefetch cursors for intermediate pages not yet visited
+        while (this._cursors.length <= targetIdx) {
+            const cursorIdx = this._cursors.length - 1;
+            const cursor    = this._cursors[cursorIdx];
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const intermediate = await getTickets({
+                    objectType:         this.objectTypeFilter,
+                    statusFilter:       this.statusFilter,
+                    searchTerm:         this.searchTerm || null,
+                    candidateTicketIds: this._lastCandidateIds,
+                    cursorTimestamp:    cursor ? cursor.ts : null,
+                    cursorId:           cursor ? cursor.id : null
+                });
+                if (intermediate.length === PAGE_SIZE) {
+                    const last = intermediate[intermediate.length - 1];
+                    const next = [...this._cursors];
+                    next.push({ ts: new Date(last.LastModifiedDate).getTime(), id: last.Id });
+                    this._cursors = next;
+                } else {
+                    break; // reached actual last page
+                }
+            } catch (err) {
+                this.isLoading = false;
+                return;
+            }
+        }
+        this._currentPageIdx = Math.min(targetIdx, this._cursors.length - 1);
+        this._loadTickets();
+    }
 
     handleTicketClick(event) {
         const ticketId    = event.currentTarget.dataset.id;
         const ticketLabel = event.currentTarget.dataset.label;
         const matchType   = event.currentTarget.dataset.matchtype;
+        const objectType  = event.currentTarget.dataset.objecttype;
         this.dispatchEvent(new CustomEvent('ticketselect', {
-            detail: { ticketId, ticketLabel, matchType }
+            detail: { ticketId, ticketLabel, matchType, objectType }
         }));
     }
 
     @api get currentObjectType() { return this.objectTypeFilter; }
 
-    handleRefresh() { this._loadTickets(); }
+    handleRefresh() {
+        this._resetPagination();
+        this._loadTickets();
+    }
 
     @api
     refresh(objectType) {
         if (objectType && typeof objectType === 'string') {
             this.objectTypeFilter = objectType;
         }
+        this._resetPagination();
         this._loadTickets();
     }
 
@@ -226,6 +413,7 @@ export default class MergeTicketList extends LightningElement {
         const t = this.i18n;
         try {
             await reopenTicketApex({ ticketId });
+            this._resetPagination();
             this._loadTickets();
             this.dispatchEvent(new CustomEvent('ticketreopened', { detail: { ticketId }, bubbles: true, composed: true }));
             this.dispatchEvent(new ShowToastEvent({
@@ -257,6 +445,18 @@ export default class MergeTicketList extends LightningElement {
         return id === this.selectedTicketId
             ? `${base} ticket-list__item_selected`
             : base;
+    }
+
+    _agingBadge(status, createdDate, t) {
+        if (status !== 'New' || !createdDate) return null;
+        const days = Math.floor((Date.now() - new Date(createdDate).getTime()) / 86400000);
+        if (days >= NEW_TICKET_AGE_DAYS.STALE) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_stale', statusLabel: t.statusStale };
+        }
+        if (days >= NEW_TICKET_AGE_DAYS.PENDING) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_pending', statusLabel: t.statusPending };
+        }
+        return null;
     }
 
     _relativeDate(iso, t) {

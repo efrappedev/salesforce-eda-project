@@ -109,7 +109,35 @@ public without sharing class RelatedRecordsService {
             }
         }
 
+        if (parentType == 'Account') {
+            if (gd.containsKey('hed__affiliation__c')) {
+                configs.add(new RelatedObjectConfig(
+                    'hed__Affiliation__c', 'hed__Account__c',
+                    null, null, 'Affiliations'
+                ));
+            }
+        }
+
         return configs;
+    }
+
+    // ─── Public config accessor (used by MergeController for comparison + undo) ─
+
+    /**
+     * Returns the active configs for parentType as simple maps
+     * {apiName, lookupField, label} — same source as getBulkCounts().
+     */
+    public static List<Map<String,String>> getConfigsForComparison(String parentType) {
+        List<RelatedObjectConfig> configs = getObjectConfigs(parentType);
+        List<Map<String,String>> result = new List<Map<String,String>>();
+        for (RelatedObjectConfig c : configs) {
+            result.add(new Map<String,String>{
+                'apiName'     => c.objectApiName,
+                'lookupField' => c.parentField,
+                'label'       => c.displayLabel
+            });
+        }
+        return result;
     }
 
     // ─── Public API ────────────────────────────────────────────────────────────
@@ -157,7 +185,22 @@ public without sharing class RelatedRecordsService {
         Map<String,Schema.SObjectType> gd = gd();
 
         for (RelatedObjectConfig cfg : configs) {
-            if (!gd.containsKey(cfg.objectApiName.toLowerCase())) continue;
+            Schema.SObjectType cfgType = gd.get(cfg.objectApiName?.toLowerCase());
+            if (cfgType == null) continue;
+            Schema.DescribeSObjectResult cfgDesc = cfgType.getDescribe();
+            // Defense in depth: saveObjectConfigsBatch() already validates apiName/
+            // lookupField against schema before persisting, but cfg.parentField/
+            // statusField are concatenated raw into dynamic SOQL below — re-validate
+            // here too in case a row was ever written some other way.
+            if (!cfgDesc.isAccessible()) continue;
+            Map<String,Schema.SObjectField> cfgFields = cfgDesc.fields.getMap();
+            Schema.SObjectField parentFieldDesc = String.isBlank(cfg.parentField)
+                ? null : cfgFields.get(cfg.parentField.toLowerCase());
+            if (parentFieldDesc == null || !parentFieldDesc.getDescribe().isAccessible()) continue;
+            if (cfg.statusField != null) {
+                Schema.SObjectField statusFieldDesc = cfgFields.get(cfg.statusField.toLowerCase());
+                if (statusFieldDesc == null || !statusFieldDesc.getDescribe().isAccessible()) continue;
+            }
 
             Map<Id, MergeWrappers.RelatedCount> countByRecord =
                 new Map<Id, MergeWrappers.RelatedCount>();
@@ -173,11 +216,13 @@ public without sharing class RelatedRecordsService {
                     throw new IllegalArgumentException('test-induced');
                 }
 
+                String safeObj    = String.escapeSingleQuotes(cfg.objectApiName);
+                String safeParent = String.escapeSingleQuotes(cfg.parentField);
                 String totalQ =
-                    'SELECT ' + cfg.parentField + ' pid, COUNT(Id) total ' +
-                    'FROM '   + cfg.objectApiName + ' ' +
-                    'WHERE '  + cfg.parentField + ' IN :recordIds ' +
-                    'GROUP BY ' + cfg.parentField;
+                    'SELECT ' + safeParent + ' pid, COUNT(Id) total ' +
+                    'FROM '   + safeObj + ' ' +
+                    'WHERE '  + safeParent + ' IN :recordIds ' +
+                    'GROUP BY ' + safeParent;
                 List<AggregateResult> totalRows =
                     (TEST_TOTAL_RESULTS != null && TEST_TOTAL_RESULTS.containsKey(cfg.objectApiName))
                     ? TEST_TOTAL_RESULTS.get(cfg.objectApiName)
@@ -199,12 +244,13 @@ public without sharing class RelatedRecordsService {
                             cfg.activeKeywords
                         );
                         if (!activeVals.isEmpty()) {
+                            String safeStatus = String.escapeSingleQuotes(cfg.statusField);
                             String activeQ =
-                                'SELECT ' + cfg.parentField + ' pid, COUNT(Id) total ' +
-                                'FROM '   + cfg.objectApiName + ' ' +
-                                'WHERE '  + cfg.parentField + ' IN :recordIds ' +
-                                'AND '    + cfg.statusField  + ' IN :activeVals ' +
-                                'GROUP BY ' + cfg.parentField;
+                                'SELECT ' + safeParent + ' pid, COUNT(Id) total ' +
+                                'FROM '   + safeObj + ' ' +
+                                'WHERE '  + safeParent + ' IN :recordIds ' +
+                                'AND '    + safeStatus  + ' IN :activeVals ' +
+                                'GROUP BY ' + safeParent;
                             List<AggregateResult> activeRows =
                                 (TEST_ACTIVE_RESULTS != null && TEST_ACTIVE_RESULTS.containsKey(cfg.objectApiName))
                                 ? TEST_ACTIVE_RESULTS.get(cfg.objectApiName)

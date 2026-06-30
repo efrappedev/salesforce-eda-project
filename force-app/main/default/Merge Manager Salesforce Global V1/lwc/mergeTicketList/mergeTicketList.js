@@ -49,6 +49,10 @@ const STATUS_BADGE_LABEL = {
     'Error':     'Error'
 };
 
+// "New"/"Reopened" tickets get reclassified into Pending/Stale the longer
+// they sit untouched. Status__c itself never changes — display-only.
+const NEW_TICKET_AGE_DAYS = { PENDING: 3, STALE: 8 };
+
 export default class MergeTicketList extends LightningElement {
     @api selectedTicketId;
     @api lang = 'fr';
@@ -123,14 +127,15 @@ export default class MergeTicketList extends LightningElement {
                     .filter(Boolean);
                 const matchTypeKey = MATCH_TYPE_KEY[ticket.Match_Type__c];
                 const closedReasonKey = CLOSED_REASON_KEY[ticket.Closed_Reason__c];
+                const aging = this._agingBadge(ticket.Status__c, ticket.CreatedDate);
                 return {
                     ...ticket,
                     matchValue:       this._extractMatchValue(ticket.Match_Key__c) || ticket.Name,
                     typeIcon:         ticket.Object_Type__c === 'Account' ? 'standard:account' : 'standard:contact',
                     matchTypeLabel:   matchTypeKey ? t[matchTypeKey] : (ticket.Match_Type__c || ''),
                     confidenceClass:  CONFIDENCE_CLASS[ticket.Match_Confidence__c] || 'slds-badge ticket-badge',
-                    statusClass:      STATUS_CLASS[ticket.Status__c] || 'slds-badge ticket-badge',
-                    statusBadgeLabel: STATUS_BADGE_LABEL[ticket.Status__c] || ticket.Status__c,
+                    statusClass:      aging ? aging.statusClass : (STATUS_CLASS[ticket.Status__c] || 'slds-badge ticket-badge'),
+                    statusBadgeLabel: aging ? aging.statusLabel : (STATUS_BADGE_LABEL[ticket.Status__c] || ticket.Status__c),
                     errorTooltip:     ticket.Status__c === 'Error' && ticket.Error_Message__c ? ticket.Error_Message__c : null,
                     closedReasonLabel: ticket.Closed_Reason__c
                         ? (closedReasonKey ? t[closedReasonKey] : ticket.Closed_Reason__c)
@@ -257,6 +262,20 @@ export default class MergeTicketList extends LightningElement {
         return id === this.selectedTicketId
             ? `${base} ticket-list__item_selected`
             : base;
+    }
+
+    // 'New'/'Reopened' tickets get reclassified into Pending/Stale the longer
+    // they sit untouched. Status__c itself never changes — display-only.
+    _agingBadge(status, createdDate) {
+        if ((status !== 'New' && status !== 'Reopened') || !createdDate) return null;
+        const days = Math.floor((Date.now() - new Date(createdDate).getTime()) / 86400000);
+        if (days >= NEW_TICKET_AGE_DAYS.STALE) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_stale', statusLabel: 'Stale' };
+        }
+        if (days >= NEW_TICKET_AGE_DAYS.PENDING) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_pending', statusLabel: 'Pending' };
+        }
+        return null;
     }
 
     _relativeDate(iso, t) {

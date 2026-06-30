@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <description>Cuando se elimina una EDA Address, si era la Additional Address del Account padre, busca otra Address para reemplazarla o limpia el campo.</description>
+    <environments>Default</environments>
+    <interviewLabel>EDA Address - Cleanup Additional Address on Delete {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>EDA Address - Cleanup Additional Address on Delete</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+
+    <!-- ── DECISIONS (agrupadas) ── -->
+
+    <decisions>
+        <name>Account_Found</name>
+        <label>Account Found?</label>
+        <locationX>176</locationX>
+        <locationY>323</locationY>
+        <defaultConnectorLabel>No — Account no tiene esta como Additional Address</defaultConnectorLabel>
+        <rules>
+            <name>Account_Found_YES</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Account.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Other_Address</targetReference>
+            </connector>
+            <label>Sí — este Address era la Additional Address</label>
+        </rules>
+    </decisions>
+
+    <decisions>
+        <name>Other_Address_Found</name>
+        <label>Other Address Found?</label>
+        <locationX>176</locationX>
+        <locationY>539</locationY>
+        <defaultConnectorLabel>No — limpiar campo</defaultConnectorLabel>
+        <defaultConnector>
+            <targetReference>Update_Account_Clear</targetReference>
+        </defaultConnector>
+        <rules>
+            <name>Other_Address_Found_YES</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Other_Address.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Update_Account_With_Other_Address</targetReference>
+            </connector>
+            <label>Sí — reemplazar con otra Address</label>
+        </rules>
+    </decisions>
+
+    <!-- ── RECORD LOOKUPS (agrupados) ── -->
+
+    <recordLookups>
+        <name>Get_Account</name>
+        <label>Get Account</label>
+        <locationX>176</locationX>
+        <locationY>215</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Account_Found</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.hed__Parent_Account__c</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Additional_Address__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Account</object>
+        <queriedFields>Id</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <recordLookups>
+        <name>Get_Other_Address</name>
+        <label>Get Other Address</label>
+        <locationX>176</locationX>
+        <locationY>431</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Other_Address_Found</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>hed__Parent_Account__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.hed__Parent_Account__c</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Id</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>hed__Address__c</object>
+        <queriedFields>Id</queriedFields>
+        <sortField>CreatedDate</sortField>
+        <sortOrder>Desc</sortOrder>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <!-- ── RECORD UPDATES (agrupados) ── -->
+
+    <recordUpdates>
+        <name>Update_Account_With_Other_Address</name>
+        <label>Update Account with Other Address</label>
+        <locationX>56</locationX>
+        <locationY>647</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.hed__Parent_Account__c</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Additional_Address__c</field>
+            <value>
+                <elementReference>Get_Other_Address.Id</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+
+    <recordUpdates>
+        <name>Update_Account_Clear</name>
+        <label>Update Account — Clear Additional Address</label>
+        <locationX>296</locationX>
+        <locationY>647</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.hed__Parent_Account__c</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Additional_Address__c</field>
+            <value>
+                <elementReference>vNullId</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Account</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>hed__Parent_Account__c</field>
+            <operator>IsNull</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
+        <object>hed__Address__c</object>
+        <recordTriggerType>Delete</recordTriggerType>
+        <triggerType>RecordBeforeDelete</triggerType>
+    </start>
+    <status>Active</status>
+
+    <!-- ── VARIABLES (agrupadas) ── -->
+
+    <variables>
+        <name>vNullId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+</Flow>

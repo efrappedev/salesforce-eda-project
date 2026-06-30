@@ -33,6 +33,11 @@ const MATCH_TYPE_LABEL = {
     Email: 'Courriel', Phone: 'Téléphone', Name: 'Nom', Mixed: 'Mixte'
 };
 
+// ── "New" ticket aging — a ticket sitting untouched stops being "New" ─────────
+// Status__c itself is untouched (still 'New' in the DB); this only changes the
+// badge shown so stale tickets stand out. Thresholds in days since CreatedDate.
+const NEW_TICKET_AGE_DAYS = { PENDING: 3, STALE: 8 };
+
 export default class MergeTicketList extends LightningElement {
     @api selectedTicketId;
 
@@ -97,13 +102,15 @@ export default class MergeTicketList extends LightningElement {
                 const candidateNames = candidates
                     .map(c => c.Record_Name__c)
                     .filter(Boolean);
+                const aging = this._agingBadge(t.Status__c, t.CreatedDate);
                 return {
                     ...t,
                     matchValue:       this._extractMatchValue(t.Match_Key__c) || t.Name,
                     typeIcon:         t.Object_Type__c === 'Account' ? 'standard:account' : 'standard:contact',
                     matchTypeLabel:   MATCH_TYPE_LABEL[t.Match_Type__c] || t.Match_Type__c,
                     confidenceClass:  CONFIDENCE_CLASS[t.Match_Confidence__c] || 'slds-badge ticket-badge',
-                    statusClass:      STATUS_CLASS[t.Status__c] || 'slds-badge ticket-badge',
+                    statusClass:      aging ? aging.statusClass : (STATUS_CLASS[t.Status__c] || 'slds-badge ticket-badge'),
+                    statusBadgeLabel: aging ? aging.statusLabel : t.Status__c,
                     errorTooltip:     t.Status__c === 'Error' && t.Error_Message__c ? t.Error_Message__c : null,
                     closedReasonLabel: t.Closed_Reason__c ? (CLOSED_REASON_LABELS[t.Closed_Reason__c] || t.Closed_Reason__c) : null,
                     canReopen:        t.Status__c === 'Ignored',
@@ -223,6 +230,20 @@ export default class MergeTicketList extends LightningElement {
         return id === this.selectedTicketId
             ? `${base} ticket-list__item_selected`
             : base;
+    }
+
+    // 'New' tickets get reclassified into Pending/Stale the longer they sit
+    // untouched. Status__c itself never changes — this is display-only.
+    _agingBadge(status, createdDate) {
+        if (status !== 'New' || !createdDate) return null;
+        const days = Math.floor((Date.now() - new Date(createdDate).getTime()) / 86400000);
+        if (days >= NEW_TICKET_AGE_DAYS.STALE) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_stale', statusLabel: 'Stale' };
+        }
+        if (days >= NEW_TICKET_AGE_DAYS.PENDING) {
+            return { statusClass: 'slds-badge ticket-badge ticket-badge_pending', statusLabel: 'Pending' };
+        }
+        return null;
     }
 
     _relativeDate(iso) {

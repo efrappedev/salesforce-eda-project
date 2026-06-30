@@ -6,6 +6,38 @@
     overflow: hidden;
 }
 
+.mobile-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: #f3f2f2;
+    border-radius: 8px;
+}
+
+.mobile-block__icon {
+    margin-bottom: 1.25rem;
+    --slds-c-icon-color-foreground: #0176d3;
+}
+
+.mobile-block__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #3e3e3c;
+    margin: 0 0 0.5rem 0;
+}
+
+.mobile-block__msg {
+    font-size: 0.875rem;
+    color: #706e6b;
+    max-width: 280px;
+    line-height: 1.5;
+    margin: 0;
+}
+
 .merge-manager {
     display: flex;
     flex-direction: column;
@@ -52,9 +84,16 @@
 
 /* ── Tab bar ──────────────────────────────────────────────────────────────── */
 
-.mm-tabs {
+.mm-tabs-nav {
     display: flex;
     flex-shrink: 0;
+    align-items: stretch;
+}
+
+.mm-tabs {
+    display: flex;
+    flex: 1;
+    min-width: 0;
     align-items: stretch;
     background: #f3f2f2;
     border-bottom: 1px solid #dddbda;
@@ -63,9 +102,28 @@
     min-height: 2rem;
 }
 
-/* Hide scrollbar on the tab strip (aesthetic only) */
-.mm-tabs::-webkit-scrollbar { height: 3px; }
-.mm-tabs::-webkit-scrollbar-thumb { background: #c9c7c5; border-radius: 2px; }
+.mm-tabs::-webkit-scrollbar { height: 6px; }
+.mm-tabs::-webkit-scrollbar-thumb { background: #9b9997; border-radius: 3px; }
+.mm-tabs::-webkit-scrollbar-track { background: #e8e7e6; }
+
+.mm-tabs-arrow {
+    flex-shrink: 0;
+    background: #e8e7e6;
+    border: none;
+    border-bottom: 1px solid #dddbda;
+    cursor: pointer;
+    font-size: 1.25rem;
+    color: #706e6b;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    min-width: 28px;
+}
+.mm-tabs-arrow:hover { background: #d8d7d6; color: #0176d3; }
+.mm-tabs-arrow_left  { border-right: 1px solid #dddbda; }
+.mm-tabs-arrow_right { border-left:  1px solid #dddbda; }
 
 .mm-tab {
     display: inline-flex;

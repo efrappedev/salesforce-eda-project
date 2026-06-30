@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PRE-deploy: se borra ANTES de desplegar el código nuevo.
+     Los registros CMDT se deben borrar antes que el tipo. -->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Field_Sync_Mapping.Sync_AEBEQ</members>
+        <members>Field_Sync_Mapping.Sync_ID_Prodon</members>
+        <members>Field_Sync_Mapping.Sync_SEMBEQ</members>
+        <name>CustomMetadata</name>
+    </types>
+    <version>64.0</version>
+</Package>

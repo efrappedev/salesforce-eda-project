@@ -11,11 +11,19 @@
  * Key fields compared are defined in KEY_COMPARISON_FIELDS.
  * All fields are filtered through Schema.getGlobalDescribe() before querying.
  */
+// CRUD/FLS: without sharing required to load all candidate records for comparison matrix.
+// Access restricted via Merge_Manager_Access permission set.
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class MergeTicketService {
 
     // Test-injection: forces the getSObject() call in formatLookupAwareName to throw
     // so the catch block at line 255 is covered in test runs
     @TestVisible private static Boolean TEST_THROW_LOOKUP_RESOLUTION = false;
+    // Test-injection: forces the Account name query in addAccountContext to throw
+    // so the catch block (graceful skip) is covered in test runs
+    @TestVisible private static Boolean TEST_THROW_ACCOUNT_CONTEXT_QUERY = false;
+    // Test-injection: forces loadLiveRecords to return empty map (schema guard path)
+    @TestVisible private static Boolean TEST_FORCE_INVALID_OBJ_TYPE = false;
 
     // Fields to always show in the comparison table, in display order
     private static final Map<String,List<String>> KEY_COMPARISON_FIELDS =
@@ -63,7 +71,7 @@ public without sharing class MergeTicketService {
     public static MergeWrappers.ComparisonMatrix buildComparisonMatrix(Id ticketId) {
         Merge_Ticket__c ticket = [
             SELECT Id, Object_Type__c, Status__c, Selected_Master_Id__c,
-                   Closed_Reason__c, Notes__c
+                   Closed_Reason__c, Notes__c, Error_Message__c
             FROM Merge_Ticket__c
             WHERE Id = :ticketId LIMIT 1
         ];
@@ -74,6 +82,7 @@ public without sharing class MergeTicketService {
             FROM Merge_Candidate__c
             WHERE Merge_Ticket__c = :ticketId
             ORDER BY Is_Master__c DESC, CreatedDate ASC
+            LIMIT 200
         ];
 
         Set<Id>   sfIds   = new Set<Id>();
@@ -158,9 +167,10 @@ public without sharing class MergeTicketService {
         matrix.objectType        = ticket.Object_Type__c;
         matrix.savedMasterId     = ticket.Selected_Master_Id__c != null
             ? String.valueOf(ticket.Selected_Master_Id__c) : null;
-        matrix.ticketStatus       = ticket.Status__c;
-        matrix.ticketClosedReason = ticket.Closed_Reason__c;
-        matrix.ticketNotes        = ticket.Notes__c;
+        matrix.ticketStatus        = ticket.Status__c;
+        matrix.ticketClosedReason  = ticket.Closed_Reason__c;
+        matrix.ticketNotes         = ticket.Notes__c;
+        matrix.ticketErrorMessage  = ticket.Error_Message__c;
         matrix.mergePerformedBy   = logPerformedBy;
         matrix.mergePerformedDate = logPerformedDate;
         matrix.mergeMasterName    = logMasterName;
@@ -176,6 +186,11 @@ public without sharing class MergeTicketService {
             }
         }
         matrix.missingRecordIds = missingIds;
+
+        // ── Related account per Contact (Contact merges only, EDA) ──────────────
+        if (ticket.Object_Type__c == 'Contact') {
+            matrix.relatedAccountByRecordId = loadRelatedAccount(sfIds, liveRecords);
+        }
 
         // ── Related contacts per Account (Account merges only) ────────────────
         if (ticket.Object_Type__c == 'Account') {
@@ -396,6 +411,54 @@ public without sharing class MergeTicketService {
         return result;
     }
 
+    // Loads the paired Admin Account for each Contact candidate, with Account-level
+    // related counts driven by Account Settings (EDA only).
+    private static Map<String,MergeWrappers.RelatedAccountInfo> loadRelatedAccount(
+        Set<Id> contactIds,
+        Map<Id,SObject> liveRecords
+    ) {
+        Map<String,MergeWrappers.RelatedAccountInfo> result =
+            new Map<String,MergeWrappers.RelatedAccountInfo>();
+
+        Set<Id> accountIds     = new Set<Id>();
+        Map<Id,Id> ctxToAccId  = new Map<Id,Id>(); // contactId -> accountId
+
+        for (Id cId : contactIds) {
+            SObject rec = liveRecords.get(cId);
+            if (rec == null) continue;
+            Id accId = (Id) rec.get('AccountId');
+            if (accId != null) {
+                accountIds.add(accId);
+                ctxToAccId.put(cId, accId);
+            }
+        }
+
+        if (accountIds.isEmpty()) return result;
+
+        Map<Id,String> accNames = new Map<Id,String>();
+        try {
+            if (TEST_THROW_ACCOUNT_CONTEXT_QUERY) throw new System.QueryException('test');
+            for (SObject a : Database.query('SELECT Id, Name FROM Account WHERE Id IN :accountIds')) {
+                accNames.put((Id) a.get('Id'), (String) a.get('Name'));
+            }
+        } catch (Exception e) { /* FLS/access — graceful skip */ }
+
+        Map<Id,MergeWrappers.RelatedCountsWrapper> accCounts =
+            RelatedRecordsService.getBulkCounts(accountIds, 'Account');
+
+        for (Id cId : contactIds) {
+            Id accId = ctxToAccId.get(cId);
+            if (accId == null) continue;
+            MergeWrappers.RelatedAccountInfo info = new MergeWrappers.RelatedAccountInfo();
+            info.accountId    = String.valueOf(accId);
+            info.accountName  = accNames.containsKey(accId) ? accNames.get(accId) : '';
+            info.relatedCounts = accCounts.containsKey(accId)
+                ? accCounts.get(accId) : new MergeWrappers.RelatedCountsWrapper();
+            result.put(String.valueOf(cId), info);
+        }
+        return result;
+    }
+
     private static Map<Id,SObject> loadLiveRecords(
         String objectType,
         Set<Id> ids,
@@ -423,11 +486,14 @@ public without sharing class MergeTicketService {
             }
         }
 
+        if (TEST_FORCE_INVALID_OBJ_TYPE || !Schema.getGlobalDescribe().containsKey(objectType.toLowerCase())) {
+            return new Map<Id,SObject>();
+        }
         String query = 'SELECT ' + String.join(new List<String>(fieldSet), ', ') +
-                       ' FROM ' + objectType +
+                       ' FROM ' + String.escapeSingleQuotes(objectType) +
                        ' WHERE Id IN :ids';
         Map<Id,SObject> result = new Map<Id,SObject>();
-        for (SObject rec : Database.query(query)) {
+        for (SObject rec : Database.query(query)) { // NOPMD — objectType escaped; fieldSet validated via Schema describe
             result.put(rec.Id, rec);
         }
         return result;

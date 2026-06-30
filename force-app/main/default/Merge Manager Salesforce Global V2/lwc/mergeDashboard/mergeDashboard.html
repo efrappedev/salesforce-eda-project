@@ -4,13 +4,22 @@
         <!-- Header -->
         <div class="dash-header">
             <span class="dash-title">{i18n.dashboardTab}</span>
-            <lightning-button-icon
-                icon-name="utility:refresh"
-                variant="border"
-                size="small"
-                title={i18n.dashboardRefresh}
-                onclick={handleRefresh}>
-            </lightning-button-icon>
+            <div class="dash-header__actions">
+                <lightning-button-icon
+                    icon-name="utility:color_swatch"
+                    variant="border"
+                    size="small"
+                    title={i18n.colorCustomize}
+                    onclick={handleOpenColorPanel}>
+                </lightning-button-icon>
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border"
+                    size="small"
+                    title={i18n.dashboardRefresh}
+                    onclick={handleRefresh}>
+                </lightning-button-icon>
+            </div>
         </div>
 
         <!-- Loading -->
@@ -200,7 +209,7 @@
                             <span class="dash-trend-win">{trendWindowLabel}</span>
                             <button class="dash-trend-nav-btn" disabled={navNextDisabled} onclick={handleTrendNext}>&#8250;</button>
                         </div>
-                        <!-- Grouped bars: Contact (blue) + Account (purple) side by side -->
+                        <!-- Grouped bars: Contact + Account side by side -->
                         <div class="dash-trend-cols">
                             <template for:each={trendData} for:item="m">
                                 <div key={m.key} class="dash-trend-col">
@@ -208,13 +217,13 @@
                                     <div class="dash-trend-grp">
                                         <div class="dash-trend-grp__bar">
                                             <template if:true={m.showContactCount}>
-                                                <div class="dash-trend-cnt dash-trend-cnt--c">{m.contactCount}</div>
+                                                <div class="dash-trend-cnt" style={m.contactCountStyle}>{m.contactCount}</div>
                                             </template>
                                             <div class="dash-trend-seg" style={m.contactBarStyle}></div>
                                         </div>
                                         <div class="dash-trend-grp__bar">
                                             <template if:true={m.showAccountCount}>
-                                                <div class="dash-trend-cnt dash-trend-cnt--a">{m.accountCount}</div>
+                                                <div class="dash-trend-cnt" style={m.accountCountStyle}>{m.accountCount}</div>
                                             </template>
                                             <div class="dash-trend-seg" style={m.accountBarStyle}></div>
                                         </div>
@@ -225,9 +234,9 @@
                         </div>
                         <!-- Legend -->
                         <div class="dash-trend-legend">
-                            <span class="dash-tl-dot dash-tl-dot--contact"></span>
+                            <span class="dash-tl-dot" style={trendLegendContactStyle}></span>
                             <span class="dash-tl-txt">{i18n.objectTypeContact}</span>
-                            <span class="dash-tl-dot dash-tl-dot--account"></span>
+                            <span class="dash-tl-dot" style={trendLegendAccountStyle}></span>
                             <span class="dash-tl-txt">{i18n.objectTypeAccount}</span>
                         </div>
                     </div>
@@ -235,5 +244,66 @@
 
             </div>
         </template>
+
+        <!-- ── Color customization panel ─────────────────────────────────────── -->
+        <template if:true={_showColorPanel}>
+            <div class="color-panel-backdrop" onclick={handleColorPanelBackdropClick}>
+                <div class="color-panel" onclick={handleColorPanelBodyClick}>
+                    <div class="color-panel__header">
+                        <span class="color-panel__title">{i18n.colorPanel}</span>
+                        <button class="color-panel__close" onclick={handleCloseColorPanel}>&#10005;</button>
+                    </div>
+                    <div class="color-panel__body">
+
+                        <!-- Section: Status -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionStatus}</div>
+                            <template for:each={colorPanelStatusRows} for:item="row">
+                                <div key={row.key} class="color-row">
+                                    <span class="color-swatch" style={row.swatchStyle}></span>
+                                    <span class="color-row__label">{row.label}</span>
+                                    <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Section: Contact / Account (donut + trend) -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionObjTrend}</div>
+                            <template for:each={colorPanelObjRows} for:item="row">
+                                <div key={row.key} class="color-row">
+                                    <span class="color-swatch" style={row.swatchStyle}></span>
+                                    <span class="color-row__label">{row.label}</span>
+                                    <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Section: Series (detection type + closed reasons bars) -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionSeries}</div>
+                            <div class="color-series-grid">
+                                <template for:each={colorPanelSeriesRows} for:item="row">
+                                    <div key={row.key} class="color-row color-row--compact">
+                                        <span class="color-swatch" style={row.swatchStyle}></span>
+                                        <span class="color-row__label">{row.label}</span>
+                                        <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="color-panel__footer">
+                        <button class="color-btn color-btn--reset" onclick={handleColorReset}>{i18n.colorReset}</button>
+                        <div class="color-panel__footer-right">
+                            <button class="color-btn color-btn--cancel" onclick={handleCloseColorPanel}>{i18n.cancel}</button>
+                            <button class="color-btn color-btn--save" onclick={handleColorSave}>{i18n.save}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
     </div>
 </template>

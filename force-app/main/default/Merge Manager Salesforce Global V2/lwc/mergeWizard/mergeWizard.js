@@ -2,12 +2,16 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
+import { getRecordUi } from 'lightning/uiRecordApi';
 import { getLabels, format } from 'c/i18n';
-import getComparisonMatrix            from '@salesforce/apex/MergeController.getComparisonMatrix';
-import getLoserSnapshotApex           from '@salesforce/apex/MergeController.getLoserSnapshot';
-import executeMergeApex               from '@salesforce/apex/MergeController.executeMerge';
-import dismissTicketApex              from '@salesforce/apex/MergeController.dismissTicket';
-import closeTicketApex                from '@salesforce/apex/MergeController.closeTicket';
+import getComparisonMatrix               from '@salesforce/apex/MergeController.getComparisonMatrix';
+import getRelatedRecordsComparisonApex   from '@salesforce/apex/MergeController.getRelatedRecordsComparison';
+import getLoserSnapshotApex              from '@salesforce/apex/MergeController.getLoserSnapshot';
+import executeMergeApex                  from '@salesforce/apex/MergeController.executeMerge';
+import undoMergeApex                     from '@salesforce/apex/MergeController.undoMerge';
+import dismissTicketApex                 from '@salesforce/apex/MergeController.dismissTicket';
+import closeTicketApex                   from '@salesforce/apex/MergeController.closeTicket';
+import reopenTicketApex                  from '@salesforce/apex/MergeController.reopenTicket';
 import deleteOrphanedAccountApex       from '@salesforce/apex/MergeController.deleteOrphanedAccount';
 import restoreDeletedAccountApex       from '@salesforce/apex/MergeController.restoreDeletedAccount';
 import getDeletedAccountsForTicketApex from '@salesforce/apex/MergeController.getDeletedAccountsForTicket';
@@ -53,6 +57,7 @@ const KEY_FIELD_DEF = [
 export default class MergeWizard extends NavigationMixin(LightningElement) {
     @api ticketId;
     @api lang = 'fr';
+    @api objectType = 'Contact';
 
     // ── Wizard state ─────────────────────────────────────────────────────────
     @track currentStep       = 1;
@@ -62,6 +67,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     @track mergeNotes        = '';
     @track isLoading         = false;
     @track isExecuting       = false;
+    @track isReopening       = false;
 
     // ── Dismiss modal ────────────────────────────────────────────────────────
     @track showDismissModal     = false;
@@ -99,15 +105,22 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     _wiredDeletedContacts;
     @track deletedContacts        = [];
 
-    // ── Record view modal ────────────────────────────────────────────────────
-    @track showRecordModal  = false;
+    // ── Candidate record / snapshot modal ───────────────────────────────────
     @track recordModalId    = null;
     @track recordModalName  = null;
+
+    get showCandidateModal() { return !!this.recordModalId; }
 
     // ── Snapshot view modal ──────────────────────────────────────────────────
     @track showSnapshotModal  = false;
     @track snapshotLoading    = false;
     @track snapshotData       = null;
+
+    // ── Related records (Step 2) ─────────────────────────────────────────────
+    _wiredRelated;
+    @track _relatedComparisons = [];
+    @track _relatedDeleteIds   = {};   // { recordId: true } for loser records to delete
+    @track undoConfirmMode     = false;
 
     // ── Data ─────────────────────────────────────────────────────────────────
     @track _matrix  = null;
@@ -155,7 +168,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         if (result.data) this.deletedAccounts = result.data;
     }
 
-    get hasDeletedAccounts() { return this.deletedAccounts.length > 0; }
+    get hasDeletedAccounts() { return this.isMergedTicket && this.deletedAccounts.length > 0; }
 
     @wire(getDeletedContactsForTicketApex, { ticketId: '$ticketId' })
     wiredDeletedContacts(result) {
@@ -163,7 +176,305 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         if (result.data) this.deletedContacts = result.data;
     }
 
-    get hasDeletedContacts() { return this.deletedContacts.length > 0; }
+    get hasDeletedContacts() { return this.isMergedTicket && this.deletedContacts.length > 0; }
+
+    // ── Wire: related records comparison ─────────────────────────────────────
+    @track _allRelatedIds = null;   // all IDs for bulk getRecordUi preview
+    @track _previewMap    = {};     // { id15 → [{label, value}] }
+
+    @wire(getRelatedRecordsComparisonApex, { ticketId: '$ticketId', masterId: '$masterId' })
+    wiredRelated(result) {
+        this._wiredRelated = result;
+        if (result.data) {
+            this._relatedComparisons = result.data;
+            this._relatedDeleteIds   = {};
+            this._previewMap         = {}; // reset while previews reload
+            // Collect all record IDs for bulk compact-layout preview
+            const ids = new Set();
+            for (const c of result.data) {
+                [...(c.masterRecords||[]), ...(c.loserRecords||[])].forEach(r => {
+                    if (r.recordId) ids.add(r.recordId);
+                });
+            }
+            this._allRelatedIds = ids.size > 0 ? [...ids] : null;
+        }
+    }
+
+    // Load compact layout data for ALL related records at once
+    @wire(getRecordUi, {
+        recordIds:   '$_allRelatedIds',
+        layoutTypes: ['Full'],
+        modes:       ['View']
+    })
+    wiredAllRelatedUi({ data }) {
+        if (data) this._previewMap = this._buildPreviewMap(data);
+    }
+
+    _buildPreviewMap(data) {
+        const map = {};
+        try {
+            const snap     = JSON.parse(JSON.stringify(data));
+            const recs     = snap.records     || {};
+            const objInfos = snap.objectInfos || {};
+            const layouts  = snap.layouts     || {};
+
+            const SKIP = new Set([
+                'Id', 'Name', 'RecordTypeId', 'OwnerId', 'IsDeleted',
+                'SystemModstamp', 'LastReferencedDate', 'LastViewedDate',
+                'CreatedById', 'LastModifiedById', 'LastActivityDate',
+                'CurrencyIsoCode', 'CreatedDate', 'LastModifiedDate',
+                'CreatedBy', 'LastModifiedBy'
+            ]);
+
+            const stripHtml = (s) =>
+                s.replace(/<br\s*\/?>/gi, ', ')
+                 .replace(/<[^>]*>/g, '')
+                 .replace(/,\s*,/g, ',')
+                 .trim();
+
+            const getRelName = (fields, relKey) => {
+                const r = fields[relKey];
+                if (!r) return null;
+                return r.displayValue
+                    || (typeof r.value === 'string' ? r.value : null)
+                    || r.value?.fields?.Name?.value
+                    || null;
+            };
+
+            // Field types that best identify a record (shown first)
+            const PRIORITY_TYPES = new Set([
+                'Reference', 'String', 'Picklist', 'MultiPicklist',
+                'Email', 'Phone', 'Url', 'TextArea', 'LongTextArea'
+            ]);
+
+            // Extract field names in page layout order from Full layout sections
+            const getLayoutOrder = (apiName, recFields) => {
+                const objLayouts = layouts[apiName] || {};
+                const rtKey = Object.keys(objLayouts)[0];
+                const viewLayout = rtKey ? objLayouts[rtKey]?.Full?.View : null;
+                if (!viewLayout?.sections || !Array.isArray(viewLayout.sections)) return null;
+                const ordered = [];
+                for (const section of viewLayout.sections) {
+                    for (const row of (section.layoutRows || [])) {
+                        for (const item of (row.layoutItems || [])) {
+                            for (const comp of (item.layoutComponents || [])) {
+                                const fn = comp.apiName;
+                                if (comp.componentType === 'Field' && fn
+                                    && !SKIP.has(fn) && recFields[fn]
+                                    && !fn.endsWith('__r')) {
+                                    ordered.push(fn);
+                                }
+                            }
+                        }
+                    }
+                }
+                return ordered.length > 0 ? ordered : null;
+            };
+
+            // Resolve a single field to its display value (or null if should skip)
+            const resolveVal = (fname, fval, recFields, fieldMeta) => {
+                if (fval.displayValue != null) return String(fval.displayValue);
+                if (fval.value == null || fval.value === false) return null;
+                if (typeof fval.value === 'boolean') return '✓';
+                if (typeof fval.value === 'object') return null;
+                if (fieldMeta.dataType === 'Reference') {
+                    const relKey = fname.endsWith('__c')
+                        ? fname.slice(0, -3) + '__r'
+                        : fname.replace(/Id$/, '');
+                    return getRelName(recFields, relKey) || null;
+                }
+                return String(fval.value);
+            };
+
+            const MAX_PREVIEW = 5;
+
+            for (const [id, rec] of Object.entries(recs)) {
+                const objFields = (objInfos[rec.apiName] || {}).fields || {};
+                const recFields = rec.fields || {};
+                const preview   = [];
+
+                const orderedKeys = getLayoutOrder(rec.apiName, recFields)
+                    || Object.keys(recFields).filter(f => !SKIP.has(f) && !f.endsWith('__r'));
+
+                // Two-pass: priority types first, then numeric/date to fill remaining slots
+                const secondary = [];
+                for (const fname of orderedKeys) {
+                    const fval = recFields[fname];
+                    if (!fval || SKIP.has(fname) || fname.endsWith('__r')) continue;
+                    const fieldMeta = objFields[fname] || {};
+                    let val = resolveVal(fname, fval, recFields, fieldMeta);
+                    if (!val) continue;
+                    if (val.includes('<')) val = stripHtml(val);
+                    if (!val) continue;
+                    const entry = { label: fieldMeta.label || fname, value: val };
+                    if (PRIORITY_TYPES.has(fieldMeta.dataType)) {
+                        if (preview.length < MAX_PREVIEW) preview.push(entry);
+                    } else {
+                        secondary.push(entry);
+                    }
+                }
+                // Fill remaining slots with secondary fields (dates, numbers)
+                for (const entry of secondary) {
+                    if (preview.length >= MAX_PREVIEW) break;
+                    preview.push(entry);
+                }
+
+                map[id.substring(0, 15).toLowerCase()] = preview;
+            }
+        } catch(e) { /* ignore */ }
+        return map;
+    }
+
+    get relatedCompGroups() {
+        if (!this._relatedComparisons || !this._relatedComparisons.length) return [];
+        const pm = this._previewMap;
+        const pf = (id) => pm[id?.substring(0, 15)?.toLowerCase()] || [];
+        return this._relatedComparisons
+            .map(c => ({
+                key:   c.apiName,
+                label: c.label,
+                masterRecords: c.masterRecords.map(r => {
+                    const previewFields = pf(r.recordId);
+                    return {
+                        ...r,
+                        objectApiName: c.apiName,
+                        objectLabel:   c.label,
+                        previewFields,
+                        hasPreview: previewFields.length > 0
+                    };
+                }),
+                loserRecords: c.loserRecords.map(r => {
+                    const previewFields = pf(r.recordId);
+                    return {
+                        recordId:      r.recordId,
+                        recordName:    r.recordName,
+                        hasConflict:   r.hasConflict,
+                        objectApiName: c.apiName,
+                        objectLabel:   c.label,
+                        deleteChecked: !!this._relatedDeleteIds[r.recordId],
+                        rowClass: r.hasConflict
+                            ? 'related-rec related-rec_conflict' : 'related-rec',
+                        previewFields,
+                        hasPreview: previewFields.length > 0
+                    };
+                }),
+                hasConflicts: c.loserRecords.some(r => r.hasConflict)
+            }));
+    }
+
+    // ── Record view modal ─────────────────────────────────────────────────────
+    @track _viewRecordId      = null;
+    @track _viewObjectApiName = null;
+    @track _viewObjectLabel   = null;
+    @track _viewRecordName    = null;
+    @track _viewRecordUi      = null;
+    @track _viewRecordUiError = null;
+
+    get showRecordModal() { return !!this._viewRecordId; }
+
+    get _viewRecordUrl() {
+        return this._viewRecordId ? '/lightning/r/' + this._viewRecordId + '/view' : '#';
+    }
+
+    @wire(getRecordUi, {
+        recordIds:   '$_viewRecordId',
+        layoutTypes: ['Full'],
+        modes:       ['View']
+    })
+    wiredViewRecordUi({ data, error }) {
+        this._viewRecordUi      = data  || null;
+        this._viewRecordUiError = error || null;
+    }
+
+    get viewRecordFields() {
+        if (!this._viewRecordUi || !this._viewRecordId) return [];
+        try {
+            const snap = JSON.parse(JSON.stringify(this._viewRecordUi));
+            const recs = snap.records;
+            if (!recs) return [];
+            const recData = Object.values(recs)[0];
+            if (!recData?.fields) return [];
+            const SKIP = new Set([
+                'Id', 'Name', 'RecordTypeId', 'OwnerId', 'IsDeleted',
+                'SystemModstamp', 'LastReferencedDate', 'LastViewedDate',
+                'CreatedById', 'LastModifiedById', 'LastActivityDate',
+                'CurrencyIsoCode', 'CreatedDate', 'LastModifiedDate',
+                'CreatedBy', 'LastModifiedBy'
+            ]);
+            // Only include fields that actually have a displayable value
+            const hasValue = (fval) => {
+                if (!fval) return false;
+                if (fval.displayValue != null) return true;
+                if (fval.value == null) return false;
+                if (typeof fval.value === 'boolean') return fval.value; // skip false checkboxes
+                if (typeof fval.value === 'object') return false;
+                return String(fval.value).trim() !== '';
+            };
+            // Extract fields in page layout order
+            const objLayouts = (snap.layouts || {})[recData.apiName] || {};
+            const rtKey = Object.keys(objLayouts)[0];
+            const viewLayout = rtKey ? objLayouts[rtKey]?.Full?.View : null;
+            if (viewLayout?.sections && Array.isArray(viewLayout.sections)) {
+                const ordered = [];
+                for (const section of viewLayout.sections) {
+                    for (const row of (section.layoutRows || [])) {
+                        for (const item of (row.layoutItems || [])) {
+                            for (const comp of (item.layoutComponents || [])) {
+                                const fn = comp.apiName;
+                                if (comp.componentType === 'Field' && fn
+                                    && !SKIP.has(fn)
+                                    && !fn.endsWith('__r')
+                                    && hasValue(recData.fields[fn])) {
+                                    ordered.push(fn);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (ordered.length > 0) return ordered;
+            }
+            // Fallback: all non-skipped fields with values
+            return Object.keys(recData.fields).filter(
+                f => !SKIP.has(f) && !f.endsWith('__r') && hasValue(recData.fields[f])
+            );
+        } catch(e) {
+            return [];
+        }
+    }
+
+    get hasViewRecordFields() { return this.viewRecordFields.length > 0; }
+    get isViewRecordLoading() {
+        return !!this._viewRecordId && !this._viewRecordUi && !this._viewRecordUiError;
+    }
+    get isViewRecordError() {
+        return !!this._viewRecordId && !!this._viewRecordUiError;
+    }
+    get viewRecordErrorMsg() {
+        const e = this._viewRecordUiError;
+        return (e?.body?.message) || (e?.message) || String(e || '');
+    }
+    get isViewRecordEmpty() {
+        return !!this._viewRecordUi && !this.hasViewRecordFields;
+    }
+
+    handleViewRecord(e) {
+        this._viewRecordUi      = null; // reset so spinner shows while new record loads
+        this._viewRecordId      = e.currentTarget.dataset.id;
+        this._viewObjectApiName = e.currentTarget.dataset.obj;
+        this._viewObjectLabel   = e.currentTarget.dataset.label;
+        this._viewRecordName    = e.currentTarget.dataset.name;
+    }
+
+    handleCloseRecordModal() {
+        this._viewRecordId      = null;
+        this._viewObjectApiName = null;
+        this._viewObjectLabel   = null;
+        this._viewRecordName    = null;
+        this._viewRecordUi      = null;
+        this._viewRecordUiError = null;
+    }
+
+    get hasRelatedData() { return this.relatedCompGroups.length > 0; }
 
     // ── Wire: comparison matrix ───────────────────────────────────────────────
     _wiredMatrix;
@@ -190,13 +501,15 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     get ticket() { return this._ticket || {}; }
 
     get ticketTypeIcon() {
-        return this._matrix?.objectType === 'Account'
-            ? 'standard:account' : 'standard:contact';
+        const type = this._matrix?.objectType || this.objectType;
+        return type === 'Account' ? 'standard:account' : 'standard:contact';
     }
 
     get objectApiName() {
         return this._matrix?.objectType === 'Account' ? 'Account' : 'Contact';
     }
+
+    get isAccountMerge() { return this._matrix?.objectType === 'Account'; }
 
     get ticketMatchValue() {
         const key = this._ticket?.Match_Key__c;
@@ -220,9 +533,34 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
 
     // ── Computed: ignore reason banner ───────────────────────────────────────
 
-    get isIgnoredTicket() { return this._matrix?.ticketStatus === 'Ignored'; }
-    get isClosedTicket()  { return this._matrix?.ticketStatus === 'Closed'; }
-    get isMergedTicket()  { return this._matrix?.ticketStatus === 'Merged'; }
+    get isIgnoredTicket()     { return this._matrix?.ticketStatus === 'Ignored'; }
+    get isClosedTicket()      { return this._matrix?.ticketStatus === 'Closed'; }
+    get isMergedTicket()      { return this._matrix?.ticketStatus === 'Merged'; }
+    get isErrorTicket()       { return this._matrix?.ticketStatus === 'Error'; }
+    get isReopenedTicket()    { return this._matrix?.ticketStatus === 'Reopened'; }
+    // Closed or Ignored → footer shows Reopen button instead of Back/Next
+    get isReopenableTicket()  { return this.isClosedTicket || this.isIgnoredTicket; }
+    // Active tickets (New/Pending/Stale/Reopened/Error) → normal Back/Next/Execute footer
+    get isActiveTicket()      { return !this.isMergedTicket && !this.isReopenableTicket; }
+    // Terminal = no Exception, no navigation (Merged + Closed + Ignored)
+    get isTerminalTicket()    { return this.isMergedTicket || this.isClosedTicket || this.isIgnoredTicket; }
+    get ticketErrorMessage()  { return this._matrix?.ticketErrorMessage || ''; }
+
+    // Date of the most-recent Reopened HIST entry (for the Reopened banner)
+    get reopenedDate() {
+        if (!this.isReopenedTicket) return '';
+        return this.ticketHistoryLogs[0]?.date || '';
+    }
+
+    // Footer button disabled states
+    get isPrevDisabledFull()    { return this.isTerminalTicket || this.isPrevDisabled; }
+    get isNextDisabledFull()    { return this.isTerminalTicket || this.isNextDisabled; }
+    get isExecuteDisabledFull() { return this.isTerminalTicket || this.isExecuting; }
+
+    // Step progress bar: greyed out for terminal tickets
+    get wizStepperClass() {
+        return 'wiz-stepper' + (this.isTerminalTicket ? ' wiz-stepper_muted' : '');
+    }
 
     get mergeLogPerformedBy() { return this._matrix?.mergePerformedBy || ''; }
 
@@ -237,6 +575,22 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
 
     get mergeLogMasterName()  { return this._matrix?.mergeMasterName  || ''; }
     get mergeLogLoserNames()  { return this._matrix?.mergeLoserNames  || ''; }
+
+    get undoDaysLeft() {
+        const raw = this._matrix?.mergePerformedDate;
+        if (!raw) return 0;
+        const daysPassed = Math.floor((Date.now() - new Date(raw).getTime()) / 86400000);
+        return Math.max(0, 15 - daysPassed);
+    }
+
+    get canUndoMerge() { return this.isMergedTicket && this.undoDaysLeft > 0; }
+
+    get undoDaysNote() {
+        const t = this.i18n;
+        const days = this.undoDaysLeft;
+        if (days <= 0) return t.undoWindowExpired || 'Window expired (15 days)';
+        return format(t.undoDaysRemaining || '{0} day(s) remaining', days);
+    }
 
     get ignoreReasonLabel() {
         const raw = this._matrix?.ticketClosedReason;
@@ -257,10 +611,22 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         if (!notes) return '';
         const raw = this._matrix?.ticketClosedReason;
         const lines = notes.split('\n')
-            .filter(l => !l.startsWith('[DELETED_') && !l.startsWith('[HIST:'));
+            .filter(l => !l.startsWith('[DELETED_') && !l.startsWith('[HIST:') && !l.startsWith('[CLOSED_ORPHAN|'));
         // Custom reason: first line is the reason label — skip it for notes
         const startIdx = raw === 'Other' && lines.length > 1 ? 1 : 0;
         return lines.slice(startIdx).join('\n').trim();
+    }
+
+    get orphanCloseInfo() {
+        const notes = this._matrix?.ticketNotes;
+        if (!notes) return null;
+        const line = notes.split('\n').find(l => l.startsWith('[CLOSED_ORPHAN|'));
+        if (!line) return null;
+        const tagEnd = line.indexOf(']');
+        if (tagEnd < 0) return null;
+        const tagParts = line.slice(1, tagEnd).split('|'); // [CLOSED_ORPHAN, recordId, timestamp]
+        const description = line.slice(tagEnd + 1).trim();
+        return { description, date: tagParts[2] || '' };
     }
 
     get ticketHistoryLogs() {
@@ -284,21 +650,28 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
                     reasonLabel  = noteLines[0] || reasonLabel;
                     notesDisplay = noteLines.slice(1).join('\n').trim();
                 }
-                const statusLabel = status === 'Ignored' ? t.tabToValidate
-                    : status === 'Closed' ? t.closedBadge : status;
+                const statusLabel = status === 'Ignored'  ? t.tabToValidate
+                    : status === 'Closed'   ? t.closedBadge
+                    : status === 'Reopened' ? (t.histReopened || 'Reopened')
+                    : status === 'Merged'   ? (t.histMerged   || 'Merged')
+                    : status === 'Error'    ? (t.histError     || 'Error')
+                    : status;
                 return { id: `hist_${idx}`, statusLabel, reasonLabel, notes: notesDisplay, date };
             });
     }
 
+    // Index 0 = current state (already shown in the banner) → HISTORY shows only past entries
+    get historyDisplayLogs() { return this.ticketHistoryLogs.slice(1); }
+
     get visibleHistoryLogs() {
-        const logs = this.ticketHistoryLogs;
-        // > 2 logs: collapse all until user expands; ≤ 2 logs: always show
+        const logs = this.historyDisplayLogs;
+        // > 2 past entries: collapse until user expands; ≤ 2: always show
         if (logs.length > 2 && !this.showAllHistory) return [];
         return logs;
     }
 
-    get hasHistory()         { return this.ticketHistoryLogs.length > 0; }
-    get hasHiddenHistory()   { return this.ticketHistoryLogs.length > 2 && !this.showAllHistory; }
+    get hasHistory()         { return this.historyDisplayLogs.length > 0; }
+    get hasHiddenHistory()   { return this.historyDisplayLogs.length > 2 && !this.showAllHistory; }
     get logShowMoreLabel()   { return this.i18n.logShowMore || '(+) LOGS'; }
     get logShowLessLabel()   { return this.i18n.logShowLess || '(-) LOGS'; }
     get isReopenedWithHistory() {
@@ -528,7 +901,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         }).then(url => window.open(url, '_blank'));
     }
 
-    handleViewRecord(event) {
+    handleViewCandidateRecord(event) {
         event.stopPropagation();
         const id   = event.currentTarget.dataset.id;
         const name = event.currentTarget.dataset.name;
@@ -550,12 +923,10 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         } else {
             this.recordModalId   = id;
             this.recordModalName = name;
-            this.showRecordModal = true;
         }
     }
 
     closeRecordModal() {
-        this.showRecordModal = false;
         this.recordModalId   = null;
         this.recordModalName = null;
     }
@@ -602,6 +973,12 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
 
     handleNotesChange(event) { this.mergeNotes = event.detail.value; }
 
+    handleRelatedToggle(event) {
+        const recordId = event.currentTarget.dataset.id;
+        const checked  = event.target.checked;
+        this._relatedDeleteIds = { ...this._relatedDeleteIds, [recordId]: checked };
+    }
+
     // ── Execute merge ─────────────────────────────────────────────────────────
 
     async executeMerge() {
@@ -623,12 +1000,26 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
                 }
             }
 
+            // Build relatedDeletesJson from user's delete decisions on loser records
+            const deletesByObj = {};
+            for (const comp of (this._relatedComparisons || [])) {
+                for (const rec of (comp.loserRecords || [])) {
+                    if (this._relatedDeleteIds[rec.recordId]) {
+                        if (!deletesByObj[comp.apiName]) deletesByObj[comp.apiName] = [];
+                        deletesByObj[comp.apiName].push(rec.recordId);
+                    }
+                }
+            }
+            const relatedDeletesJson = Object.keys(deletesByObj).length > 0
+                ? JSON.stringify(deletesByObj) : null;
+
             const result = await executeMergeApex({
                 ticketId: ticketIdStr,
                 masterId: masterIdStr,
                 losingIds,
                 fieldDecisions,
-                notes: this.mergeNotes || ''
+                notes:              this.mergeNotes || '',
+                relatedDeletesJson: relatedDeletesJson
             });
 
             if (result.success) {
@@ -646,6 +1037,9 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
                 } else {
                     this.cleanedUpMessage = '';
                 }
+                // Refresh cache immediately so reopening this tab shows 'Merged' state with undo button.
+                if (this._wiredMatrix) await refreshApex(this._wiredMatrix);
+
                 const mergeDetail = {
                     logId: result.logId, mergedRecordId: result.mergedRecordId,
                     ticketId: this.ticketId
@@ -663,9 +1057,34 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
                 }
             } else {
                 this._toast(this.i18n.toastErrFusion, result.errorMessage, 'error', 'sticky');
+                // Refresh so the ticket shows 'Error' state + error message inline
+                if (this._wiredMatrix) await refreshApex(this._wiredMatrix);
             }
         } catch (err) {
             this._toast(this.i18n.error, err.body?.message || err.message, 'error');
+            if (this._wiredMatrix) await refreshApex(this._wiredMatrix);
+        } finally {
+            this.isExecuting = false;
+        }
+    }
+
+    // ── Undo merge ────────────────────────────────────────────────────────────
+
+    handleUndoConfirmShow() { this.undoConfirmMode = true; }
+    handleUndoCancelConfirm() { this.undoConfirmMode = false; }
+
+    async handleUndoMerge() {
+        this.undoConfirmMode = false;
+        this.isExecuting     = true;
+        try {
+            await undoMergeApex({ ticketId: this.ticketId });
+            this._toast(this.i18n.toastUndoSuccess, this.i18n.toastUndoSuccessMsg, 'success');
+            if (this._wiredMatrix) await refreshApex(this._wiredMatrix);
+            if (this._wiredRelated) await refreshApex(this._wiredRelated);
+            this._relatedDeleteIds = {};
+            this.dispatchEvent(new CustomEvent('undocomplete', { detail: { ticketId: this.ticketId } }));
+        } catch(err) {
+            this._toast(this.i18n.toastUndoError, err.body?.message || err.message, 'error');
         } finally {
             this.isExecuting = false;
         }
@@ -770,6 +1189,29 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             this.dispatchEvent(new ShowToastEvent({ title: this.i18n.error, message: msg, variant: 'error' }));
         } finally {
             this.isDismissing = false;
+        }
+    }
+
+    // ── Reopen from inside the wizard (Closed / Ignored footer button) ───────
+
+    async handleReopenFromWizard() {
+        if (this.isReopening) return;
+        this.isReopening = true;
+        try {
+            await reopenTicketApex({ ticketId: this.ticketId });
+            if (this._wiredMatrix) await refreshApex(this._wiredMatrix);
+            this.dispatchEvent(new CustomEvent('ticketreopened', {
+                detail: { ticketId: this.ticketId }, bubbles: true, composed: true
+            }));
+            this.dispatchEvent(new ShowToastEvent({
+                title: this.i18n.toastTicketReopened || 'Ticket reopened',
+                variant: 'success'
+            }));
+        } catch (err) {
+            const msg = err.body?.message || err.message || String(err);
+            this.dispatchEvent(new ShowToastEvent({ title: this.i18n.error || 'Error', message: msg, variant: 'error' }));
+        } finally {
+            this.isReopening = false;
         }
     }
 

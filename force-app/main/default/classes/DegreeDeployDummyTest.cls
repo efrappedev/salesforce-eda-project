@@ -13,6 +13,15 @@ private class DegreeDeployDummyTest {
     private static void putIf(SObject s, String api, Object v) {
         if (hasField(s, api)) s.put(api, v);
     }
+    private static String cachedOfferingType;
+    private static String getOfferingType() {
+        if (cachedOfferingType == null) {
+            for (Schema.PicklistEntry e : hed__Course_Offering__c.type_of_course_c__c.getDescribe().getPicklistValues()) {
+                if (e.isActive()) { cachedOfferingType = e.getValue(); break; }
+            }
+        }
+        return cachedOfferingType;
+    }
 
     // -----------------------------------------------------------------
     // @testSetup VACÍO
@@ -59,7 +68,7 @@ private class DegreeDeployDummyTest {
             // 3) Catálogos
             hed__Term__c term = new hed__Term__c(Name='TST_TERM_' + String.valueOf(Date.today())); putIf(term, 'hed__Account__c', inst.Id); insert term;
             hed__Course__c course = new hed__Course__c(Name='TST_COURSE_1'); putIf(course, 'hed__Account__c', deptAcc.Id); insert course;
-            hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c = course.Id, hed__Term__c = term.Id); putIf(off, 'hed__Account__c', inst.Id); insert off;
+            hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c = course.Id, hed__Term__c = term.Id); putIf(off, 'hed__Account__c', inst.Id); putIf(off, 'type_of_course_c__c', getOfferingType()); insert off;
 
             // 4) Program Plan
             hed__Program_Plan__c plan = new hed__Program_Plan__c(Name='TST_PLAN_MIN', hed__Status__c='Current');
@@ -1050,6 +1059,7 @@ static void covers_fallback_ce_without_pe_115() {
         );
         // si tu org exige Account en Offering, intentalo de forma tolerante
         try { off.put('hed__Account__c', null); } catch (Exception ignore) {}
+        try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
         insert off;
     }
 
@@ -1173,6 +1183,7 @@ static void covers_ce_offering_without_term_117() {
     );
     // Si el campo existe, poblamos la institución
     try { offNoDates.put('hed__Account__c', instId); } catch (Exception ignore) {}
+    try { offNoDates.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert offNoDates;
 
     // PE del contacto seed
@@ -1324,6 +1335,7 @@ static void covers_rowSorter_compare_120() {
             hed__Term__c   = t.Id
         );
         try { off.put('hed__Account__c', null); } catch (Exception ignore) {}
+        try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
         insert off;
     }
 
@@ -1647,6 +1659,7 @@ static void covers_csv_seven_years_flag_126() {
         hed__Term__c   = oldTerm.Id
     );
     try { offOld.put('hed__Account__c', instId); } catch (Exception ignore) {}
+    try { offOld.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert offOld;
 
     // Asegurar PE del alumno seed (crear si faltara)
@@ -1991,6 +2004,7 @@ static void covers_ensureTestSeed_reuse_branch_A15() {
 
         hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c = c.Id, hed__Term__c = t.Id);
         try { off.put('hed__Account__c', inst.Id); } catch (Exception ignore) {}
+        try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
         insert off;
 
         // Plan + PR
@@ -2227,8 +2241,9 @@ static void covers_optblocks_bucket_free_C06() {
     
     hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c=c.Id, hed__Term__c=t.Id);
     try { off.put('hed__Account__c', accId); } catch (Exception ignore) {}
+    try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert off;
-    
+
     hed__Course_Enrollment__c ce = new hed__Course_Enrollment__c(
         hed__Contact__c = pe.hed__Contact__c,
         hed__Program_Enrollment__c = pe.Id,
@@ -2281,6 +2296,8 @@ static void covers_choosePlan_defaults_optblocks_C07() {
     hed__Course_Offering__c off2 = new hed__Course_Offering__c(hed__Course__c=c2.Id, hed__Term__c=t.Id);
     try { off1.put('hed__Account__c', inst.Id); } catch (Exception ignore) {}
     try { off2.put('hed__Account__c', inst.Id); } catch (Exception ignore) {}
+    try { off1.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
+    try { off2.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert new List<hed__Course_Offering__c>{ off1, off2 };
 
     hed__Program_Plan__c plan = new hed__Program_Plan__c(Name='PLAN_C07_' + System.now().getTime(), hed__Status__c='Current');
@@ -2441,6 +2458,7 @@ static void covers_fallback_block_new_contact_hits_441_463() {
             off.put('hed__Account__c', prog2.ParentId != null ? prog2.ParentId : prog2.Id);
         }
     } catch (Exception ignore) {}
+    try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert off;
 
     // 3) NUEVO contacto dedicado al fallback
@@ -2488,7 +2506,9 @@ static void covers_optional_consume_once_name_fallback_C08() {
     hed__Term__c t = new hed__Term__c(Name='T_C08');
     try{ t.put('hed__Account__c', inst.Id);}catch(Exception e){} insert t;
     hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c=cChild.Id, hed__Term__c=t.Id);
-    try{ off.put('hed__Account__c', inst.Id);}catch(Exception e){} insert off;
+    try{ off.put('hed__Account__c', inst.Id);}catch(Exception e){}
+    try{ off.put('type_of_course_c__c', getOfferingType());}catch(Exception e){}
+    insert off;
 
     hed__Program_Plan__c plan = new hed__Program_Plan__c(Name='PLAN_C08', hed__Status__c='Current');
     try{ plan.put('hed__Account__c', inst.Id);}catch(Exception e){} insert plan;
@@ -2560,6 +2580,7 @@ static void covers_bucket_free_offering_null_hits_name_branch_C10() {
 
     hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c=cAny.Id, hed__Term__c=t.Id);
     try { off.put('hed__Account__c', inst.Id); } catch (Exception ignore) {}
+    try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ignore) {}
     insert off;
 
     hed__Program_Plan__c plan = new hed__Program_Plan__c(Name='PLAN_C10_' + System.now().getTime(), hed__Status__c='Current');

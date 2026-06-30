@@ -6,7 +6,8 @@
     <errorConditionFormula>AND(
             NOT(ISNEW()),
             ISPICKVAL(PRIORVALUE(Status__c), &apos;Merged&apos;),
-            NOT(ISPICKVAL(Status__c, &apos;Merged&apos;))
+            NOT(ISPICKVAL(Status__c, &apos;Merged&apos;)),
+            NOT(ISPICKVAL(Status__c, &apos;Reopened&apos;))
         )</errorConditionFormula>
     <errorDisplayField>Status__c</errorDisplayField>
     <errorMessage>A Merged ticket cannot be re-opened. The merge operation is permanent.</errorMessage>
