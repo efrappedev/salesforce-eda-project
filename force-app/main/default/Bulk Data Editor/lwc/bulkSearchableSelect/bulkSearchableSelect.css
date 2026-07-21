@@ -1,0 +1,15 @@
+.slds-dropdown {
+    z-index: 7000;
+    cursor: pointer;
+}
+
+.slds-listbox__option_term:hover {
+    background-color: #f3f9ff;
+}
+
+button.slds-input__icon_right {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}

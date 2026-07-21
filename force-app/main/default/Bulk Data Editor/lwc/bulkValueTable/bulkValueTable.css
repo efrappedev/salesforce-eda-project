@@ -1,0 +1,64 @@
+.value-search {
+    margin-bottom: 0.75rem;
+}
+
+.value-list {
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+}
+
+.value-row {
+    cursor: pointer;
+    transition: background-color 0.1s ease-in-out;
+}
+
+.value-row:hover {
+    background-color: #f3f3f3;
+}
+
+.value-row_selected {
+    background-color: #eef4ff;
+    box-shadow: inset 3px 0 0 #0176d3;
+}
+
+.value-label {
+    max-width: 60%;
+    font-weight: 500;
+}
+
+.value-actions {
+    white-space: nowrap;
+}
+
+.count-badge {
+    background-color: #f3f2f2;
+    color: #444;
+}
+
+.value-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    margin-left: 0.75rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    background-color: #ffffff;
+    flex-shrink: 0;
+}
+
+.value-row:hover .value-checkbox {
+    border-color: #0176d3;
+}
+
+.value-checkbox_checked {
+    background-color: #0176d3;
+    border-color: #0176d3;
+}
+
+.value-checkbox-icon {
+    --sds-c-icon-color-foreground-default: #ffffff;
+}

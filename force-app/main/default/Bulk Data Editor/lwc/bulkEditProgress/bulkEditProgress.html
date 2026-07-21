@@ -1,0 +1,63 @@
+<template>
+    <div class="progress-wrapper slds-p-around_medium">
+        <template if:true={errorMessage}>
+            <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert">
+                <span>{errorMessage}</span>
+            </div>
+            <template if:true={logId}>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">Log ID: {logId}</p>
+            </template>
+            <template if:true={batchJobId}>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">Process ID: {batchJobId}</p>
+            </template>
+        </template>
+
+        <template if:false={errorMessage}>
+            <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_small">
+                <template if:true={isPolling}>
+                    <lightning-spinner alternative-text="Working" size="x-small" class="slds-m-right_small inline-spinner"></lightning-spinner>
+                </template>
+                <template if:false={isPolling}>
+                    <lightning-icon icon-name={resultIconName} size="x-small" class="slds-m-right_small"></lightning-icon>
+                </template>
+                <p class="slds-text-heading_small">{statusLabel}</p>
+            </div>
+
+            <template if:true={showProgressBar}>
+                <div class="slds-progress-bar slds-progress-bar_large" aria-valuemin="0" aria-valuemax="100">
+                    <span class="slds-progress-bar__value" style={progressStyle}>
+                        <span class="slds-assistive-text">Progress: {progressPercent}%</span>
+                    </span>
+                </div>
+                <p class="slds-text-body_small slds-m-top_x-small slds-text-color_weak">
+                    Batch {status.processedRecords} of {status.totalRecords}
+                </p>
+            </template>
+
+            <template if:true={isSuccess}>
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_success slds-m-top_small" role="alert">
+                    <span>{status.recordsAffected} records updated successfully.</span>
+                </div>
+            </template>
+
+            <template if:true={isPartial}>
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_warning slds-m-top_small" role="alert">
+                    <span>{status.recordsAffected} records updated. Some records had errors — see History for details.</span>
+                    <template if:true={status.errorMessage}>
+                        <p class="slds-text-body_small slds-m-top_x-small">{status.errorMessage}</p>
+                    </template>
+                </div>
+            </template>
+
+            <template if:true={isFailed}>
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-top_small" role="alert">
+                    <span>The mass update failed. {status.errorMessage}</span>
+                </div>
+            </template>
+
+            <template if:true={batchJobId}>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">Process ID: {batchJobId}</p>
+            </template>
+        </template>
+    </div>
+</template>

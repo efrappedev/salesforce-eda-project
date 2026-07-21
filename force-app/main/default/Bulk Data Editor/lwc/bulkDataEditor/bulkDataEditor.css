@@ -1,0 +1,145 @@
+.selected-value-box {
+    background-color: #f3f9ff;
+    border: 1px solid #c9e3ff;
+    border-radius: 0.25rem;
+}
+
+.slds-path__title {
+    font-size: 0.75rem;
+}
+
+.wizard-step-clickable .slds-path__link {
+    cursor: pointer;
+}
+
+/* Caps the wizard's width so rows/comboboxes stay easy to scan on wide
+   monitors instead of stretching edge-to-edge with the card. Left-aligned
+   (not centered) per user feedback — centering just moved the empty space
+   from one side to both sides. */
+.wizard-container {
+    max-width: 680px;
+    margin: 0;
+    transition: max-width 0.15s ease-in-out;
+}
+
+/* Widened for Step 3, which always shows two columns side by side (filter
+   on the left, the main value list on the right) — every other step keeps
+   the narrower width above so rows stay easy to scan. */
+.wizard-container_wide {
+    max-width: 1040px;
+}
+
+.wizard-step {
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.wizard-step__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.step-hint {
+    font-size: 0.8125rem;
+    color: #3e3e3c;
+}
+
+/* Step 3 always shows the optional filter and the main value list side by
+   side, with generous breathing room between them (not a tight grid gutter)
+   so the two lists read as clearly separate choices. */
+.step3-columns {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.step3-col {
+    flex: 1 1 320px;
+    min-width: 280px;
+    background-color: #fafaf9;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.step3-col__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.step3-col__title {
+    font-weight: 700;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03125rem;
+    color: #3e3e3c;
+}
+
+.step3-col__optional {
+    font-weight: 400;
+    text-transform: none;
+    color: #706e6b;
+}
+
+.step3-col__subheader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.clear-filter-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #0176d3;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.clear-filter-link:hover {
+    text-decoration: underline;
+}
+
+/* Small connecting arrow between the two columns, echoing the "filter
+   feeds into the value pick" relationship — hidden once the columns wrap
+   to a single stacked column on narrow screens. */
+.step3-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 3.5rem;
+    color: #c9c7c5;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+    .step3-connector {
+        display: none;
+    }
+}
+
+/* Sticky-feeling confirmation bar that appears once a current value is
+   picked — mirrors the explicit "continue" step from the reference mockup
+   instead of auto-advancing the wizard on row click. */
+.step3-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    background-color: #f3f9ff;
+    border: 1px solid #c9e3ff;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.step3-footer__text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #032d60;
+}

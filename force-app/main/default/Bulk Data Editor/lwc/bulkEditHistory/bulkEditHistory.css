@@ -1,0 +1,21 @@
+.history-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.history-row {
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.old-val {
+    text-decoration: line-through;
+    color: #706e6b;
+}
+
+.new-val {
+    font-weight: 600;
+    color: #2e844a;
+}

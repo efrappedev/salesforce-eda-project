@@ -1,0 +1,104 @@
+<template>
+    <div class="slds-p-around_small">
+        <div class="slds-grid slds-grid_align-spread slds-m-bottom_small">
+            <h2 class="slds-text-heading_small">Recent bulk edits</h2>
+            <lightning-button-icon
+                icon-name="utility:refresh"
+                alternative-text="Refresh"
+                title="Refresh"
+                onclick={handleRefresh}
+            ></lightning-button-icon>
+        </div>
+
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading history" size="small"></lightning-spinner>
+        </template>
+
+        <template if:true={errorMessage}>
+            <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert">
+                <span>{errorMessage}</span>
+            </div>
+        </template>
+
+        <template if:true={toastMessage}>
+            <div class={toastClass} role="alert">
+                <span class="slds-p-around_x-small slds-grid slds-grid_align-spread">
+                    <span>
+                        {toastMessage}<template if:true={toastCountdown}> (closing in {toastCountdown}s)</template>
+                    </span>
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Dismiss"
+                        variant="bare-inverse"
+                        onclick={handleToastClose}
+                    ></lightning-button-icon>
+                </span>
+            </div>
+        </template>
+
+        <template if:true={hasEntries}>
+            <ul class="slds-has-dividers_around-space history-list">
+                <template for:each={displayEntries} for:item="entry">
+                    <li key={entry.logId} class="slds-p-around_small history-row">
+                        <div class="slds-grid slds-grid_align-spread slds-wrap">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_8-of-12">
+                                <p class="slds-text-body_small slds-text-color_weak">{entry.name} &middot; {entry.createdDateLabel}</p>
+                                <p class="slds-text-heading_small">
+                                    {entry.objectLabel} — {entry.fieldLabel}
+                                </p>
+                                <p class="slds-text-body_regular">
+                                    <template if:true={entry.isRecordTypeChange}>
+                                        <span class="slds-text-body_small slds-text-color_weak">Search: </span>
+                                    </template>
+                                    <span class="old-val">{entry.oldValueDisplay}</span>
+                                    <lightning-icon icon-name="utility:forward" size="xx-small" class="slds-m-horizontal_x-small"></lightning-icon>
+                                    <template if:true={entry.isRecordTypeChange}>
+                                        <span class="slds-text-body_small slds-text-color_weak">Changed to: </span>
+                                    </template>
+                                    <span class="new-val">{entry.newValue}</span>
+                                </p>
+                                <template if:true={entry.hasFilter}>
+                                    <p class="slds-text-body_small slds-text-color_weak">
+                                        Filtered by: {entry.filterFieldLabel} = {entry.filterValueDisplay}
+                                    </p>
+                                </template>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-text-align_right">
+                                <span class={entry.statusBadgeClass}>{entry.statusLabel}</span>
+                                <p class="slds-text-body_small slds-m-top_x-small">{entry.recordsAffected} records</p>
+                                <lightning-button
+                                    label="Undo"
+                                    icon-name="utility:undo"
+                                    variant="destructive-text"
+                                    size="small"
+                                    class="slds-m-top_x-small"
+                                    disabled={entry.undoDisabled}
+                                    data-log-id={entry.logId}
+                                    onclick={handleUndoClick}
+                                ></lightning-button>
+                            </div>
+                        </div>
+
+                        <template if:true={entry.showProgress}>
+                            <div class="slds-m-top_small">
+                                <c-bulk-edit-progress
+                                    data-progress-log-id={entry.logId}
+                                    log-id={entry.logId}
+                                    ondone={handleUndoDone}
+                                ></c-bulk-edit-progress>
+                            </div>
+                        </template>
+                    </li>
+                </template>
+            </ul>
+        </template>
+
+        <template if:false={hasEntries}>
+            <template if:false={isLoading}>
+                <div class="slds-illustration slds-illustration_small slds-p-around_medium slds-text-align_center">
+                    <p class="slds-text-body_regular">No bulk edits have been run yet.</p>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,72 @@
+<template>
+    <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-modal="true">
+        <div class="slds-modal__container">
+            <header class="slds-modal__header">
+                <lightning-button-icon
+                    icon-name="utility:close"
+                    alternative-text="Close"
+                    variant="bare-inverse"
+                    class="slds-modal__close"
+                    onclick={handleCancel}
+                ></lightning-button-icon>
+                <h2 class="slds-text-heading_medium slds-hyphenate">Confirm mass update</h2>
+            </header>
+
+            <div class="slds-modal__content slds-p-around_medium">
+                <div class="summary-callout slds-p-around_small slds-m-bottom_medium">
+                    <p>This will change <strong>{fieldLabel}</strong><template if:true={hasFilter}> for <strong>{objectLabel}</strong> records where <strong>{filterFieldLabel}</strong> = <strong>{filterValueDisplay}</strong></template><template if:false={hasFilter}> for all <strong>{objectLabel}</strong> records</template> from <strong>{oldValueDisplay}</strong> to <strong>{newValueDisplay}</strong>.</p>
+                </div>
+
+                <div class="slds-grid slds-gutters slds-m-bottom_medium compare-grid">
+                    <div class="slds-col slds-size_1-of-2 compare-box compare-box_old">
+                        <p class="slds-text-title_caps slds-text-color_weak">Current value</p>
+                        <p class="slds-text-heading_small slds-truncate">{oldValueDisplay}</p>
+                    </div>
+                    <div class="slds-col slds-size_1-of-2 compare-box compare-box_new">
+                        <p class="slds-text-title_caps slds-text-color_weak">New value</p>
+                        <p class="slds-text-heading_small slds-truncate">{newValueDisplay}</p>
+                    </div>
+                </div>
+
+                <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-text-align_center">
+                    <template if:true={isLoadingCount}>
+                        <lightning-spinner alternative-text="Counting" size="small"></lightning-spinner>
+                    </template>
+                    <p class="slds-text-heading_small">{affectedCountLabel}</p>
+                </div>
+
+                <template if:true={zeroRecordsWarning}>
+                    <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_warning" role="alert">
+                        <span>No records currently match this value. There is nothing to update.</span>
+                    </div>
+                </template>
+
+                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_medium" role="alert">
+                    <span>
+                        This change respects field-level security and will be logged. It can be reversed
+                        afterwards from the History tab.
+                    </span>
+                </div>
+
+                <div class="slds-form-element slds-m-top_medium">
+                    <lightning-input
+                        type="checkbox"
+                        label="I reviewed the values above and want to proceed"
+                        onchange={handleAcknowledgeChange}
+                    ></lightning-input>
+                </div>
+            </div>
+
+            <footer class="slds-modal__footer">
+                <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_x-small"></lightning-button>
+                <lightning-button
+                    label="Apply mass update"
+                    variant="brand"
+                    disabled={confirmDisabled}
+                    onclick={handleConfirm}
+                ></lightning-button>
+            </footer>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

@@ -1,0 +1,52 @@
+<template>
+    <div class="value-table">
+        <lightning-input
+            type="search"
+            label="Filter values"
+            variant="label-hidden"
+            placeholder="Search values..."
+            class="value-search"
+            onchange={handleSearchChange}
+        ></lightning-input>
+
+        <template if:true={hasBuckets}>
+            <ul class="slds-has-dividers_around-space value-list" role="listbox">
+                <template for:each={filteredBuckets} for:item="bucket">
+                    <li
+                        key={bucket.rowKey}
+                        class={bucket.rowClass}
+                        data-row-key={bucket.rowKey}
+                        onclick={handleRowClick}
+                        role="option"
+                        tabindex="0"
+                    >
+                        <div class="slds-grid slds-grid_align-spread slds-p-around_small">
+                            <div class="slds-truncate value-label" title={bucket.displayValue}>
+                                <template if:true={bucket.isBlank}>
+                                    <span class="slds-badge slds-theme_warning">Blank</span>
+                                </template>
+                                <template if:false={bucket.isBlank}>
+                                    {bucket.displayValue}
+                                </template>
+                            </div>
+                            <div class="slds-grid slds-grid_vertical-align-center value-actions">
+                                <span class="slds-badge count-badge">{bucket.recordCount} records</span>
+                                <div class={bucket.checkboxClass} title="Select this value">
+                                    <template if:true={bucket.isSelected}>
+                                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse" class="value-checkbox-icon"></lightning-icon>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </template>
+            </ul>
+        </template>
+
+        <template if:false={hasBuckets}>
+            <div class="slds-illustration slds-illustration_small slds-p-around_medium slds-text-align_center">
+                <p class="slds-text-body_regular">No values found for this field.</p>
+            </div>
+        </template>
+    </div>
+</template>

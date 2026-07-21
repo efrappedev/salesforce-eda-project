@@ -1,0 +1,22 @@
+.compare-box {
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    border: 1px solid #dddbda;
+}
+
+.compare-box_old {
+    background-color: #fef4f4;
+    border-color: #f5c0c0;
+}
+
+.compare-box_new {
+    background-color: #f2fbf3;
+    border-color: #b8e6bc;
+}
+
+.summary-callout {
+    background-color: #f3f9ff;
+    border: 1px solid #c9e3ff;
+    border-radius: 0.25rem;
+    line-height: 1.5;
+}

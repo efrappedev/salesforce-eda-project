@@ -1,0 +1,64 @@
+<template>
+    <div class="slds-form-element">
+        <label if:true={label} class="slds-form-element__label">{label}</label>
+        <div class={comboboxClass}>
+            <div class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+                <template if:false={hasValue}>
+                    <lightning-icon
+                        icon-name="utility:search"
+                        size="x-small"
+                        class="slds-input__icon slds-input__icon_right"
+                    ></lightning-icon>
+                </template>
+                <template if:true={hasValue}>
+                    <button
+                        type="button"
+                        class="slds-button slds-button_icon slds-input__icon slds-input__icon_right"
+                        title="Clear"
+                        onmousedown={handleClearMouseDown}
+                        onclick={handleClear}
+                    >
+                        <lightning-icon icon-name="utility:clear" size="x-small" alternative-text="Clear"></lightning-icon>
+                    </button>
+                </template>
+                <input
+                    type="text"
+                    class="slds-input slds-combobox__input"
+                    placeholder={placeholder}
+                    value={searchTerm}
+                    disabled={disabled}
+                    autocomplete="off"
+                    onfocus={handleFocus}
+                    oninput={handleInput}
+                    onblur={handleBlur}
+                />
+            </div>
+            <template if:true={isOpen}>
+                <div class="slds-dropdown slds-dropdown_fluid slds-dropdown_length-5" role="listbox">
+                    <ul class="slds-listbox slds-listbox_vertical">
+                        <template for:each={filteredOptions} for:item="opt">
+                            <li key={opt.value} class="slds-listbox__item" role="presentation">
+                                <div
+                                    class="slds-media slds-listbox__option slds-listbox__option_plain slds-listbox__option_term"
+                                    role="option"
+                                    data-value={opt.value}
+                                    onmousedown={handleOptionMouseDown}
+                                    onclick={handleOptionClick}
+                                >
+                                    <span class="slds-media__body">
+                                        <span class="slds-truncate" title={opt.label}>{opt.label}</span>
+                                    </span>
+                                </div>
+                            </li>
+                        </template>
+                        <template if:true={showNoResults}>
+                            <li class="slds-listbox__item">
+                                <div class="slds-p-around_small slds-text-color_weak">No matches found.</div>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

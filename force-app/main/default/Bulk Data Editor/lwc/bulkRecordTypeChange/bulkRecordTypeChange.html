@@ -1,0 +1,182 @@
+<template>
+    <div class="rtc-container">
+
+        <template if:true={loadError}>
+            <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-bottom_medium" role="alert">
+                <span>{loadError}</span>
+            </div>
+        </template>
+        <template if:true={searchError}>
+            <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-bottom_medium" role="alert">
+                <span>{searchError}</span>
+            </div>
+        </template>
+
+        <!-- Step: search -->
+        <template if:true={isSearchStep}>
+            <div class="slds-box slds-m-bottom_medium wizard-step">
+                <p class="slds-text-title_bold slds-m-bottom_x-small">Search Accounts</p>
+                <p class="step-hint slds-m-bottom_medium">
+                    Filter by Record Type and/or search a field for a term, e.g. "Record Type = Administrative" and
+                    "Name contains 'Lopez'".
+                </p>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-m-bottom_small">
+                        <lightning-combobox
+                            label="Record Type"
+                            options={recordTypeFilterOptions}
+                            value={selectedRecordTypeIdFilter}
+                            onchange={handleRecordTypeFilterChange}
+                        ></lightning-combobox>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-m-bottom_small">
+                        <c-bulk-searchable-select
+                            label="Search in field"
+                            placeholder="Search fields..."
+                            options={searchFieldOptions}
+                            value={selectedSearchFieldApiName}
+                            onchange={handleSearchFieldChange}
+                        ></c-bulk-searchable-select>
+                    </div>
+                </div>
+
+                <lightning-input
+                    type="search"
+                    label="Search (optional)"
+                    placeholder="e.g. Lopez"
+                    value={searchTerm}
+                    onchange={handleSearchTermChange}
+                ></lightning-input>
+
+                <lightning-button
+                    label="Search"
+                    variant="brand"
+                    class="slds-m-top_medium"
+                    disabled={searchDisabled}
+                    onclick={handleSearch}
+                ></lightning-button>
+                <template if:true={isSearching}>
+                    <lightning-spinner alternative-text="Searching" size="x-small"></lightning-spinner>
+                </template>
+            </div>
+        </template>
+
+        <!-- Step: select -->
+        <template if:true={isSelectStep}>
+            <div class="slds-box slds-m-bottom_medium wizard-step">
+                <div class="wizard-step__header">
+                    <lightning-button-icon
+                        icon-name="utility:back"
+                        alternative-text="Back"
+                        title="Back to search"
+                        variant="border-filled"
+                        size="small"
+                        class="slds-m-right_small"
+                        onclick={handleBackToSearch}
+                    ></lightning-button-icon>
+                    <p class="slds-text-title_bold">Select the Accounts to change</p>
+                </div>
+                <p class="step-hint slds-m-bottom_small">{searchSummary}</p>
+
+                <template if:true={hasSearchResults}>
+                    <div class="rtc-datatable-wrap">
+                        <lightning-datatable
+                            key-field="id"
+                            data={searchResults}
+                            columns={columns}
+                            onrowselection={handleRowSelection}
+                        ></lightning-datatable>
+                    </div>
+                </template>
+                <template if:false={hasSearchResults}>
+                    <div class="slds-illustration slds-illustration_small slds-p-around_medium slds-text-align_center">
+                        <p class="slds-text-body_regular">No matching Accounts found. Try a different search.</p>
+                    </div>
+                </template>
+
+                <div class="rtc-select-footer slds-m-top_medium">
+                    <p class="rtc-select-footer__text">{selectedCount} selected</p>
+                    <lightning-button
+                        label="Continue"
+                        variant="brand"
+                        disabled={continueToNewTypeDisabled}
+                        onclick={handleContinueToNewType}
+                    ></lightning-button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Step: newtype -->
+        <template if:true={isNewTypeStep}>
+            <div class="slds-box slds-m-bottom_medium wizard-step">
+                <div class="wizard-step__header">
+                    <lightning-button-icon
+                        icon-name="utility:back"
+                        alternative-text="Back"
+                        title="Back to selection"
+                        variant="border-filled"
+                        size="small"
+                        class="slds-m-right_small"
+                        onclick={handleBackToSelect}
+                    ></lightning-button-icon>
+                    <p class="slds-text-title_bold">Choose the new Record Type</p>
+                </div>
+                <p class="step-hint slds-m-bottom_medium">
+                    This will change the Record Type for <strong>{selectedCount}</strong> selected Account record(s).
+                </p>
+
+                <c-bulk-searchable-select
+                    label="New Record Type"
+                    placeholder="Search Record Types..."
+                    options={recordTypeOptions}
+                    value={selectedNewRecordTypeId}
+                    onchange={handleNewRecordTypeChange}
+                ></c-bulk-searchable-select>
+
+                <lightning-button
+                    label="Review &amp; apply"
+                    variant="brand"
+                    class="slds-m-top_medium"
+                    disabled={confirmDisabled}
+                    onclick={handleOpenConfirm}
+                ></lightning-button>
+            </div>
+        </template>
+
+        <!-- Step: run -->
+        <template if:true={showProgress}>
+            <div class="slds-box">
+                <p class="slds-text-title_bold slds-m-bottom_x-small">Applying Record Type change...</p>
+                <c-bulk-edit-progress
+                    data-role="run"
+                    log-id={currentLogId}
+                    ondone={handleRunDone}
+                ></c-bulk-edit-progress>
+
+                <template if:true={runSummary}>
+                    <div class="slds-grid slds-m-top_medium">
+                        <lightning-button
+                            label="Start another change"
+                            variant="brand"
+                            onclick={handleStartAnother}
+                        ></lightning-button>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+    </div>
+
+    <template if:true={showConfirmModal}>
+        <c-bulk-edit-confirm-modal
+            object-label="Account"
+            field-label="Record Type"
+            old-value-display={oldValueDisplaySummary}
+            new-value-display={selectedNewRecordTypeLabel}
+            affected-count={selectedCount}
+            oncancel={handleCancelConfirm}
+            onconfirm={handleConfirmRun}
+        ></c-bulk-edit-confirm-modal>
+    </template>
+</template>
