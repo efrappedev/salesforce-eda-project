@@ -1,13 +1,13 @@
 trigger Account_GenerateID on Account (before insert, before update, after insert, after update) {
 
-    // Kill switch global (como ya lo tenías)
+    // Global kill switch
     if ('true' == String.valueOf(Label.IDGEN_DISABLE_ACCOUNT_TRIGGER).toLowerCase()) return;
 
     // ===========================
-    // ======= BEFORE (SIN CAMBIOS DE LÓGICA) =======
+    // ======= BEFORE (NO LOGIC CHANGES) =======
     // ===========================
     if (Trigger.isBefore) {
-        // ===== RecordTypes por DeveloperName =====
+        // ===== RecordTypes by DeveloperName =====
         Map<String, Schema.RecordTypeInfo> rtByDev =
             Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName();
 
@@ -21,11 +21,11 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
         Id organismeRtId      = rtByDev.containsKey('Organisme')               ? rtByDev.get('Organisme').getRecordTypeId()               : null;
         Id egliseRtId         = rtByDev.containsKey('Eglise')                  ? rtByDev.get('Eglise').getRecordTypeId()                  : null;
 
-        // ===== Constantes =====
+        // ===== Constants =====
         final Integer MAX_LEN = 20;
         final Integer SEQ_LEN = 7;
 
-        // ===== Mapa de acentos para normalización (reutilizable) =====
+        // ===== Accent normalization map (reusable) =====
         Map<String, String> accentMap = new Map<String, String>{
             'Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U',
             'À'=>'A','È'=>'E','Ì'=>'I','Ò'=>'O','Ù'=>'U',
@@ -40,7 +40,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             'Æ'=>'AE','Œ'=>'OE','æ'=>'AE','œ'=>'OE','ß'=>'SS'
         };
 
-        // ===== Colecciones de trabajo =====
+        // ===== Working collections =====
         Set<Id> contactIds = new Set<Id>();
         Map<Id, Account> adminWithContact = new Map<Id, Account>();
         Map<Account, String> adminWithContactLongPrefix = new Map<Account, String>(); // 'I-ADM'
@@ -52,13 +52,13 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
         List<Account> otherRtToProcess = new List<Account>();
         Map<Account, String> otherToPrefix = new Map<Account, String>();
 
-        // Para detectar cambio de RecordType
+        // Detect RecordType change on update
         Map<Id, Id> oldRtByAcc = new Map<Id, Id>();
         if (Trigger.isUpdate) {
             for (Account aOld : Trigger.old) oldRtByAcc.put(aOld.Id, aOld.RecordTypeId);
         }
 
-        // Precalcular nombre normalizado por Account (evita repetir lógica)
+        // Pre-compute normalized name per Account (avoids repeating logic)
         Map<Id, String> normNameById = new Map<Id, String>();
         for (Account a : Trigger.new) {
             String nm = (a.Name == null) ? '' : a.Name.trim();
@@ -72,7 +72,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             normNameById.put(a.Id, normalized);
         }
 
-        // ===== Recorrido principal =====
+        // ===== Main loop =====
         for (Account a : Trigger.new) {
             if (String.isBlank(a.Name) || a.RecordTypeId == null) continue;
 
@@ -97,7 +97,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
                 continue;
             }
 
-            // ==== Otros Record Types ====
+            // ==== Other Record Types ====
             Boolean mustAssignOther = Trigger.isInsert || typeChanged || String.isBlank(a.ID_Account__c);
             if (!mustAssignOther) continue;
 
@@ -111,7 +111,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             else if (a.RecordTypeId == egliseRtId)          { otherToPrefix.put(a, 'EGL'); otherRtToProcess.add(a); }
         }
 
-        // ==== Administrative CON contacto: intentar corto y, si choca, caer a largo ====
+        // ==== Administrative WITH contact: try short ID; fall back to long on collision ====
         Map<Id, Contact> contactsById = new Map<Id, Contact>();
         if (!contactIds.isEmpty()) {
             contactsById = new Map<Id, Contact>([
@@ -141,7 +141,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             }
         }
 
-        // ==== Administrative SIN contacto: evitar “gemela con contacto” ====
+        // ==== Administrative WITHOUT contact: skip if a contact-linked twin exists ====
         Set<String> namesWithContactTwin = new Set<String>();
         if (!orphanNamesRaw.isEmpty()) {
             for (Account t : [
@@ -162,7 +162,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             }
         }
 
-        // ==== Reunir prefijos que requieren secuencia ====
+        // ==== Gather prefixes that need a sequence number ====
         Set<String> allPrefixes = new Set<String>();
         for (Account a : adminOrphans) {
             String aNorm = normNameById.get(a.Id);
@@ -177,7 +177,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             }
         }
 
-        // ==== Calcular máximos por prefijo ====
+        // ==== Calculate max sequence per prefix ====
         Map<String, Integer> maxByPrefix = new Map<String, Integer>();
         if (!allPrefixes.isEmpty()) {
             List<String> prefList = new List<String>(allPrefixes);
@@ -210,8 +210,8 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             }
         }
 
-        // ==== Asignaciones finales ====
-        // Admin con contacto: corto si libre; si no, largo (I-ADM + secuencia)
+        // ==== Final assignments ====
+        // Admin with contact: short ID if free; otherwise long (I-ADM + sequence)
         for (Account a : adminWithContact.values()) {
             Contact c = contactsById.get(a.hed__Primary_Contact__c);
             if (c == null || String.isBlank(c.ID_Contact__c)) continue;
@@ -234,7 +234,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             }
         }
 
-        // Admin huérfanas: I-ADM + 7 dígitos, salvo gemela con contacto (queda null)
+        // Orphan admins: I-ADM + 7 digits, except contact-linked twins (remain null)
         for (Account a : adminOrphans) {
             String aNorm = normNameById.get(a.Id);
             if (namesWithContactTwin.contains(aNorm)) {
@@ -251,7 +251,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             a.ID_Account__c = val;
         }
 
-        // Otros RT: prefijo + 7 dígitos
+        // Other RTs: prefix + 7 digits
         for (Account a : otherRtToProcess) {
             String p = otherToPrefix.get(a); // 'BUS','EGL','ORG', etc.
             Integer next = (maxByPrefix.containsKey(p) ? maxByPrefix.get(p) : 0) + 1;
@@ -265,7 +265,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
     }
 
     // ===========================
-    // ======= AFTER (EXTRA para importación EDA de Contactos) =======
+    // ======= AFTER (EDA Contact import upgrade — short ID retry) =======
     // ===========================
     if (Trigger.isAfter) {
         // RecordType Administrative
@@ -273,7 +273,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
         Id adminRtId = byDev.containsKey('Administrative') ? byDev.get('Administrative').getRecordTypeId() : null;
         if (adminRtId == null) return;
 
-        // Candidatos: Admin + con contacto + (ID vacío o con prefijo huérfano I-ADM...)
+        // Candidates: Admin + has contact + (blank ID or I-ADM fallback)
         List<Account> cand = new List<Account>();
         for (Account a : Trigger.new) {
             if (a.RecordTypeId == adminRtId
@@ -284,7 +284,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
         }
         if (cand.isEmpty()) return;
 
-        // Traer ID_Contact__c de los contactos
+        // Fetch ID_Contact__c for the linked contacts
         Set<Id> contactIds = new Set<Id>();
         for (Account a : cand) contactIds.add(a.hed__Primary_Contact__c);
         Map<Id, Contact> cById = new Map<Id, Contact>([
@@ -293,7 +293,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             WHERE Id IN :contactIds
         ]);
 
-        // Construir candidatos a corto y recolectar para verificar duplicados
+        // Build short-ID candidates and collect for duplicate check
         Map<Id, String> desired = new Map<Id, String>(); // AccId -> "I-AAAA0001"
         Set<String> shortCandidates = new Set<String>();
         for (Account a : cand) {
@@ -306,7 +306,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
         }
         if (desired.isEmpty()) return;
 
-        // Verificar si alguno ya está tomado
+        // Check which short IDs are already taken
         Set<String> taken = new Set<String>();
         for (Account e : [
             SELECT ID_Account__c
@@ -316,7 +316,7 @@ trigger Account_GenerateID on Account (before insert, before update, after inser
             taken.add(e.ID_Account__c);
         }
 
-        // Actualizar solo los libres
+        // Update only accounts whose short ID is free
         List<Account> toUpd = new List<Account>();
         for (Account a : cand) {
             String s = desired.get(a.Id);

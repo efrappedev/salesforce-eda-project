@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Person_Account__c</fullName>
+    <description>If true, ID prefix is derived from LastName+FirstName on the Account (person record). ID_Prefix__c is ignored when this is checked.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Is Person Account RT</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Excl_raison__c</fullName>
+    <label>Excl. (raison)</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Adresse invalide</fullName>
+                <default>false</default>
+                <label>Adresse invalide</label>
+            </value>
+            <value>
+                <fullName>L&apos;AEBEQ ne veut plus de contact</fullName>
+                <default>false</default>
+                <label>L&apos;AEBEQ ne veut plus de contact</label>
+            </value>
+            <value>
+                <fullName>Pas besoin car entreprise</fullName>
+                <default>false</default>
+                <label>Pas besoin car entreprise</label>
+            </value>
+            <value>
+                <fullName>Souhaite être retiré de la liste d&apos;envois</fullName>
+                <default>false</default>
+                <label>Souhaite être retiré de la liste d&apos;envois</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

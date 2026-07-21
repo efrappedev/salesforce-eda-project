@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>IDGEN_DISABLE_ACCOUNT_TRIGGER</fullName>
+        <categories>DynamicID</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Kill switch Account trigger</shortDescription>
+        <value>false</value>
+    </labels>
+    <labels>
+        <fullName>IDGEN_DISABLE_CONTACT_TRIGGER</fullName>
+        <categories>DynamicID</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Kill switch Contact trigger</shortDescription>
+        <value>false</value>
+    </labels>
+</CustomLabels>

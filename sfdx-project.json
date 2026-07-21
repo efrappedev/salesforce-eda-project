@@ -3,6 +3,12 @@
     {
       "path": "force-app",
       "default": true
+    },
+    {
+      "path": "force-app-aebeq"
+    },
+    {
+      "path": "force-app-sembeq"
     }
   ],
   "name": "Button test",

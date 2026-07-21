@@ -1,22 +1,22 @@
-trigger Contact_GenerateID on Contact (before insert, after insert) {
+trigger Contact_GenerateID on Contact (before insert) {
 
     // ========================= BEFORE INSERT =========================
     if (Trigger.isBefore && Trigger.isInsert) {
 
-        // Kill switch SOLO para la generación de ID por Label
+        // Kill switch: ID generation disabled via custom label
         if ('true' != String.valueOf(Label.IDGEN_DISABLE_CONTACT_TRIGGER).toLowerCase()) {
 
-            // Constantes
+            // Constants
             final Integer MIN_SEQ_LEN = 4;
             final Integer OR_BLOCK    = 30;
             final String  ALPHA       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-            // Normalización extendida a A–Z (incluye ligaduras y caracteres especiales)
+            // Extended A-Z normalization (includes ligatures and special characters)
             Map<String,String> norm = new Map<String,String>{
                 // A
                 'Á'=>'A','À'=>'A','Â'=>'A','Ä'=>'A','Ã'=>'A','Å'=>'A','Ā'=>'A','Ă'=>'A','Ą'=>'A',
                 'á'=>'A','à'=>'A','â'=>'A','ä'=>'A','ã'=>'A','å'=>'A','ā'=>'A','ă'=>'A','ą'=>'A',
-                // AE / OE / SS ligaduras
+                // AE / OE / SS ligatures
                 'Æ'=>'AE','æ'=>'AE','Œ'=>'OE','œ'=>'OE','ß'=>'SS',
                 // C
                 'Ç'=>'C','Ć'=>'C','Č'=>'C','Ĉ'=>'C','Ċ'=>'C',
@@ -26,11 +26,11 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                 // E
                 'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E','Ě'=>'E','Ē'=>'E','Ę'=>'E','Ė'=>'E','Ĕ'=>'E',
                 'é'=>'E','è'=>'E','ê'=>'E','ë'=>'E','ě'=>'E','ē'=>'E','ę'=>'E','ė'=>'E','ĕ'=>'E',
-                // G (incluye turco Ğ/ğ)
+                // G (includes Turkish Ğ/ğ)
                 'Ğ'=>'G','ğ'=>'G','Ģ'=>'G','Ġ'=>'G','Ĝ'=>'G','ĝ'=>'G','ģ'=>'G','ġ'=>'G',
                 // H
                 'Ĥ'=>'H','Ħ'=>'H','ĥ'=>'H','ħ'=>'H',
-                // I (incluye İ/ı)
+                // I (includes Turkish İ/ı)
                 'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I','Ī'=>'I','Į'=>'I','İ'=>'I','ı'=>'I',
                 'í'=>'I','ì'=>'I','î'=>'I','ï'=>'I','ī'=>'I','į'=>'I',
                 // J
@@ -43,17 +43,17 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                 // N
                 'Ñ'=>'N','Ń'=>'N','Ņ'=>'N','Ň'=>'N',
                 'ñ'=>'N','ń'=>'N','ņ'=>'N','ň'=>'N',
-                // O (incluye Ø/ø)
+                // O (includes Ø/ø)
                 'Ó'=>'O','Ò'=>'O','Ô'=>'O','Ö'=>'O','Õ'=>'O','Ő'=>'O','Ō'=>'O','Ø'=>'O',
                 'ó'=>'O','ò'=>'O','ô'=>'O','ö'=>'O','õ'=>'O','ő'=>'O','ō'=>'O','ø'=>'O',
                 // R
                 'Ŕ'=>'R','Ř'=>'R','ŕ'=>'R','ř'=>'R',
-                // S (incluye Ş/Ș/Š)
+                // S (includes Ş/Ș/Š)
                 'Ś'=>'S','Ş'=>'S','Ș'=>'S','Š'=>'S',
                 'ś'=>'S','ş'=>'S','ș'=>'S','š'=>'S',
-                // T (incluye Ț/ţ/ț)
+                // T (includes Ț/ţ/ț)
                 'Ţ'=>'T','Ț'=>'T','Ť'=>'T','ţ'=>'T','ț'=>'T','ť'=>'T',
-                // TH islandés
+                // TH Icelandic
                 'Þ'=>'TH','þ'=>'TH',
                 // U
                 'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U','Ű'=>'U','Ū'=>'U','Ų'=>'U',
@@ -64,7 +64,7 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                 'Ź'=>'Z','Ż'=>'Z','Ž'=>'Z','ź'=>'Z','ż'=>'Z','ž'=>'Z'
             };
 
-            // Recolectar prefijos de esta tanda
+            // Collect prefixes for this batch
             Map<Contact,String> contactToPrefix = new Map<Contact,String>();
             Set<String> prefixes = new Set<String>();
 
@@ -72,7 +72,7 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                 if (!String.isBlank(c.ID_Contact__c)) continue;
                 if (String.isBlank(c.LastName) || String.isBlank(c.FirstName)) continue;
 
-                // LN → 3 letras A–Z
+                // Last name -> 3 letters A-Z
                 String ln3 = '';
                 String src = c.LastName == null ? '' : c.LastName.trim();
                 for (Integer i=0; i<src.length() && ln3.length()<3; i++) {
@@ -84,7 +84,7 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                     }
                 }
 
-                // FN → 1 letra A–Z
+                // First name -> 1 letter A-Z
                 String fn1 = '';
                 src = c.FirstName == null ? '' : c.FirstName.trim();
                 for (Integer i=0; i<src.length() && fn1.length()<1; i++) {
@@ -97,12 +97,12 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                 }
 
                 if (String.isBlank(ln3) || String.isBlank(fn1)) continue;
-                String prefix = ln3 + fn1; // 4 letras puras A–Z
+                String prefix = ln3 + fn1; // 4 pure A-Z letters
                 contactToPrefix.put(c, prefix);
                 prefixes.add(prefix);
             }
             if (!prefixes.isEmpty()) {
-                // Buscar máximos por prefijo (bloques OR de 30)
+                // Find max sequence per prefix (batched OR blocks of 30)
                 Map<String,Integer> foundMax = new Map<String,Integer>();
                 List<String> prefList = new List<String>(prefixes);
 
@@ -122,7 +122,7 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                             String p = prefList[j];
                             if (full.startsWith(p)) {
                                 String numStr = (full.length() > 4) ? full.substring(4) : '';
-                                // quitar ceros a la izquierda
+                                // strip leading zeros
                                 Integer nlen = numStr.length(), idx = 0;
                                 while (idx < nlen && numStr.substring(idx,idx+1) == '0') idx++;
                                 String clean = (idx < nlen) ? numStr.substring(idx) : '0';
@@ -136,7 +136,7 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
                     }
                 }
 
-                // Asignar secuencias nuevas en memoria
+                // Assign new sequences in memory
                 Map<String,Integer> nextByPrefix = new Map<String,Integer>(foundMax);
                 for (Contact c : Trigger.new) {
                     String prefix = contactToPrefix.get(c);
@@ -154,21 +154,5 @@ trigger Contact_GenerateID on Contact (before insert, after insert) {
         }
     }
 
-    // ========================= AFTER INSERT =========================
-if (Trigger.isAfter && Trigger.isInsert) {
-    Contact_Handler_Toggles__c cfg = Contact_Handler_Toggles__c.getInstance();
-
-    Boolean enable =
-        (cfg != null && cfg.Enable_After_Insert_Handler__c == true)
-        || (Test.isRunningTest() && ContactPostInsertHandler.hasTestMappingOverride());
-
-    if (enable) {
-        Set<Id> ids = new Set<Id>();
-        for (Contact c : Trigger.new) if (c.Id != null) ids.add(c.Id);
-        if (!ids.isEmpty()) {
-            ContactPostInsertHandler.syncNow(ids); // síncrono
-        }
-    }
-}
 
 }
