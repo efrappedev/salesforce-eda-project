@@ -1,0 +1,209 @@
+/* Height is set dynamically by mergeManager.js (getBoundingClientRect).
+   Adapts to any Salesforce page chrome without a hardcoded offset. */
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mobile-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: #f3f2f2;
+    border-radius: 8px;
+}
+
+.mobile-block__icon {
+    margin-bottom: 1.25rem;
+    --slds-c-icon-color-foreground: #0176d3;
+}
+
+.mobile-block__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #3e3e3c;
+    margin: 0 0 0.5rem 0;
+}
+
+.mobile-block__msg {
+    font-size: 0.875rem;
+    color: #706e6b;
+    max-width: 280px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.merge-manager {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.merge-manager__layout {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.merge-manager__left {
+    background-color: #f3f2f2;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Right panel: flex column — tab bar on top, wizard panels fill the rest */
+.merge-manager__right {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    background-color: #ffffff;
+}
+
+.merge-manager__empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #706e6b;
+}
+
+.slds-panel__header {
+    padding: 0.75rem 1rem;
+    background-color: #ffffff;
+    border-bottom: 1px solid #dddbda;
+}
+
+/* ── Tab bar ──────────────────────────────────────────────────────────────── */
+
+.mm-tabs-nav {
+    display: flex;
+    flex-shrink: 0;
+    align-items: stretch;
+}
+
+.mm-tabs {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    align-items: stretch;
+    background: #f3f2f2;
+    border-bottom: 1px solid #dddbda;
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-height: 2rem;
+}
+
+.mm-tabs::-webkit-scrollbar { height: 6px; }
+.mm-tabs::-webkit-scrollbar-thumb { background: #9b9997; border-radius: 3px; }
+.mm-tabs::-webkit-scrollbar-track { background: #e8e7e6; }
+
+.mm-tabs-arrow {
+    flex-shrink: 0;
+    background: #e8e7e6;
+    border: none;
+    border-bottom: 1px solid #dddbda;
+    cursor: pointer;
+    font-size: 1.25rem;
+    color: #706e6b;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    min-width: 28px;
+}
+.mm-tabs-arrow:hover { background: #d8d7d6; color: #0176d3; }
+.mm-tabs-arrow_left  { border-right: 1px solid #dddbda; }
+.mm-tabs-arrow_right { border-left:  1px solid #dddbda; }
+
+.mm-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    min-height: 2rem;
+    min-width: 80px;
+    max-width: 200px;
+    background: #e8e7e6;
+    border-right: 1px solid #dddbda;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: #444;
+    position: relative;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.mm-tab:hover {
+    background: #f3f2f2;
+}
+
+/* Active tab: white bg + blue top border */
+.mm-tab_active {
+    background: #ffffff;
+    border-top: 2px solid #0176d3;
+    color: #0176d3;
+    font-weight: 600;
+    /* Merge visually with content below */
+    border-bottom: 1px solid #ffffff;
+    margin-bottom: -1px;
+    z-index: 1;
+}
+
+.mm-tab__icon {
+    flex-shrink: 0;
+}
+
+.mm-tab__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mm-tab__close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #706e6b;
+    font-size: 0.875rem;
+    padding: 0 2px;
+    line-height: 1;
+    border-radius: 2px;
+}
+
+.mm-tab__close:hover {
+    color: #c23934;
+    background: rgba(194, 57, 52, 0.08);
+}
+
+/* ── Wizard panels ────────────────────────────────────────────────────────── */
+
+/* Each panel fills all remaining height and scrolls internally */
+.mm-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.mm-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    position: relative;
+}
+

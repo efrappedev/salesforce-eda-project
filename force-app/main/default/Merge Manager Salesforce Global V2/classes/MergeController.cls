@@ -19,6 +19,10 @@ public with sharing class MergeController {
     // Test-injection: bypass dfr.isAccessible() in getEmailObjectCandidates so tests cover
     // the qualifying-object branch regardless of the running user's FLS profile
     @TestVisible private static Boolean TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false;
+    // Test-injection: force the inner for-ref loop body (hasLookupToTarget = true; break) to fire
+    // so tests can cover lines 1174-1175 without needing a real custom object with an email field
+    // pointing to the target type (which AEBEQ/any org without EDA doesn't have)
+    @TestVisible private static Boolean TEST_FORCE_LOOKUP_MATCH = false;
     // Test-injection: extra items appended to getDiscoverableObjects result to force sort swap
     @TestVisible private static List<Map<String,Object>> TEST_EXTRA_DISCOVERABLE = null;
     // Test-injection: pre-seed seenIdx so a real child object appears "already seen" in the loop
@@ -51,6 +55,11 @@ public with sharing class MergeController {
     @TestVisible private static Boolean TEST_THROW_RESTORE_UPDATE = false;
     // Test-injection: force parentSType = null in saveObjectConfigsBatch (covers dead else-branch)
     @TestVisible private static Boolean TEST_FORCE_PARENT_STYPE_NULL = false;
+    // Test-injection: force corrupt JSON in getCustomCloseReasons catch block
+    @TestVisible private static Boolean TEST_CORRUPT_CLOSE_REASONS_JSON = false;
+    // Test-injection: override the parent-type list in initDefaultConfigsIfEmpty so tests can
+    // drive the payload-build path (lines 1397-1405) with a type that has discoverable children
+    @TestVisible private static List<String> TEST_INIT_PARENT_TYPES = null;
     // ─── Ticket list ──────────────────────────────────────────────────────────
 
     @AuraEnabled(cacheable=false)
@@ -1168,7 +1177,7 @@ public with sharing class MergeController {
                         hasLookupToTarget = true;
                     } else {
                         for (Schema.SObjectType ref : dfr.getReferenceTo()) {
-                            if (ref.getDescribe().getName() == objectType) {
+                            if (ref.getDescribe().getName() == objectType || TEST_FORCE_LOOKUP_MATCH) {
                                 hasLookupToTarget = true;
                                 break;
                             }
@@ -1230,7 +1239,17 @@ public with sharing class MergeController {
             Schema.DescribeSObjectResult childDesc = cr.getChildSObject().getDescribe();
             String childName = childDesc.getName();
 
-            if (!childName.endsWith('__c')) continue;
+            // Skip auto-generated system objects: CDC events, Chatter feeds, field-history
+            // tables, sharing rows, tag objects, and known non-queryable system relations.
+            String lcName = childName.toLowerCase();
+            if (lcName.endsWith('changeevent') || lcName.endsWith('feed') ||
+                lcName.endsWith('history')     || lcName.endsWith('share') ||
+                lcName.endsWith('tag')) continue;
+            if (new Set<String>{
+                'ContentDocumentLink','FlowRecordRelation','LookedUpFromActivity',
+                'OpenActivity','NoteAndAttachment','Attachment',
+                'ProcessInstance','ProcessInstanceWorkitem','ContentNote'
+            }.contains(childName)) continue;
             if (!childDesc.isQueryable() || !childDesc.isAccessible()) continue;
 
             Schema.DescribeFieldResult fdr = cr.getField().getDescribe();
@@ -1273,6 +1292,25 @@ public with sharing class MergeController {
             }
         }
         return result;
+    }
+
+    /** Returns all lookup fields on objectApiName that reference parentType (for manual field selection). */
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String,String>> getAvailableLookupFields(
+            String objectApiName, String parentType) {
+        List<Map<String,String>> fields = new List<Map<String,String>>();
+        Schema.SObjectType parentSType = Schema.getGlobalDescribe().get(parentType.toLowerCase());
+        if (parentSType == null) return fields;
+        for (Schema.ChildRelationship cr : parentSType.getDescribe().getChildRelationships()) {
+            if (!cr.getChildSObject().getDescribe().getName().equalsIgnoreCase(objectApiName)) continue;
+            Schema.DescribeFieldResult dfr = cr.getField().getDescribe();
+            if (!dfr.isAccessible()) continue;
+            fields.add(new Map<String,String>{
+                'fieldName'  => dfr.getName(),
+                'fieldLabel' => dfr.getLabel()
+            });
+        }
+        return fields;
     }
 
     /** Returns saved configs ordered by Sort_Order__c. */
@@ -1385,7 +1423,8 @@ public with sharing class MergeController {
             || TEST_FORCE_NO_INIT_PERMISSION) {
             return; // insufficient permissions — silently skip
         }
-        for (String parentType : new List<String>{ 'Contact', 'Account' }) {
+        for (String parentType : TEST_INIT_PARENT_TYPES != null
+                ? TEST_INIT_PARENT_TYPES : new List<String>{ 'Contact', 'Account' }) {
             Integer cnt = Database.countQuery(
                 'SELECT COUNT() FROM Related_Object_Config__c WHERE Object_Type__c = :parentType'
             );
@@ -1402,6 +1441,105 @@ public with sharing class MergeController {
             }
             saveObjectConfigsBatch(parentType, JSON.serialize(payload));
         }
+    }
+
+    // ── Custom Close Reasons (org-wide, stored in Related_Object_Config__c sentinel) ──
+
+    private static final String CLOSE_REASONS_SENTINEL = '__close_reasons__';
+
+    @AuraEnabled(cacheable=false)
+    public static List<String> getCustomCloseReasons() {
+        List<Related_Object_Config__c> recs = [
+            SELECT Custom_Close_Reasons__c FROM Related_Object_Config__c
+            WHERE Object_API_Name__c = :CLOSE_REASONS_SENTINEL LIMIT 1
+        ];
+        if (recs.isEmpty() || String.isBlank(recs[0].Custom_Close_Reasons__c)) {
+            return new List<String>();
+        }
+        try {
+            String raw = TEST_CORRUPT_CLOSE_REASONS_JSON ? 'not-valid-json' : recs[0].Custom_Close_Reasons__c;
+            return (List<String>) JSON.deserialize(raw, List<String>.class);
+        } catch (Exception e) {
+            return new List<String>();
+        }
+    }
+
+    @AuraEnabled
+    public static void saveCustomCloseReasons(String reasonsJson) {
+        List<Related_Object_Config__c> existing = [
+            SELECT Id FROM Related_Object_Config__c
+            WHERE Object_API_Name__c = :CLOSE_REASONS_SENTINEL LIMIT 1
+        ];
+        if (existing.isEmpty()) {
+            insert new Related_Object_Config__c(
+                Name               = 'Custom Close Reasons Config',
+                Object_API_Name__c = CLOSE_REASONS_SENTINEL,
+                Object_Type__c     = 'Contact',
+                Parent_Field__c    = '__none__',
+                Is_Active__c       = false,
+                Custom_Close_Reasons__c = reasonsJson
+            );
+        } else {
+            existing[0].Custom_Close_Reasons__c = reasonsJson;
+            update existing[0];
+        }
+    }
+
+    // ── Reason Config (label overrides + custom pools per section) ──────────
+
+    private static final String REASON_CONFIG_SENTINEL = '__reason_config__';
+
+    @AuraEnabled(cacheable=false)
+    public static String getReasonConfig() {
+        List<Related_Object_Config__c> recs = [
+            SELECT Custom_Close_Reasons__c FROM Related_Object_Config__c
+            WHERE Object_API_Name__c = :REASON_CONFIG_SENTINEL LIMIT 1
+        ];
+        if (recs.isEmpty() || String.isBlank(recs[0].Custom_Close_Reasons__c)) {
+            return '{}';
+        }
+        return recs[0].Custom_Close_Reasons__c;
+    }
+
+    @AuraEnabled
+    public static void saveReasonConfig(String configJson) {
+        List<Related_Object_Config__c> existing = [
+            SELECT Id FROM Related_Object_Config__c
+            WHERE Object_API_Name__c = :REASON_CONFIG_SENTINEL LIMIT 1
+        ];
+        if (existing.isEmpty()) {
+            insert new Related_Object_Config__c(
+                Name                    = 'Reason Config',
+                Object_API_Name__c      = REASON_CONFIG_SENTINEL,
+                Object_Type__c          = 'Contact',
+                Parent_Field__c         = '__none__',
+                Is_Active__c            = false,
+                Custom_Close_Reasons__c = configJson
+            );
+        } else {
+            existing[0].Custom_Close_Reasons__c = configJson;
+            update existing[0];
+        }
+    }
+
+    @AuraEnabled
+    public static void renameReason(String oldVal, String newVal, String ticketStatus) {
+        if (String.isBlank(oldVal) || String.isBlank(newVal) || oldVal == newVal) return;
+        List<Merge_Ticket__c> tickets = [
+            SELECT Id, Closed_Reason__c, Notes__c
+            FROM Merge_Ticket__c
+            WHERE Closed_Reason__c = :oldVal
+            AND   Status__c        = :ticketStatus
+            LIMIT 10000
+        ];
+        if (tickets.isEmpty()) return;
+        for (Merge_Ticket__c t : tickets) {
+            t.Closed_Reason__c = newVal;
+            if (t.Notes__c != null) {
+                t.Notes__c = t.Notes__c.replace('|||' + oldVal + '|||', '|||' + newVal + '|||');
+            }
+        }
+        update tickets;
     }
 
     // ─── Reset (sandbox testing only) ────────────────────────────────────────

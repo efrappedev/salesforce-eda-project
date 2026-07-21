@@ -1,10 +1,11 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { getLabels } from 'c/i18n';
-import getTickets       from '@salesforce/apex/MergeController.getTickets';
-import getTicketCount   from '@salesforce/apex/MergeController.getTicketCount';
-import resolveSearchIds from '@salesforce/apex/MergeController.resolveSearchIds';
-import reopenTicketApex from '@salesforce/apex/MergeController.reopenTicket';
+import getTickets           from '@salesforce/apex/MergeController.getTickets';
+import getTicketCount       from '@salesforce/apex/MergeController.getTicketCount';
+import resolveSearchIds     from '@salesforce/apex/MergeController.resolveSearchIds';
+import reopenTicketApex     from '@salesforce/apex/MergeController.reopenTicket';
+import getReasonConfigApex  from '@salesforce/apex/MergeController.getReasonConfig';
 
 const CLOSED_REASON_KEY = {
     'False Positive - Same Household':    'reasonHousehold',
@@ -62,7 +63,7 @@ export default class MergeTicketList extends LightningElement {
 
     @track _lang                 = 'fr';
     @track _labels               = { ...getLabels('fr') };
-    @track objectTypeFilter      = 'Contact';
+    @track objectTypeFilter      = 'Account';
     @track statusFilter          = 'All';
     @track closedReasonFilter    = null;
     @track searchTerm            = '';
@@ -74,6 +75,7 @@ export default class MergeTicketList extends LightningElement {
     // Keyset pagination: _cursors[i] = cursor to load page i; null = first page (no cursor)
     @track _cursors              = [null];
     @track _currentPageIdx       = 0;
+    @track _reasonConfig         = { tvCustom: [], clCustom: [] };
 
     _searchTimer                 = null;
     _editingPage                 = false;
@@ -93,8 +95,8 @@ export default class MergeTicketList extends LightningElement {
     get objectTypeOptions() {
         const t = this.i18n;
         return [
-            { label: t.objectTypeContact, value: 'Contact' },
-            { label: t.objectTypeAccount, value: 'Account' }
+            { label: t.objectTypeAccount, value: 'Account' },
+            { label: t.objectTypeContact, value: 'Contact' }
         ];
     }
 
@@ -113,6 +115,17 @@ export default class MergeTicketList extends LightningElement {
 
     connectedCallback() {
         this._loadTickets();
+        this._loadReasonConfig();
+    }
+
+    @api refreshReasonConfig() { this._loadReasonConfig(); }
+
+    _loadReasonConfig() {
+        getReasonConfigApex()
+            .then(json => {
+                try { this._reasonConfig = JSON.parse(json || '{}'); } catch(e) { /* ignore */ }
+            })
+            .catch(() => { /* silently ignore — filter just won't show custom reasons */ });
     }
 
     async _loadTickets() {
@@ -221,10 +234,16 @@ export default class MergeTicketList extends LightningElement {
 
     get closedReasonFilterOptions() {
         const t = this.i18n;
-        return Object.entries(CLOSED_REASON_KEY).map(([value, key]) => ({
+        const predefined = Object.entries(CLOSED_REASON_KEY).map(([value, key]) => ({
             label: t[key] || value,
             value
         }));
+        const cfg = this._reasonConfig || {};
+        const customPool = this.statusFilter === 'Ignored'
+            ? (cfg.tvCustom || [])
+            : (cfg.clCustom || []);
+        const custom = customPool.map(v => ({ label: v, value: v }));
+        return [...predefined, ...custom];
     }
 
     get countLabel() {
@@ -277,6 +296,9 @@ export default class MergeTicketList extends LightningElement {
         this.closedReasonFilter = null;
         this._resetPagination();
         this._loadTickets();
+        if (this.statusFilter === 'Ignored' || this.statusFilter === 'Closed') {
+            this._loadReasonConfig();
+        }
     }
 
     handleClosedReasonFilterChange(event) {

@@ -18,8 +18,8 @@
                     icon-name="utility:close"
                     variant="bare"
                     alternative-text={i18n.altCloseTicket}
-                    title={i18n.titleDismiss}
-                    onclick={openDismissModal}>
+                    title={i18n.close}
+                    onclick={handleCloseTab}>
                 </lightning-button-icon>
             </div>
         </div>
@@ -688,14 +688,18 @@
     <div class="wizard-footer slds-border_top slds-p-horizontal_medium slds-p-vertical_small
         slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
 
-        <!-- Left: Exception button — disabled for terminal tickets -->
-        <lightning-button
-            label={i18n.btnIgnore}
-            icon-name="utility:warning"
-            variant="neutral"
-            onclick={openDismissModal}
-            disabled={isTerminalTicket}>
-        </lightning-button>
+        <!-- Left: Exception button — hidden for terminal tickets (Closed/Ignored/Merged) -->
+        <template if:false={isTerminalTicket}>
+            <lightning-button
+                label={i18n.btnIgnore}
+                icon-name="utility:warning"
+                variant="neutral"
+                onclick={openDismissModal}>
+            </lightning-button>
+        </template>
+        <template if:true={isTerminalTicket}>
+            <span></span>
+        </template>
 
         <!-- Right side -->
         <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-center">
@@ -797,13 +801,40 @@
                     <!-- Form: À Valider — only after card selected -->
                     <template if:true={dismissModeToValidate}>
                         <div class="exception-content exception-content_validate">
-                            <lightning-combobox
-                                label={i18n.labelClosedReason}
-                                value={dismissReason}
-                                options={closedReasonOptions}
-                                onchange={handleDismissReasonChange}
-                                required>
-                            </lightning-combobox>
+                            <div class="add-reason-container">
+                                <lightning-combobox
+                                    label={i18n.labelToValidateReason}
+                                    value={dismissReason}
+                                    options={closedReasonOptions}
+                                    onchange={handleDismissReasonChange}
+                                    required>
+                                </lightning-combobox>
+                                <template if:true={showAddTvReasonPopover}>
+                                    <div class="add-reason-popover">
+                                        <div class="add-reason-popover__header">
+                                            <span>{i18n.addReasonPopoverTitle}</span>
+                                            <button class="add-reason-popover__close"
+                                                onclick={cancelAddTvReason}
+                                                title={i18n.cancel}>&#x2715;</button>
+                                        </div>
+                                        <input type="text"
+                                            class="slds-input"
+                                            placeholder={i18n.placeholderNewReason}
+                                            value={newTvReasonInput}
+                                            oninput={handleNewTvReasonInput} />
+                                        <div class="add-reason-popover__footer">
+                                            <button class="slds-button slds-button_neutral"
+                                                onclick={cancelAddTvReason}>
+                                                {i18n.cancel}
+                                            </button>
+                                            <button class="slds-button slds-button_brand"
+                                                onclick={confirmAddTvReason}>
+                                                {i18n.btnAddReason}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
                             <lightning-textarea
                                 label={i18n.labelExtraNotes}
                                 value={dismissNotes}

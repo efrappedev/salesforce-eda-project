@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
     <defaultLandingTab>Merge_Manager</defaultLandingTab>
-    <description>Detección y fusión segura de duplicados de Contactos y Cuentas. Compatible con cualquier org Salesforce.</description>
+    <description>Safe detection and merging of duplicate Contacts and Accounts. Compatible with any Salesforce org.</description>
     <formFactors>Large</formFactors>
     <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
     <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>

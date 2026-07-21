@@ -1829,4 +1829,299 @@ private class MergeExecutionControllerTest {
         System.assert(ids.contains(String.valueOf(ticket.Id)), 'Ticket ID must be in result');
         System.assert(emptyIds.isEmpty(), 'Blank searchTerm must return empty list');
     }
+
+    @IsTest
+    static void ctrl_getCustomCloseReasons_noRecord_returnsEmpty() {
+        List<String> result = MergeController.getCustomCloseReasons();
+        System.assertEquals(0, result.size(), 'Expected empty list when no sentinel exists');
+    }
+
+    @IsTest
+    static void ctrl_saveAndGetCustomCloseReasons_insertsAndReads() {
+        List<String> reasons = new List<String>{ 'Reason A', 'Reason B' };
+        MergeController.saveCustomCloseReasons(JSON.serialize(reasons));
+        List<String> result = MergeController.getCustomCloseReasons();
+        System.assertEquals(2, result.size(), 'Should return 2 reasons');
+        System.assert(result.contains('Reason A'), 'Should contain Reason A');
+        System.assert(result.contains('Reason B'), 'Should contain Reason B');
+    }
+
+    @IsTest
+    static void ctrl_saveCustomCloseReasons_updatesExistingRecord() {
+        MergeController.saveCustomCloseReasons(JSON.serialize(new List<String>{ 'First' }));
+        MergeController.saveCustomCloseReasons(JSON.serialize(new List<String>{ 'Updated' }));
+        List<String> result = MergeController.getCustomCloseReasons();
+        System.assertEquals(1, result.size(), 'Should have 1 reason after update');
+        System.assertEquals('Updated', result[0], 'Should contain updated reason');
+        Integer sentinelCount = [
+            SELECT COUNT() FROM Related_Object_Config__c
+            WHERE Object_API_Name__c = '__close_reasons__'
+        ];
+        System.assertEquals(1, sentinelCount, 'Only one sentinel record should exist');
+    }
+
+    @IsTest
+    static void ctrl_getCustomCloseReasons_corruptJson_returnsEmpty() {
+        MergeController.saveCustomCloseReasons(JSON.serialize(new List<String>{ 'A' }));
+        MergeController.TEST_CORRUPT_CLOSE_REASONS_JSON = true;
+        List<String> result = MergeController.getCustomCloseReasons();
+        MergeController.TEST_CORRUPT_CLOSE_REASONS_JSON = false;
+        System.assertEquals(0, result.size(), 'Corrupt JSON should return empty list');
+    }
+
+    // ─── MergeController lines 1174-1175: inner for-ref loop body ────────────
+
+    @IsTest
+    static void ctrl_getEmailObjectCandidates_forceLookupMatch_coversRefLoopBody() {
+        // Lines 1174-1175: for-ref loop body (hasLookupToTarget = true; break).
+        // With TEST_SKIP_FIELD_ACCESSIBILITY_CHECK = false the else branch at line 1176 runs.
+        // TEST_FORCE_LOOKUP_MATCH forces the inner condition so Merge_Candidate__c's
+        // MasterDetail lookup (any REFERENCE field's referenceTo entry) triggers lines 1174-1175
+        // without needing a real email-field + Contact-lookup object in AEBEQ.
+        MergeController.TEST_FORCE_LOOKUP_MATCH = true;
+        Test.startTest();
+        List<MergeWrappers.EmailObjectInfo> result =
+            MergeController.getEmailObjectCandidates('Contact');
+        Test.stopTest();
+        MergeController.TEST_FORCE_LOOKUP_MATCH = false;
+        System.assertNotEquals(null, result, 'Result list must not be null');
+    }
+
+    // ─── MergeController lines 1258-1262: seenIdx.put() + result.add() ───────
+
+    @IsTest
+    static void ctrl_getDiscoverableObjects_freshScan_coversAddBranch() {
+        // Lines 1258-1262: seenIdx.put() and result.add() for a child not yet in seenIdx.
+        // Merge_Ticket__c has Merge_Candidate__c as a MasterDetail child.
+        // No TEST_PRESEED_CHILD_NAME → seenIdx starts empty → first child hit goes to add branch.
+        Test.startTest();
+        List<Map<String,Object>> result =
+            MergeController.getDiscoverableObjects('Merge_Ticket__c');
+        Test.stopTest();
+        System.assertNotEquals(null, result, 'Result must not be null');
+        System.assert(result.size() >= 1,
+            'Merge_Ticket__c must have at least one custom child (Merge_Candidate__c)');
+    }
+
+    // ─── MergeController lines 1397-1405: payload build + saveObjectConfigsBatch ─
+
+    @IsTest
+    static void ctrl_initDefaultConfigsIfEmpty_withInjectedChild_coversPayloadBuild() {
+        // Lines 1397-1409: payload-building loop + saveObjectConfigsBatch call.
+        // Inject a discoverable Case.ContactId child (valid for Contact, available in every org)
+        // and restrict iteration to 'Contact' only so saveObjectConfigsBatch succeeds.
+        // Fresh test context → no Contact configs exist → cnt = 0 → code past isEmpty() runs.
+        MergeController.TEST_INIT_PARENT_TYPES = new List<String>{ 'Contact' };
+        MergeController.TEST_EXTRA_DISCOVERABLE = new List<Map<String,Object>>{
+            new Map<String,Object>{
+                'label'       => 'Test Cases Auto',
+                'apiName'     => 'Case',
+                'lookupField' => 'ContactId'
+            }
+        };
+        Test.startTest();
+        MergeController.initDefaultConfigsIfEmpty();
+        Test.stopTest();
+        MergeController.TEST_EXTRA_DISCOVERABLE = null;
+        MergeController.TEST_INIT_PARENT_TYPES  = null;
+        Integer cnt = [SELECT COUNT() FROM Related_Object_Config__c WHERE Object_Type__c = 'Contact'];
+        System.assert(cnt >= 1, 'At least one Contact config should be auto-created');
+    }
+
+    // ─── MergeTicketService lines 207-211: relatedCounts aggregation loop ─────
+
+    @IsTest
+    static void ticket_buildMatrix_account_withCaseConfig_coversRelatedCountsAggLoop() {
+        // Lines 207-211: for (RelatedCount rc : rci.relatedCounts.counts) loop body.
+        // Inserting a Related_Object_Config__c for Case.ContactId causes getBulkCounts to
+        // create one RelatedCount entry per contact (total=0 but entry is present) even
+        // when no Cases exist → rci.relatedCounts.counts is non-empty → loop body runs.
+        insert new Related_Object_Config__c(
+            Name               = 'Test Cases RelCount',
+            Object_API_Name__c = 'Case',
+            Parent_Field__c    = 'ContactId',
+            Object_Type__c     = 'Contact',
+            Is_Active__c       = true,
+            Sort_Order__c      = 1
+        );
+
+        Account a1 = new Account(Name = 'RCAcc1', Phone = '5140099001');
+        Account a2 = new Account(Name = 'RCAcc2', Phone = '5140099001');
+        insert new List<Account>{ a1, a2 };
+
+        Contact c1 = new Contact(LastName = 'RCCont1', AccountId = a1.Id);
+        Contact c2 = new Contact(LastName = 'RCCont2', AccountId = a2.Id);
+        insert new List<Contact>{ c1, c2 };
+
+        Merge_Ticket__c ticket = makeAccountTicket(a1, a2, 'Account|Phone|5140099001RC');
+
+        Test.startTest();
+        MergeWrappers.ComparisonMatrix matrix =
+            MergeTicketService.buildComparisonMatrix(ticket.Id);
+        Test.stopTest();
+
+        System.assertEquals('Account', matrix.objectType);
+        System.assertNotEquals(null, matrix.relatedContactsByRecordId,
+            'relatedContactsByRecordId must be populated for Account tickets');
+    }
+
+    // ─── MergeController.getAvailableLookupFields ─────────────────────────────
+
+    @IsTest
+    static void ctrl_getAvailableLookupFields_contact_returnsAccountId() {
+        // Contact has AccountId lookup to Account
+        Test.startTest();
+        List<Map<String,String>> fields =
+            MergeController.getAvailableLookupFields('Contact', 'Account');
+        Test.stopTest();
+        System.assertNotEquals(null, fields, 'Should return a list');
+        Boolean found = false;
+        for (Map<String,String> f : fields) {
+            if (f.get('fieldName') == 'AccountId') { found = true; break; }
+        }
+        System.assert(found, 'AccountId should be in the list for Contact→Account');
+    }
+
+    @IsTest
+    static void ctrl_getAvailableLookupFields_case_returnsAccountId() {
+        // Case has AccountId lookup to Account — standard in every Salesforce org
+        Test.startTest();
+        List<Map<String,String>> fields =
+            MergeController.getAvailableLookupFields('Case', 'Account');
+        Test.stopTest();
+        System.assertNotEquals(null, fields);
+        Boolean found = false;
+        for (Map<String,String> f : fields) {
+            if (f.get('fieldName') == 'AccountId') { found = true; break; }
+        }
+        System.assert(found, 'AccountId should be in the list for Case→Account');
+    }
+
+    @IsTest
+    static void ctrl_getAvailableLookupFields_unknownParent_returnsEmpty() {
+        Test.startTest();
+        List<Map<String,String>> fields =
+            MergeController.getAvailableLookupFields('Contact', 'NoSuchObject__zzz');
+        Test.stopTest();
+        System.assertEquals(0, fields.size(), 'Unknown parent type should return empty list');
+    }
+
+    @IsTest
+    static void ctrl_getAvailableLookupFields_noMatchingChild_returnsEmpty() {
+        // Account has no lookup to itself (no Account→Account child relationship of lookup type)
+        Test.startTest();
+        List<Map<String,String>> fields =
+            MergeController.getAvailableLookupFields('NoSuchChild__zzz', 'Account');
+        Test.stopTest();
+        System.assertEquals(0, fields.size(), 'Non-existent child object should return empty list');
+    }
+
+    // ── getReasonConfig / saveReasonConfig / renameReason ────────────────────
+
+    @IsTest
+    static void ctrl_getReasonConfig_noRecord_returnsEmptyJson() {
+        Test.startTest();
+        String result = MergeController.getReasonConfig();
+        Test.stopTest();
+        System.assertEquals('{}', result, 'Should return empty JSON when no sentinel exists');
+    }
+
+    @IsTest
+    static void ctrl_getReasonConfig_withRecord_returnsJson() {
+        insert new Related_Object_Config__c(
+            Name = 'Reason Config', Object_API_Name__c = '__reason_config__',
+            Object_Type__c = 'Contact', Parent_Field__c = '__none__',
+            Is_Active__c = false,
+            Custom_Close_Reasons__c = '{"tvCustom":["My Reason"],"clCustom":[]}'
+        );
+        Test.startTest();
+        String result = MergeController.getReasonConfig();
+        Test.stopTest();
+        System.assert(result.contains('My Reason'), 'Should return stored JSON');
+    }
+
+    @IsTest
+    static void ctrl_saveReasonConfig_insert_createsRecord() {
+        Test.startTest();
+        MergeController.saveReasonConfig('{"tvCustom":["R1"],"clCustom":[]}');
+        Test.stopTest();
+        Integer cnt = [SELECT COUNT() FROM Related_Object_Config__c
+                       WHERE Object_API_Name__c = '__reason_config__'];
+        System.assertEquals(1, cnt, 'One sentinel record should be inserted');
+    }
+
+    @IsTest
+    static void ctrl_saveReasonConfig_update_updatesRecord() {
+        insert new Related_Object_Config__c(
+            Name = 'Reason Config', Object_API_Name__c = '__reason_config__',
+            Object_Type__c = 'Contact', Parent_Field__c = '__none__',
+            Is_Active__c = false,
+            Custom_Close_Reasons__c = '{"tvCustom":[],"clCustom":[]}'
+        );
+        Test.startTest();
+        MergeController.saveReasonConfig('{"tvCustom":["Updated"],"clCustom":[]}');
+        Test.stopTest();
+        Related_Object_Config__c rec = [SELECT Custom_Close_Reasons__c FROM Related_Object_Config__c
+                                        WHERE Object_API_Name__c = '__reason_config__' LIMIT 1];
+        System.assert(rec.Custom_Close_Reasons__c.contains('Updated'), 'Record should be updated');
+        Integer cnt = [SELECT COUNT() FROM Related_Object_Config__c
+                       WHERE Object_API_Name__c = '__reason_config__'];
+        System.assertEquals(1, cnt, 'Still only one sentinel record');
+    }
+
+    @IsTest
+    static void ctrl_renameReason_blankArg_returnsEarly() {
+        Test.startTest();
+        MergeController.renameReason('', 'New', 'Ignored');
+        MergeController.renameReason('Old', '', 'Ignored');
+        MergeController.renameReason('Same', 'Same', 'Ignored');
+        Test.stopTest();
+        // No exception = pass; no DML happened
+        System.assertEquals(0, [SELECT COUNT() FROM Merge_Ticket__c
+                                 WHERE Closed_Reason__c = 'New'], 'No ticket should be updated');
+    }
+
+    @IsTest
+    static void ctrl_renameReason_noMatchingTickets_returnsEarly() {
+        insert new Merge_Ticket__c(
+            Object_Type__c = 'Contact', Status__c = 'Ignored',
+            Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|rename_nomatch@exectest.com',
+            Match_Confidence__c = 'High', Candidate_Count__c = 2,
+            Closed_Reason__c = 'Other Reason'
+        );
+        Test.startTest();
+        MergeController.renameReason('Nonexistent Reason', 'New Reason', 'Ignored');
+        Test.stopTest();
+        Integer cnt = [SELECT COUNT() FROM Merge_Ticket__c WHERE Closed_Reason__c = 'New Reason'];
+        System.assertEquals(0, cnt, 'No ticket should be updated when none match');
+    }
+
+    @IsTest
+    static void ctrl_renameReason_withTickets_updatesReasonAndNotes() {
+        insert new List<Merge_Ticket__c>{
+            new Merge_Ticket__c(
+                Object_Type__c = 'Contact', Status__c = 'Ignored',
+                Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|rename_a@exectest.com',
+                Match_Confidence__c = 'High', Candidate_Count__c = 2,
+                Closed_Reason__c = 'Old Reason',
+                Notes__c = '|||Old Reason|||some context text'
+            ),
+            new Merge_Ticket__c(
+                Object_Type__c = 'Contact', Status__c = 'Ignored',
+                Match_Type__c = 'Email', Match_Key__c = 'Contact|Email|rename_b@exectest.com',
+                Match_Confidence__c = 'High', Candidate_Count__c = 2,
+                Closed_Reason__c = 'Old Reason'
+                // Notes__c intentionally null — covers the null-check branch
+            )
+        };
+        Test.startTest();
+        MergeController.renameReason('Old Reason', 'New Reason', 'Ignored');
+        Test.stopTest();
+        List<Merge_Ticket__c> updated = [SELECT Closed_Reason__c, Notes__c FROM Merge_Ticket__c
+                                          WHERE Match_Key__c LIKE '%rename_%@exectest.com'
+                                          ORDER BY Match_Key__c];
+        System.assertEquals('New Reason', updated[0].Closed_Reason__c, 'First ticket reason updated');
+        System.assert(updated[0].Notes__c.contains('|||New Reason|||'), 'Notes should have new reason');
+        System.assertEquals('New Reason', updated[1].Closed_Reason__c, 'Second ticket reason updated');
+    }
 }

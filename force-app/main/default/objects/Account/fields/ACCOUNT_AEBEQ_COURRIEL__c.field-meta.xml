@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ACCOUNT_AEBEQ_COURRIEL__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Indique l’opposition au contact par courriel pour AEBEQ. Cochée = NE PAS envoyer d’e-mail. Justification obligatoire dans “Raison du non-contact (Courriel)”. Décochée = contact autorisé / aucune préférence.</description>
+    <inlineHelpText>Indique l’opposition au contact par courriel pour AEBEQ. Cochée = NE PAS envoyer d’e-mail. Justification obligatoire dans “Raison du non-contact (Courriel)”. Décochée = contact autorisé / aucune préférence.</inlineHelpText>
+    <label>Excl. (COURRIEL) AEBEQ</label>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Checkbox</type>
+</CustomField>

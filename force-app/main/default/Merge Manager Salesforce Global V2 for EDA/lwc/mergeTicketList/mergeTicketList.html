@@ -1,0 +1,174 @@
+<template>
+    <!-- Filter bar -->
+    <div class="ticket-list__filters slds-p-horizontal_small slds-p-vertical_x-small slds-border_bottom">
+        <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-end">
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    name="objectType"
+                    label={i18n.labelObject}
+                    variant="label-hidden"
+                    value={objectTypeFilter}
+                    options={objectTypeOptions}
+                    onchange={handleObjectTypeChange}>
+                </lightning-combobox>
+            </div>
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-combobox
+                    name="status"
+                    label={i18n.labelStatus}
+                    variant="label-hidden"
+                    value={statusFilter}
+                    options={statusOptions}
+                    onchange={handleStatusChange}>
+                </lightning-combobox>
+            </div>
+        </div>
+        <!-- Closed reason sub-filter -->
+        <template if:true={showClosedReasonFilter}>
+            <div class="slds-m-top_x-small">
+                <lightning-combobox
+                    name="closedReason"
+                    label={i18n.labelClosedReason}
+                    variant="label-hidden"
+                    placeholder={i18n.placeholderAllRsn}
+                    value={closedReasonFilter}
+                    options={closedReasonFilterOptions}
+                    onchange={handleClosedReasonFilterChange}>
+                </lightning-combobox>
+            </div>
+        </template>
+
+        <!-- Search box -->
+        <div class="slds-m-top_x-small ticket-list__search">
+            <div class="slds-input-has-icon slds-input-has-icon_left slds-input-has-icon_right">
+                <lightning-icon icon-name="utility:search" size="xx-small"
+                    class="slds-input__icon slds-input__icon_left ticket-list__search-icon">
+                </lightning-icon>
+                <input type="text"
+                    class="slds-input ticket-list__search-input"
+                    placeholder={i18n.searchPlaceholder}
+                    value={searchTerm}
+                    oninput={handleSearchChange} />
+                <template if:true={hasSearch}>
+                    <button class="ticket-list__search-clear"
+                        onclick={handleClearSearch}
+                        title={i18n.clearSearch}>
+                        <lightning-icon icon-name="utility:clear" size="xx-small"
+                            class="ticket-list__clear-icon">
+                        </lightning-icon>
+                    </button>
+                </template>
+            </div>
+        </div>
+        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_x-small">
+            <span class="slds-text-body_small slds-text-color_weak">{countLabel}</span>
+            <div class="ticket-list__page-nav">
+                <template if:true={showPageNav}>
+                    <button class="page-nav-btn"
+                        disabled={isPrevDisabled}
+                        onclick={handlePrevPage}
+                        title={i18n.pagePrev}>&#8249;</button>
+                    <template if:false={_editingPage}>
+                        <span class="page-nav-label page-nav-label_clickable"
+                              onclick={handlePageLabelClick}
+                              title={i18n.pageJumpHint}>{pageLabel}</span>
+                    </template>
+                    <template if:true={_editingPage}>
+                        <input type="number"
+                               class="page-nav-input"
+                               min="1"
+                               max={_totalPages}
+                               onkeydown={handlePageInputKey}
+                               onblur={handlePageInputBlur} />
+                    </template>
+                    <button class="page-nav-btn"
+                        disabled={isNextDisabled}
+                        onclick={handleNextPage}
+                        title={i18n.pageNext}>&#8250;</button>
+                </template>
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="bare"
+                    size="small"
+                    alternative-text={i18n.altRefresh}
+                    onclick={handleRefresh}>
+                </lightning-button-icon>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spinner -->
+    <template if:true={isLoading}>
+        <div class="slds-p-around_medium slds-text-align_center">
+            <lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner>
+        </div>
+    </template>
+
+    <!-- Error -->
+    <template if:true={hasError}>
+        <div class="slds-p-around_small slds-notify slds-notify_alert slds-theme_error" role="alert">
+            <p>{errorMessage}</p>
+        </div>
+    </template>
+
+    <!-- List -->
+    <template if:false={isLoading}>
+        <ul class="ticket-list__items">
+            <template for:each={enrichedTickets} for:item="ticket">
+                <li key={ticket.Id}
+                    class={ticket.rowClass}
+                    data-id={ticket.Id}
+                    data-label={ticket.Name}
+                    data-matchtype={ticket.Match_Type__c}
+                    data-objecttype={ticket.Object_Type__c}
+                    onclick={handleTicketClick}>
+                    <div class="slds-media slds-media_center slds-p-around_small">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name={ticket.typeIcon} size="small"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body ticket-list__body">
+                            <!-- Row 1: ticket number + status badge -->
+                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
+                                <span class="ticket-list__ticket-number"># {ticket.Name}</span>
+                                <span class={ticket.statusClass} title={ticket.errorTooltip}>{ticket.statusBadgeLabel}</span>
+                            </div>
+                            <!-- Row 2: candidate names (left) + date aligned to last name (right) -->
+                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end slds-m-top_xx-small">
+                                <div class="ticket-list__names-block">
+                                    <template for:each={ticket.candidateNamesItems} for:item="cname">
+                                        <p key={cname.id}
+                                           class="ticket-list__name slds-truncate"
+                                           title={cname.name}>{cname.name}</p>
+                                    </template>
+                                </div>
+                                <span class="slds-text-body_small slds-text-color_weak ticket-list__date">{ticket.relativeDate}</span>
+                            </div>
+                            <!-- Row 4: reopen button -->
+                            <template if:true={ticket.canReopen}>
+                                <div class="slds-m-top_xx-small">
+                                    <button class="reopen-btn"
+                                        data-id={ticket.Id}
+                                        onclick={handleReopenTicket}
+                                        disabled={isReopening}
+                                        title={i18n.btnReopenTitle}>
+                                        {i18n.btnReopen}
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </li>
+            </template>
+        </ul>
+
+        <!-- Empty state -->
+        <template if:true={isEmpty}>
+            <div class="slds-p-around_medium slds-text-align_center">
+                <p class="slds-text-body_regular slds-text-color_weak">{i18n.emptyNoTickets}</p>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                    {i18n.emptyStartScan}
+                </p>
+            </div>
+        </template>
+    </template>
+</template>

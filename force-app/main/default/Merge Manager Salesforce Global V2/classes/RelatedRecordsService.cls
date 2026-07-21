@@ -11,10 +11,6 @@ public without sharing class RelatedRecordsService {
     @TestVisible private static Set<String>                       TEST_THROW_OBJECTS  =
         new Set<String>();
     @TestVisible private static Boolean TEST_THROW_PICKLIST = false;
-    // Test-injection: forces getObjectConfigs to skip real Related_Object_Config__c
-    // rows and use the hardcoded EDA fallback configs, so coverage of the fallback
-    // path doesn't depend on whether the org has custom configs already set up.
-    @TestVisible private static Boolean TEST_FORCE_EDA_FALLBACK_CONFIGS = false;
 
     // Schema.getGlobalDescribe() is platform-cached per transaction, but calling the
     // method repeatedly adds dispatch overhead. Cache it once here for clarity and
@@ -53,8 +49,7 @@ public without sharing class RelatedRecordsService {
         Map<String,Schema.SObjectType> gd = gd();
         List<RelatedObjectConfig> configs = new List<RelatedObjectConfig>();
 
-        // Read user-configured objects first
-        if (!TEST_FORCE_EDA_FALLBACK_CONFIGS && gd.containsKey('related_object_config__c')) {
+        if (gd.containsKey('related_object_config__c')) {
             List<SObject> rows = Database.query(
                 'SELECT Name, Object_API_Name__c, Parent_Field__c, ' +
                 '       Status_Field__c, Active_Status_Values__c, Sort_Order__c ' +
@@ -62,58 +57,22 @@ public without sharing class RelatedRecordsService {
                 'WHERE Object_Type__c = :parentType AND Is_Active__c = true ' +
                 'ORDER BY Sort_Order__c NULLS LAST, Name ASC'
             );
-            if (!rows.isEmpty()) {
-                for (SObject row : rows) {
-                    String statusFld  = (String) row.get('Status_Field__c');
-                    String activeVals = (String) row.get('Active_Status_Values__c');
-                    Set<String> keywords = null;
-                    if (!String.isBlank(activeVals)) {
-                        keywords = new Set<String>();
-                        for (String v : activeVals.split(',')) {
-                            keywords.add(v.trim().toLowerCase());
-                        }
+            for (SObject row : rows) {
+                String statusFld  = (String) row.get('Status_Field__c');
+                String activeVals = (String) row.get('Active_Status_Values__c');
+                Set<String> keywords = null;
+                if (!String.isBlank(activeVals)) {
+                    keywords = new Set<String>();
+                    for (String v : activeVals.split(',')) {
+                        keywords.add(v.trim().toLowerCase());
                     }
-                    configs.add(new RelatedObjectConfig(
-                        (String) row.get('Object_API_Name__c'),
-                        (String) row.get('Parent_Field__c'),
-                        String.isBlank(statusFld) ? null : statusFld,
-                        keywords,
-                        (String) row.get('Name')
-                    ));
                 }
-                return configs;
-            }
-        }
-
-        // Fallback: EDA auto-detection when no custom configs exist
-        if (parentType == 'Contact') {
-            if (gd.containsKey('hed__course_enrollment__c')) {
                 configs.add(new RelatedObjectConfig(
-                    'hed__Course_Enrollment__c', 'hed__Contact__c',
-                    'hed__Status__c',
-                    new Set<String>{'current','enrolled','registered'}, 'Cours'
-                ));
-            }
-            if (gd.containsKey('hed__program_enrollment__c')) {
-                configs.add(new RelatedObjectConfig(
-                    'hed__Program_Enrollment__c', 'hed__Contact__c',
-                    'Status__c',
-                    new Set<String>{'current','enrolled','applicant'}, 'Programmes'
-                ));
-            }
-            if (gd.containsKey('hed__affiliation__c')) {
-                configs.add(new RelatedObjectConfig(
-                    'hed__Affiliation__c', 'hed__Contact__c',
-                    null, null, 'Affiliations'
-                ));
-            }
-        }
-
-        if (parentType == 'Account') {
-            if (gd.containsKey('hed__affiliation__c')) {
-                configs.add(new RelatedObjectConfig(
-                    'hed__Affiliation__c', 'hed__Account__c',
-                    null, null, 'Affiliations'
+                    (String) row.get('Object_API_Name__c'),
+                    (String) row.get('Parent_Field__c'),
+                    String.isBlank(statusFld) ? null : statusFld,
+                    keywords,
+                    (String) row.get('Name')
                 ));
             }
         }

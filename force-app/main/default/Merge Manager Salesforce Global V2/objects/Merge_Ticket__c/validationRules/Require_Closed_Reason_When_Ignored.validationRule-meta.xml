@@ -4,6 +4,7 @@
     <active>true</active>
     <description>Forces the reviewer to document why a ticket is being dismissed. Prevents silent data loss without justification.</description>
     <errorConditionFormula>AND(
+            ISCHANGED(Status__c),
             OR(ISPICKVAL(Status__c, &apos;Ignored&apos;), ISPICKVAL(Status__c, &apos;Closed&apos;)),
             ISPICKVAL(Closed_Reason__c, &apos;&apos;),
             ISBLANK(Notes__c)

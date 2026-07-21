@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Raison_du_non_contact_Postal_SEMBEQ__c</fullName>
+    <description>Obligatoire si “Postal” est cochée : raison de ne pas envoyer de courrier.</description>
+    <inlineHelpText>Obligatoire si “Postal” est cochée : raison de ne pas envoyer de courrier.</inlineHelpText>
+    <label>Raison du non-contact (Postal)</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Souhaite être retiré de la liste d’envois postaux</fullName>
+                <default>false</default>
+                <label>Souhaite être retiré de la liste d’envois postaux</label>
+            </value>
+            <value>
+                <fullName>Adresse invalide</fullName>
+                <default>false</default>
+                <label>Adresse invalide</label>
+            </value>
+            <value>
+                <fullName>Habite avec un autre membre déjà inscrit (éviter les doublons)</fullName>
+                <default>false</default>
+                <label>Habite avec un autre membre déjà inscrit (éviter les doublons)</label>
+            </value>
+            <value>
+                <fullName>Préfère un autre canal (courriel ou appel)</fullName>
+                <default>false</default>
+                <label>Préfère un autre canal (courriel ou appel)</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

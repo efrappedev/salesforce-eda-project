@@ -116,10 +116,19 @@
                     </template>
                 </div>
 
-                <!-- Dashboard panel -->
-                <div class={dashboardPanelClass}>
-                    <c-merge-dashboard lang={lang}></c-merge-dashboard>
-                </div>
+                <!-- Dashboard panel — lazy mounted on first click -->
+                <template if:true={showDashboard}>
+                    <div class={dashboardPanelClass}>
+                        <c-merge-dashboard lang={lang}></c-merge-dashboard>
+                    </div>
+                </template>
+
+                <!-- Spinner shown during initial 300ms before dashboard mounts -->
+                <template if:true={_dashboardLoading}>
+                    <div class="mm-panel mm-loading">
+                        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                    </div>
+                </template>
 
                 <!-- One wizard per open tab; active = visible, others hidden -->
                 <template for:each={enrichedTabs} for:item="tab">
@@ -130,7 +139,10 @@
                             object-type={tab.objectType}
                             onmergecomplete={handleMergeComplete}
                             onundocomplete={handleUndoComplete}
-                            ondismissed={handleDismissed}>
+                            ondismissed={handleDismissed}
+                            onticketreopened={handleTicketReopened}
+                            onclosetab={handleWizardCloseTab}
+                            onreasonadded={handleReasonAdded}>
                         </c-merge-wizard>
                     </div>
                 </template>

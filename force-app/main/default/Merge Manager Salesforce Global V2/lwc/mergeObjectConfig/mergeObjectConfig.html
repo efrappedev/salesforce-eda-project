@@ -63,13 +63,13 @@
                     <!-- ── Objects ── -->
                     <template if:true={isObjectsSection}>
                         <div class="settings-panel__content">
-                            <!-- Type toggle -->
+                            <!-- Type toggle — Account first for non-EDA orgs -->
                             <div class="cfg-type-toggle slds-m-bottom_x-small">
-                                <button class={contactTabClass} data-type="Contact" onclick={handleTypeChange}>
-                                    {i18n.objectTypeContact}
-                                </button>
                                 <button class={accountTabClass} data-type="Account" onclick={handleTypeChange}>
                                     {i18n.objectTypeAccount}
+                                </button>
+                                <button class={contactTabClass} data-type="Contact" onclick={handleTypeChange}>
+                                    {i18n.objectTypeContact}
                                 </button>
                             </div>
 
@@ -143,6 +143,39 @@
                                             </div>
                                         </template>
                                     </template>
+
+                                    <!-- Layer 3: manual add -->
+                                    <div class="cfg-manual-add slds-m-top_small">
+                                        <button class="slds-button slds-button_neutral cfg-manual-add__toggle"
+                                            onclick={handleToggleManualAdd}>
+                                            {i18n.manualAddBtn}
+                                        </button>
+                                        <template if:true={showManualAdd}>
+                                            <div class="cfg-manual-add__form slds-m-top_x-small">
+                                                <lightning-combobox
+                                                    label={i18n.labelObject}
+                                                    value={manualSelectedObj}
+                                                    options={manualObjOptions}
+                                                    onchange={handleManualObjChange}
+                                                    class="cfg-manual-add__select">
+                                                </lightning-combobox>
+                                                <template if:true={hasManualFieldOptions}>
+                                                    <lightning-combobox
+                                                        label={i18n.manualFieldLabel}
+                                                        value={manualSelectedField}
+                                                        options={manualLookupOptions}
+                                                        onchange={handleManualFieldChange}
+                                                        class="cfg-manual-add__select slds-m-left_x-small">
+                                                    </lightning-combobox>
+                                                </template>
+                                                <button class="slds-button slds-button_brand cfg-manual-add__btn"
+                                                    disabled={manualAddDisabled}
+                                                    onclick={handleManualAdd}>
+                                                    {i18n.save}
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </template>
                                 <template if:false={hasItems}>
                                     <template if:false={errorMessage}>
@@ -160,52 +193,201 @@
                         <div class="settings-panel__content">
                             <h3 class="settings-panel__title">{i18n.settingsNavReasons}</h3>
 
-                            <!-- Predefined (read-only) -->
-                            <div class="cfg-section-label">{i18n.predefinedLabel}</div>
-                            <ul class="reason-list">
-                                <template for:each={predefinedReasonsList} for:item="r">
-                                    <li key={r.value} class="reason-item reason-item_predefined">
-                                        <lightning-icon icon-name="utility:lock" size="xx-small"
-                                            class="reason-item__icon" alternative-text="predefined">
-                                        </lightning-icon>
-                                        <span>{r.label}</span>
-                                    </li>
-                                </template>
-                            </ul>
-
-                            <!-- Custom (editable) -->
-                            <div class="cfg-section-label slds-m-top_small">{i18n.customReasonsLabel}</div>
-                            <template if:true={hasCustomReasons}>
-                                <ul class="reason-list">
-                                    <template for:each={customReasonsItems} for:item="r">
-                                        <li key={r.id} class="reason-item reason-item_custom">
-                                            <span class="reason-item__text">{r.value}</span>
-                                            <button class="reason-item__remove"
-                                                data-value={r.value}
-                                                onclick={removeCustomReason}
-                                                title={i18n.btnRemove}>&#x2715;</button>
-                                        </li>
-                                    </template>
-                                </ul>
-                            </template>
-                            <template if:false={hasCustomReasons}>
-                                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
-                                    {i18n.noCustomReasons}
-                                </p>
-                            </template>
-
-                            <!-- Add new -->
-                            <div class="reason-add-row slds-m-top_small">
-                                <input type="text"
-                                    class="slds-input"
-                                    placeholder={i18n.placeholderNewReason}
-                                    value={newReasonInput}
-                                    oninput={handleReasonInput} />
-                                <button class="slds-button slds-button_neutral reason-add-btn"
-                                    onclick={addCustomReason}>
-                                    {i18n.btnAddReason}
+                            <!-- Sub-tabs: To Validate | Close -->
+                            <div class="cfg-type-toggle slds-m-bottom_small">
+                                <button class={reasonTabTvClass} data-tab="tv" onclick={handleReasonTabChange}>
+                                    {i18n.tabToValidate}
+                                </button>
+                                <button class={reasonTabClClass} data-tab="cl" onclick={handleReasonTabChange}>
+                                    {i18n.tabCloseTicket}
                                 </button>
                             </div>
+
+                            <template if:true={reasonError}>
+                                <div class="cfg-error slds-m-bottom_small">{reasonError}</div>
+                            </template>
+
+                            <template if:true={isReasonLoading}>
+                                <div class="slds-text-align_center slds-p-around_medium">
+                                    <lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner>
+                                </div>
+                            </template>
+
+                            <template if:false={isReasonLoading}>
+
+                                <!-- ── To Validate tab ── -->
+                                <template if:true={isReasonTabTv}>
+                                    <div class="cfg-section-label">{i18n.predefinedLabel}</div>
+                                    <ul class="reason-list">
+                                        <template for:each={tvPredefinedItems} for:item="r">
+                                            <li key={r.key} class="reason-item reason-item_editable">
+                                                <template if:false={r.isEditing}>
+                                                    <span class="reason-item__display">{r.label}</span>
+                                                    <template if:true={r.isModified}>
+                                                        <button class="reason-item__reset"
+                                                            title={i18n.btnReopen}
+                                                            data-key={r.key} data-tab="tv"
+                                                            onclick={handleReasonReset}>↺</button>
+                                                    </template>
+                                                    <button class="reason-item__pencil"
+                                                        data-key={r.key} data-tab="tv"
+                                                        onclick={handleEditStart}
+                                                        title="Modifier">
+                                                        <lightning-icon icon-name="utility:edit" size="xx-small"
+                                                            class="reason-item__edit-icon" alternative-text="edit">
+                                                        </lightning-icon>
+                                                    </button>
+                                                </template>
+                                                <template if:true={r.isEditing}>
+                                                    <input type="text" class="slds-input reason-item__input"
+                                                        value={r.label}
+                                                        placeholder={r.placeholder}
+                                                        data-key={r.key} data-tab="tv"
+                                                        oninput={handleReasonLabelChange}
+                                                        onblur={handleEditEnd} />
+                                                </template>
+                                            </li>
+                                        </template>
+                                    </ul>
+
+                                    <div class="cfg-section-label slds-m-top_small">{i18n.customReasonsLabel}</div>
+                                    <template if:true={hasTvCustomItems}>
+                                        <ul class="reason-list">
+                                            <template for:each={tvCustomItems} for:item="r">
+                                                <li key={r.id} class="reason-item reason-item_custom reason-item_editable">
+                                                    <template if:false={r.isEditing}>
+                                                        <span class="reason-item__display">{r.value}</span>
+                                                        <button class="reason-item__remove"
+                                                            data-id={r.id} data-tab="tv"
+                                                            onclick={handleRemoveCustomReason}
+                                                            title={i18n.btnRemove}>&#x2715;</button>
+                                                        <button class="reason-item__pencil"
+                                                            data-id={r.id} data-tab="tv"
+                                                            onclick={handleEditStart}
+                                                            title="Modifier">
+                                                            <lightning-icon icon-name="utility:edit" size="xx-small"
+                                                                class="reason-item__edit-icon" alternative-text="edit">
+                                                            </lightning-icon>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={r.isEditing}>
+                                                        <input type="text" class="slds-input reason-item__input"
+                                                            value={r.value}
+                                                            data-id={r.id} data-tab="tv"
+                                                            oninput={handleCustomReasonChange}
+                                                            onblur={handleEditEnd} />
+                                                    </template>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                    <template if:false={hasTvCustomItems}>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                                            {i18n.noCustomReasons}
+                                        </p>
+                                    </template>
+
+                                    <div class="reason-add-row slds-m-top_small">
+                                        <input type="text" class="slds-input"
+                                            placeholder={i18n.placeholderNewTvReason}
+                                            value={newTvReason}
+                                            data-tab="tv"
+                                            oninput={handleNewReasonInput} />
+                                        <button class="slds-button slds-button_neutral reason-add-btn"
+                                            data-tab="tv"
+                                            onclick={addCustomReason}>
+                                            {i18n.btnAddReason}
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <!-- ── Close tab ── -->
+                                <template if:true={isReasonTabCl}>
+                                    <div class="cfg-section-label">{i18n.predefinedLabel}</div>
+                                    <ul class="reason-list">
+                                        <template for:each={clPredefinedItems} for:item="r">
+                                            <li key={r.key} class="reason-item reason-item_editable">
+                                                <template if:false={r.isEditing}>
+                                                    <span class="reason-item__display">{r.label}</span>
+                                                    <template if:true={r.isModified}>
+                                                        <button class="reason-item__reset"
+                                                            title={i18n.btnReopen}
+                                                            data-key={r.key} data-tab="cl"
+                                                            onclick={handleReasonReset}>↺</button>
+                                                    </template>
+                                                    <button class="reason-item__pencil"
+                                                        data-key={r.key} data-tab="cl"
+                                                        onclick={handleEditStart}
+                                                        title="Modifier">
+                                                        <lightning-icon icon-name="utility:edit" size="xx-small"
+                                                            class="reason-item__edit-icon" alternative-text="edit">
+                                                        </lightning-icon>
+                                                    </button>
+                                                </template>
+                                                <template if:true={r.isEditing}>
+                                                    <input type="text" class="slds-input reason-item__input"
+                                                        value={r.label}
+                                                        placeholder={r.placeholder}
+                                                        data-key={r.key} data-tab="cl"
+                                                        oninput={handleReasonLabelChange}
+                                                        onblur={handleEditEnd} />
+                                                </template>
+                                            </li>
+                                        </template>
+                                    </ul>
+
+                                    <div class="cfg-section-label slds-m-top_small">{i18n.customReasonsLabel}</div>
+                                    <template if:true={hasClCustomItems}>
+                                        <ul class="reason-list">
+                                            <template for:each={clCustomItems} for:item="r">
+                                                <li key={r.id} class="reason-item reason-item_custom reason-item_editable">
+                                                    <template if:false={r.isEditing}>
+                                                        <span class="reason-item__display">{r.value}</span>
+                                                        <button class="reason-item__remove"
+                                                            data-id={r.id} data-tab="cl"
+                                                            onclick={handleRemoveCustomReason}
+                                                            title={i18n.btnRemove}>&#x2715;</button>
+                                                        <button class="reason-item__pencil"
+                                                            data-id={r.id} data-tab="cl"
+                                                            onclick={handleEditStart}
+                                                            title="Modifier">
+                                                            <lightning-icon icon-name="utility:edit" size="xx-small"
+                                                                class="reason-item__edit-icon" alternative-text="edit">
+                                                            </lightning-icon>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={r.isEditing}>
+                                                        <input type="text" class="slds-input reason-item__input"
+                                                            value={r.value}
+                                                            data-id={r.id} data-tab="cl"
+                                                            oninput={handleCustomReasonChange}
+                                                            onblur={handleEditEnd} />
+                                                    </template>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                    <template if:false={hasClCustomItems}>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                                            {i18n.noCustomReasons}
+                                        </p>
+                                    </template>
+
+                                    <div class="reason-add-row slds-m-top_small">
+                                        <input type="text" class="slds-input"
+                                            placeholder={i18n.placeholderNewClReason}
+                                            value={newClReason}
+                                            data-tab="cl"
+                                            oninput={handleNewReasonInput} />
+                                        <button class="slds-button slds-button_neutral reason-add-btn"
+                                            data-tab="cl"
+                                            onclick={addCustomReason}>
+                                            {i18n.btnAddReason}
+                                        </button>
+                                    </div>
+                                </template>
+
+                            </template>
                         </div>
                     </template>
 
@@ -222,6 +404,11 @@
                 <template if:true={isObjectsSection}>
                     <lightning-button label={saveLabel} variant="brand"
                         disabled={isSaving} onclick={handleSave}>
+                    </lightning-button>
+                </template>
+                <template if:true={isReasonsSection}>
+                    <lightning-button label={reasonSaveLabel} variant="brand"
+                        disabled={isReasonSaving} onclick={handleReasonSave}>
                     </lightning-button>
                 </template>
             </footer>

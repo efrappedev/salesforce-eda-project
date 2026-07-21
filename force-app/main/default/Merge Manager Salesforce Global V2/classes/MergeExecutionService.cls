@@ -27,13 +27,10 @@ public without sharing class MergeExecutionService {
     @TestVisible private static Boolean TEST_THROW_FIELD_PUT           = false;
     @TestVisible private static Boolean TEST_THROW_LOSER_ACCOUNTID     = false;
     @TestVisible private static Boolean TEST_THROW_MASTER_ACCOUNTID    = false;
-    @TestVisible private static Boolean TEST_THROW_EDA_AFFIL_QUERY     = false;
     // Forces validateObjectType to throw so the MergeException branch is covered in tests
     @TestVisible private static Boolean TEST_FORCE_INVALID_OBJECT_TYPE = false;
     // Forces the inner ticket-update to throw so catch(Exception ignored) on that line is covered
     @TestVisible private static Boolean TEST_THROW_ERROR_STAMP         = false;
-    // Injects stale normalized values for pref fields so the remap branch in fixEdaPreferenceFields is covered
-    @TestVisible private static Boolean TEST_INJECT_STALE_PREF         = false;
     // Forces validateMergePermissions to deny, covering the throw branch (no test user lacks CRUD by default)
     @TestVisible private static Boolean TEST_FORCE_MERGE_PERMISSION_DENIED = false;
     // Forces catch blocks in Task/Event/CampaignMember reparenting
@@ -114,11 +111,6 @@ public without sharing class MergeExecutionService {
             SObject masterOverride = Schema.getGlobalDescribe()
                 .get(objectType).newSObject(masterId);
             applyFieldDecisions(masterOverride, candidateMap, request.fieldDecisions, fieldMap);
-
-            // ── 5b. Fix EDA preference fields BEFORE any structural DML ─────
-            if (objectType == 'Contact') {
-                fixEdaPreferenceFields(masterId, losingIds, fieldMap);
-            }
 
             // ── 6. Reparent related records to master, then soft-delete losers ─
             // NOTE: losers are deleted BEFORE applying field decisions (step 5c below).
@@ -288,100 +280,6 @@ public without sharing class MergeExecutionService {
                 throw new MergeException(buildErrorMsg(errs));
             }
         }
-    }
-
-    // EDA stores phone/email preference as a field LABEL in the org's display language.
-    // EDA TDTM validates during merge that the stored value matches the CURRENT LANGUAGE label
-    // of the corresponding field — so a value stored in English ("Home Phone") fails in a
-    // French org where the label is "Téléphone (domicile)".
-    //
-    // Fix: before the merge, remap each stored value to the current-language label of the
-    // matching field by normalizing both the stored value and each field API name to a
-    // language-agnostic key. No hardcoded language mappings are needed:
-    //   "Home Phone"        → normalize → "homephone" → matches HomePhone (API) → "Téléphone (domicile)"
-    //   "hed__WorkPhone__c" → normalize → "workphone" → matches "Work Phone" stored value → ...
-    // If the stored value already equals the current-language label, no update is needed.
-    // These fields are also excluded from applyFieldDecisions so the merge template never
-    // carries the stale value from a loser record.
-
-    private static void fixEdaPreferenceFields(
-        Id masterId, List<Id> losingIds, Map<String,Schema.SObjectField> fieldMap
-    ) {
-        if (fieldMap == null) return;
-        Boolean hasPrefPhone = fieldMap.containsKey('hed__preferredphone__c');
-        Boolean hasPrefEmail = fieldMap.containsKey('hed__preferred_email__c');
-        if (!hasPrefPhone && !hasPrefEmail) return;
-
-        // Build normalized-key → current-language label for every phone/email field.
-        // normalizeEdaKey("Home Phone") == normalizeEdaKey("HomePhone") == "homephone"
-        // so a stored English value matches the right field regardless of org language.
-        Map<String,String> phoneNormToLabel = new Map<String,String>();
-        Map<String,String> emailNormToLabel = new Map<String,String>();
-        for (String f : fieldMap.keySet()) {
-            Schema.DescribeFieldResult dfr = fieldMap.get(f).getDescribe();
-            String currentLabel = dfr.getLabel();
-            if (dfr.getType() == Schema.DisplayType.Phone) {
-                phoneNormToLabel.put(normalizeEdaKey(dfr.getName()), currentLabel);
-            }
-            if (dfr.getType() == Schema.DisplayType.Email) {
-                emailNormToLabel.put(normalizeEdaKey(dfr.getName()), currentLabel);
-            }
-        }
-
-        // Query current preference values for all contacts
-        List<Id> allIds = new List<Id>{ masterId };
-        allIds.addAll(losingIds);
-        String sel = 'SELECT Id'
-            + (hasPrefPhone ? ', hed__PreferredPhone__c' : '')
-            + (hasPrefEmail ? ', hed__Preferred_Email__c' : '')
-            + ' FROM Contact WHERE Id IN :allIds';
-        List<SObject> contacts = Database.query(sel); // NOPMD — sel built from hardcoded EDA field API names only
-
-        List<SObject> toUpdate = new List<SObject>();
-        for (SObject c : contacts) {
-            SObject upd = Schema.getGlobalDescribe().get('Contact').newSObject((Id) c.get('Id'));
-            Boolean changed = false;
-
-            if (hasPrefPhone) {
-                String stored = TEST_INJECT_STALE_PREF ? 'homephone' : (String) c.get('hed__PreferredPhone__c');
-                if (stored != null) {
-                    String target = phoneNormToLabel.get(normalizeEdaKey(stored));
-                    if (target != null && target != stored) {
-                        upd.put('hed__PreferredPhone__c', target);
-                        changed = true;
-                    }
-                }
-            }
-
-            if (hasPrefEmail) {
-                String stored = TEST_INJECT_STALE_PREF ? 'alternateemail' : (String) c.get('hed__Preferred_Email__c');
-                if (stored != null) {
-                    String target = emailNormToLabel.get(normalizeEdaKey(stored));
-                    if (target != null && target != stored) {
-                        upd.put('hed__Preferred_Email__c', target);
-                        changed = true;
-                    }
-                }
-            }
-
-            if (changed) toUpdate.add(upd);
-        }
-
-        if (!toUpdate.isEmpty()) {
-            try { Database.update(toUpdate, false); } catch (Exception e) {}
-        }
-    }
-
-    // Strips namespace prefix (e.g. "hed__"), "__c" suffix, and non-alphanumeric chars,
-    // then lowercases — making field API names and their EDA picklist counterparts identical:
-    //   "Home Phone" → "homephone"   "HomePhone" → "homephone"
-    //   "hed__WorkPhone__c" → "workphone"   "Work Phone" → "workphone"
-    private static String normalizeEdaKey(String s) {
-        if (String.isBlank(s)) return '';
-        String norm = s.replaceAll('^[a-z][a-z0-9]*__', '');  // remove namespace prefix
-        norm = norm.replaceAll('__c$', '');                     // remove __c suffix
-        norm = norm.replaceAll('[^a-zA-Z0-9]', '');             // remove spaces / punctuation
-        return norm.toLowerCase();
     }
 
     /**
@@ -633,29 +531,8 @@ public without sharing class MergeExecutionService {
 
         if (orphanedIds.isEmpty()) return new List<MergeWrappers.OrphanedAccountInfo>();
 
-        // Count EDA affiliations per orphaned account (if EDA installed)
         Map<Id,Integer> affiliationCounts = new Map<Id,Integer>();
         for (Id accId : orphanedIds) affiliationCounts.put(accId, 0);
-
-        if (RelatedRecordsService.isEDAAvailable()) {
-            try {
-                if (TEST_THROW_EDA_AFFIL_QUERY) throw new QueryException('test-induced');
-                String affiliQ =
-                    'SELECT hed__Account__c accId, COUNT(Id) cnt ' +
-                    'FROM hed__Affiliation__c ' +
-                    'WHERE hed__Account__c IN :orphanedIds ' +
-                    'GROUP BY hed__Account__c';
-                for (AggregateResult ar : Database.query(affiliQ)) { // NOPMD — affiliQ built from hardcoded string literals only
-                    Id accId = (Id) ar.get('accId');
-                    if (affiliationCounts.containsKey(accId)) {
-                        affiliationCounts.put(accId, (Integer) ar.get('cnt'));
-                    }
-                }
-            } catch (Exception e) {
-                System.debug(LoggingLevel.WARN,
-                    'detectOrphanedAccounts affiliation: ' + e.getMessage());
-            }
-        }
 
         List<MergeWrappers.OrphanedAccountInfo> result =
             new List<MergeWrappers.OrphanedAccountInfo>();

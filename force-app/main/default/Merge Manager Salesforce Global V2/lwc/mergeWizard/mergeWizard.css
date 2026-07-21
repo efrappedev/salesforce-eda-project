@@ -111,6 +111,27 @@
 
 /* ── Candidate cards (Step 1) ────────────────────────────────────────────── */
 
+.candidate-cards-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    padding-bottom: 0.25rem;
+}
+
+.candidate-cards-row_scroll {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.candidate-card-col {
+    flex: 1 1 280px;
+    min-width: 280px;
+}
+
+.candidate-cards-row_scroll .candidate-card-col {
+    flex: 0 0 280px;
+}
+
 .candidate-card {
     cursor: pointer;
     border: 2px solid transparent;

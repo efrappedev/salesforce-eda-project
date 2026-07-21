@@ -18,6 +18,10 @@ import getDeletedAccountsForTicketApex from '@salesforce/apex/MergeController.ge
 import deleteOrphanedContactApex       from '@salesforce/apex/MergeController.deleteOrphanedContact';
 import restoreDeletedContactApex       from '@salesforce/apex/MergeController.restoreDeletedContact';
 import getDeletedContactsForTicketApex from '@salesforce/apex/MergeController.getDeletedContactsForTicket';
+import getCustomCloseReasonsApex       from '@salesforce/apex/MergeController.getCustomCloseReasons';
+import saveCustomCloseReasonsApex      from '@salesforce/apex/MergeController.saveCustomCloseReasons';
+import getReasonConfigApex             from '@salesforce/apex/MergeController.getReasonConfig';
+import saveReasonConfigApex            from '@salesforce/apex/MergeController.saveReasonConfig';
 
 const CLOSED_REASON_KEY = {
     'False Positive - Same Household':    'reasonHouseholdLong',
@@ -28,6 +32,25 @@ const CLOSED_REASON_KEY = {
     'Out of Scope':                       'reasonOutOfScopeLong',
     'Other':                              'reasonOtherLong'
 };
+
+const TV_REASONS = [
+    { key: 'fp-household', storedDefault: 'False Positive - Same Household',    i18nKey: 'reasonHouseholdLong'    },
+    { key: 'fp-org',       storedDefault: 'False Positive - Same Organization', i18nKey: 'reasonOrganizationLong' },
+    { key: 'fp-phone',     storedDefault: 'False Positive - Shared Phone',      i18nKey: 'reasonSharedPhoneLong'  },
+    { key: 'fp-email',     storedDefault: 'False Positive - Shared Email',      i18nKey: 'reasonSharedEmailLong'  },
+    { key: 'resolved',     storedDefault: 'Already Resolved',                   i18nKey: 'reasonResolvedLong'     },
+    { key: 'out-of-scope', storedDefault: 'Out of Scope',                       i18nKey: 'reasonOutOfScopeLong'   },
+    { key: 'other',        storedDefault: 'Other',                              i18nKey: 'reasonOtherLong'        },
+];
+
+const CL_REASONS = [
+    { key: 'same-household', sfDefault: 'False Positive - Same Household', i18nKey: 'closeReasonSameHousehold'  },
+    { key: 'same-phone',     sfDefault: 'False Positive - Shared Phone',   i18nKey: 'closeReasonSamePhone'      },
+    { key: 'same-email',     sfDefault: 'False Positive - Shared Email',   i18nKey: 'closeReasonSameEmail'      },
+    { key: 'not-duplicate',  sfDefault: 'Out of Scope',                    i18nKey: 'closeReasonNotDuplicate'   },
+    { key: 'already-merged', sfDefault: 'Already Resolved',                i18nKey: 'closeReasonAlreadyMerged'  },
+];
+const CL_KEY_SET = new Set(CL_REASONS.map(r => r.key));
 
 // Maps the internal close-reason keys to valid Salesforce picklist API values
 const CLOSE_REASON_TO_SF = {
@@ -81,6 +104,9 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     @track newReasonInput         = '';
     @track customCloseReasons     = [];
     @track showAddReasonPopover   = false;
+    @track newTvReasonInput       = '';
+    @track showAddTvReasonPopover = false;
+    @track _reasonConfig          = null;
     @track showAllHistory         = false;
 
     // ── Orphaned Account modal ───────────────────────────────────────────────
@@ -130,11 +156,17 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     get i18n() { return getLabels(this.lang); }
 
     get closedReasonOptions() {
-        const t = this.i18n;
-        return Object.entries(CLOSED_REASON_KEY).map(([value, key]) => ({
-            label: t[key] || value,
-            value
-        }));
+        const t        = this.i18n;
+        const cfg      = this._reasonConfig || {};
+        const tvLabels = cfg.tvLabels || {};
+        const tvCustom = cfg.tvCustom || [];
+        const predefined = TV_REASONS.map(r => {
+            const custom = tvLabels[r.key];
+            const stored = custom || r.storedDefault;
+            return { label: custom || t[r.i18nKey] || r.storedDefault, value: stored };
+        });
+        const custom = tvCustom.map(c => ({ label: c, value: c }));
+        return [...predefined, ...custom, { label: t.addNewReasonOption, value: '__add_new__tv__' }];
     }
 
     get dismissModeToValidate() { return this.dismissMode === 'toValidate'; }
@@ -149,15 +181,15 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             (this.dismissMode === 'close' ? ' exception-choice-card_selected' : '');
     }
     get closeReasonOptions() {
-        const t = this.i18n;
-        const predefined = [
-            { label: t.closeReasonSameHousehold,  value: 'same-household'  },
-            { label: t.closeReasonSamePhone,       value: 'same-phone'      },
-            { label: t.closeReasonSameEmail,       value: 'same-email'      },
-            { label: t.closeReasonNotDuplicate,    value: 'not-duplicate'   },
-            { label: t.closeReasonAlreadyMerged,   value: 'already-merged'  }
-        ];
-        const custom = this.customCloseReasons.map(r => ({ label: r, value: r }));
+        const t        = this.i18n;
+        const cfg      = this._reasonConfig || {};
+        const clLabels = cfg.clLabels || {};
+        const clCustom = cfg.clCustom && cfg.clCustom.length ? cfg.clCustom : this.customCloseReasons;
+        const predefined = CL_REASONS.map(r => ({
+            label: clLabels[r.key] || t[r.i18nKey] || r.sfDefault,
+            value: r.key
+        }));
+        const custom = clCustom.map(c => ({ label: c, value: c }));
         return [...predefined, ...custom, { label: t.addNewReasonOption, value: '__add_new__' }];
     }
 
@@ -787,8 +819,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             if (isMaster)             cardClass += ' candidate-card_selected';
             else if (isSelectedLoser) cardClass += ' candidate-card_loser';
 
-            const colSize  = total === 3 ? 'slds-medium-size_1-of-3' : 'slds-medium-size_1-of-2';
-            const colClass = `slds-col slds-size_1-of-1 ${colSize} slds-p-bottom_small`;
+            const colClass = 'slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-p-bottom_small';
 
             return {
                 recordId: id,
@@ -1090,6 +1121,12 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         }
     }
 
+    // ── Close tab (header X button) ───────────────────────────────────────────
+
+    handleCloseTab() {
+        this.dispatchEvent(new CustomEvent('closetab', { detail: { ticketId: this.ticketId } }));
+    }
+
     // ── Dismiss modal ─────────────────────────────────────────────────────────
 
     openDismissModal() {
@@ -1101,11 +1138,19 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         this.closeNotes         = '';
         this.newReasonInput       = '';
         this.showAddReasonPopover = false;
-        this.dismissError         = null;
-        try {
-            const stored = localStorage.getItem('mergeManager_customCloseReasons');
-            this.customCloseReasons = stored ? JSON.parse(stored) : [];
-        } catch(e) { this.customCloseReasons = []; }
+        this.newTvReasonInput       = '';
+        this.showAddTvReasonPopover = false;
+        this.dismissError           = null;
+        Promise.all([
+            getReasonConfigApex()
+                .then(json => { try { return JSON.parse(json || '{}'); } catch(e) { return {}; } })
+                .catch(() => ({})),
+            getCustomCloseReasonsApex().catch(() => [])
+        ]).then(([cfg, legacy]) => {
+            if (!cfg.clCustom || !cfg.clCustom.length) cfg = { ...cfg, clCustom: legacy };
+            this._reasonConfig    = cfg;
+            this.customCloseReasons = cfg.clCustom || legacy;
+        });
     }
 
     closeDismissModal() { this.showDismissModal = false; }
@@ -1115,8 +1160,45 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
         this.dismissError = null;
     }
 
-    handleDismissReasonChange(event) { this.dismissReason = event.detail.value; }
+    handleDismissReasonChange(event) {
+        const val = event.detail.value;
+        if (val === '__add_new__tv__') {
+            this.dismissReason        = null;
+            this.newTvReasonInput     = '';
+            this.showAddTvReasonPopover = true;
+        } else {
+            this.dismissReason = val;
+        }
+    }
     handleDismissNotesChange(event)  { this.dismissNotes  = event.detail.value; }
+    handleNewTvReasonInput(event)    { this.newTvReasonInput = event.target.value; }
+
+    cancelAddTvReason() {
+        this.showAddTvReasonPopover = false;
+        this.newTvReasonInput = '';
+    }
+
+    confirmAddTvReason() {
+        const reason = (this.newTvReasonInput || '').trim();
+        if (!reason) return;
+        const cfg      = this._reasonConfig || {};
+        const tvCustom = cfg.tvCustom || [];
+        if (tvCustom.some(r => r.toLowerCase() === reason.toLowerCase())) return;
+        const newTvCustom = [...tvCustom, reason];
+        const newCfg = { ...cfg, tvCustom: newTvCustom };
+        this._reasonConfig  = newCfg;
+        this.dismissReason  = reason;
+        this.newTvReasonInput     = '';
+        this.showAddTvReasonPopover = false;
+        saveReasonConfigApex({ configJson: JSON.stringify(newCfg) })
+            .catch(() => { /* ignore — added optimistically */ });
+        this.dispatchEvent(new CustomEvent('reasonadded'));
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => {
+            const cb = this.template.querySelector('.exception-content_validate lightning-combobox');
+            if (cb) cb.reportValidity();
+        }, 0);
+    }
     handleCloseReasonChange(event) {
         const val = event.detail.value;
         if (val === '__add_new__') {
@@ -1139,15 +1221,25 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
 
     confirmAddReason() {
         const reason = (this.newReasonInput || '').trim();
-        if (!reason || this.customCloseReasons.includes(reason)) return;
-        this.customCloseReasons = [...this.customCloseReasons, reason];
-        this.closeReason = reason;
-        this.newReasonInput = '';
+        if (!reason) return;
+        const cfg      = this._reasonConfig || {};
+        const clCustom = cfg.clCustom || this.customCloseReasons || [];
+        if (clCustom.some(r => r.toLowerCase() === reason.toLowerCase())) return;
+        const newClCustom = [...clCustom, reason];
+        const newCfg = { ...cfg, clCustom: newClCustom };
+        this._reasonConfig      = newCfg;
+        this.customCloseReasons = newClCustom;
+        this.closeReason        = reason;
+        this.newReasonInput     = '';
         this.showAddReasonPopover = false;
-        try {
-            localStorage.setItem('mergeManager_customCloseReasons',
-                JSON.stringify(this.customCloseReasons));
-        } catch(e) { /* ignore */ }
+        saveReasonConfigApex({ configJson: JSON.stringify(newCfg) })
+            .catch(() => { /* ignore — added optimistically */ });
+        this.dispatchEvent(new CustomEvent('reasonadded'));
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => {
+            const cb = this.template.querySelector('.exception-content_close lightning-combobox');
+            if (cb) cb.reportValidity();
+        }, 0);
     }
 
     async confirmDismiss() {
@@ -1167,8 +1259,13 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
                     notes:        this.dismissNotes
                 });
             } else {
-                const sfReason = CLOSE_REASON_TO_SF[this.closeReason] || 'Other';
-                const notes    = CLOSE_REASON_TO_SF[this.closeReason]
+                const cfg      = this._reasonConfig || {};
+                const clLabels = cfg.clLabels || {};
+                const isPredefined = CL_KEY_SET.has(this.closeReason);
+                const sfReason = isPredefined
+                    ? (clLabels[this.closeReason] || CLOSE_REASON_TO_SF[this.closeReason] || 'Other')
+                    : this.closeReason;
+                const notes    = isPredefined
                     ? this.closeNotes
                     : [this.closeReason, this.closeNotes].filter(Boolean).join('\n');
                 await closeTicketApex({

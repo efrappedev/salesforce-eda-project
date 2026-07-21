@@ -5,10 +5,10 @@ import runScanApex from '@salesforce/apex/MergeController.runScan';
 
 export default class MergeScanModal extends LightningElement {
 
-    _defaultObjectType = 'Contact';
+    _defaultObjectType = 'Account';
     @api
     set defaultObjectType(val) {
-        this._defaultObjectType = val || 'Contact';
+        this._defaultObjectType = val || 'Account';
         if (this._defaultObjectType === 'Account') {
             this.objectType   = 'Account';
             this._matchFields = { Email: false, Phone: true, Name: true };
@@ -21,7 +21,7 @@ export default class MergeScanModal extends LightningElement {
 
     @api lang = 'fr';
 
-    @track objectType         = 'Contact';
+    @track objectType         = 'Account';
     @track recordLimit        = 5000;
     @track dryRun             = false;
     @track isScanning         = false;
@@ -32,15 +32,15 @@ export default class MergeScanModal extends LightningElement {
     @track asyncBatchJobId    = '';
     @track useEmailObject     = false;
 
-    @track _matchFields = { Email: true, Phone: true, Name: false };
+    @track _matchFields = { Email: false, Phone: true, Name: true };
 
     get i18n() { return getLabels(this.lang); }
 
     get objectTypeOptions() {
         const t = this.i18n;
         return [
-            { label: t.objectTypeContact, value: 'Contact' },
-            { label: t.objectTypeAccount, value: 'Account' }
+            { label: t.objectTypeAccount, value: 'Account' },
+            { label: t.objectTypeContact, value: 'Contact' }
         ];
     }
 
@@ -51,15 +51,15 @@ export default class MergeScanModal extends LightningElement {
     get matchFieldOptions() {
         const t = this.i18n;
         return [
-            { value: 'Email', label: t.matchEmail, icon: 'utility:email',
-              inputId: 'mf-email', checked: this._matchFields.Email,
-              iconVariant: this._matchFields.Email ? 'inverse' : '' },
+            { value: 'Name',  label: t.matchName,  icon: 'utility:user',
+              inputId: 'mf-name',  checked: this._matchFields.Name,
+              iconVariant: this._matchFields.Name  ? 'inverse' : '' },
             { value: 'Phone', label: t.matchPhone, icon: 'utility:call',
               inputId: 'mf-phone', checked: this._matchFields.Phone,
               iconVariant: this._matchFields.Phone ? 'inverse' : '' },
-            { value: 'Name',  label: t.matchName,  icon: 'utility:user',
-              inputId: 'mf-name',  checked: this._matchFields.Name,
-              iconVariant: this._matchFields.Name  ? 'inverse' : '' }
+            { value: 'Email', label: t.matchEmail, icon: 'utility:email',
+              inputId: 'mf-email', checked: this._matchFields.Email,
+              iconVariant: this._matchFields.Email ? 'inverse' : '' }
         ];
     }
 

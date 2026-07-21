@@ -22,13 +22,15 @@ const MATCH_TYPE_ICON = {
 export default class MergeManager extends LightningElement {
     @track openTabs           = [];
     @track activeTabId        = null;
-    @track isDashboardActive  = true;
+    @track isDashboardActive  = false;
+    @track _dashboardLoading  = true;
+    _dashboardMounted         = false;
     @track _hasTabOverflow    = false;
     @track showScanModal         = false;
     @track showResetModal        = false;
     @track showObjectConfigModal = false;
     @track isResetting           = false;
-    @track _scanModalObjectType = 'Contact';
+    @track _scanModalObjectType = 'Account';
     @track lang = 'en';
 
     @wire(isSandboxOrgApex)
@@ -47,7 +49,7 @@ export default class MergeManager extends LightningElement {
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     _resizeHandler = null;
-    _heightSet = false;
+    _rafId         = null;
 
     connectedCallback() {
         const saved = localStorage.getItem(LANG_KEY);
@@ -56,9 +58,19 @@ export default class MergeManager extends LightningElement {
         }
         this._resizeHandler = () => this._applyHeight();
         window.addEventListener('resize', this._resizeHandler);
-        // Auto-detect and save all related objects for Contact + Account on first use.
-        // No-op if configs already exist. Runs silently in the background.
+        // Re-calculate after Salesforce async chrome (banners, etc.) finishes loading.
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => this._applyHeight(), 800);
         initDefaultConfigsIfEmpty().catch(() => {});
+        // Mount dashboard after ticket list has priority on first render.
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => {
+            this._dashboardMounted = true;
+            this._dashboardLoading = false;
+            if (this.openTabs.length === 0) {
+                this.isDashboardActive = true;
+            }
+        }, 300);
     }
 
     disconnectedCallback() {
@@ -68,9 +80,7 @@ export default class MergeManager extends LightningElement {
     }
 
     renderedCallback() {
-        if (!this._heightSet) {
-            this._applyHeight();
-        }
+        this._applyHeight();
         this._checkTabOverflow();
     }
 
@@ -82,13 +92,13 @@ export default class MergeManager extends LightningElement {
     }
 
     _applyHeight() {
+        if (this._rafId) cancelAnimationFrame(this._rafId);
         // eslint-disable-next-line @lwc/lwc/no-async-operation
-        window.requestAnimationFrame(() => {
+        this._rafId = window.requestAnimationFrame(() => {
             const host = this.template.host;
             const top  = host.getBoundingClientRect().top;
             if (top > 0 && top < window.innerHeight) {
                 host.style.height = `${window.innerHeight - top - 4}px`;
-                this._heightSet = true;
             }
         });
     }
@@ -99,8 +109,9 @@ export default class MergeManager extends LightningElement {
         const newLang = event.detail?.lang;
         if (newLang) {
             localStorage.setItem(LANG_KEY, newLang);
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            window.location.reload();
+            this.lang = newLang;
+            this.closeObjectConfigModal();
+            this._toast(this.i18n.toastLangChanged, '', 'success');
         }
     }
 
@@ -112,6 +123,10 @@ export default class MergeManager extends LightningElement {
 
     get dashboardPanelClass() {
         return `mm-panel${this.isDashboardActive ? '' : ' slds-hide'}`;
+    }
+
+    get showDashboard() {
+        return this._dashboardMounted;
     }
 
     get enrichedTabs() {
@@ -130,6 +145,8 @@ export default class MergeManager extends LightningElement {
 
     handleDashboardTabClick() {
         this.isDashboardActive = true;
+        this._dashboardMounted = true;
+        this._dashboardLoading = false;
     }
 
     handleTicketSelect(event) {
@@ -142,7 +159,7 @@ export default class MergeManager extends LightningElement {
                 ticketId,
                 label:      ticketLabel || ticketId.substring(0, 12),
                 matchType:  matchType   || 'Email',
-                objectType: objectType  || 'Contact'
+                objectType: objectType  || 'Account'
             }];
             this.activeTabId = ticketId;
         }
@@ -221,13 +238,23 @@ export default class MergeManager extends LightningElement {
         this.template.querySelectorAll('c-merge-wizard').forEach(w => {
             if (w.ticketId === ticketId) w.refreshMatrix();
         });
+        this._refreshList();
+    }
+
+    handleWizardCloseTab(event) {
+        this._closeTab(event.detail.ticketId);
+    }
+
+    handleReasonAdded() {
+        const list = this.template.querySelector('c-merge-ticket-list');
+        if (list) list.refreshReasonConfig();
     }
 
     // ── Scan modal ────────────────────────────────────────────────────────────
 
     openScanModal() {
         const list = this.template.querySelector('c-merge-ticket-list');
-        this._scanModalObjectType = list?.currentObjectType || 'Contact';
+        this._scanModalObjectType = list?.currentObjectType || 'Account';
         this.showScanModal = true;
     }
     closeScanModal() { this.showScanModal = false; }
@@ -260,8 +287,9 @@ export default class MergeManager extends LightningElement {
     openObjectConfigModal()  { this.showObjectConfigModal = true; }
     closeObjectConfigModal() { this.showObjectConfigModal = false; }
     handleConfigSaved() {
-        this.template.querySelectorAll('c-merge-wizard')
-            .forEach(w => w.refreshMatrix());
+        this.closeObjectConfigModal();
+        const list = this.template.querySelector('c-merge-ticket-list');
+        if (list) list.refreshReasonConfig();
     }
 
     // ── Reset ─────────────────────────────────────────────────────────────────

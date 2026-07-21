@@ -82,9 +82,17 @@ private class RelatedRecordsServiceTest {
     @IsTest
     static void covers_aggregate_catchBlocks() {
         Contact c = makeContact('RelSvc_CatchBlock');
-        RelatedRecordsService.TEST_THROW_OBJECTS.add('hed__Course_Enrollment__c');
-        RelatedRecordsService.TEST_THROW_OBJECTS.add('hed__Program_Enrollment__c');
-        RelatedRecordsService.TEST_THROW_OBJECTS.add('hed__Affiliation__c');
+
+        insert new Related_Object_Config__c(
+            Name               = 'Test Catch Case',
+            Object_API_Name__c = 'Case',
+            Parent_Field__c    = 'ContactId',
+            Object_Type__c     = 'Contact',
+            Is_Active__c       = true,
+            Sort_Order__c      = 1
+        );
+
+        RelatedRecordsService.TEST_THROW_OBJECTS.add('Case');
 
         Test.startTest();
         Map<Id, MergeWrappers.RelatedCountsWrapper> result =
@@ -105,6 +113,19 @@ private class RelatedRecordsServiceTest {
     static void covers_courseConnections_loopBodies_viaMock() {
         Contact c = makeContact('RelSvc_CEMockContact');
 
+        // Use Case.ContactId — a standard relationship available in every Salesforce org.
+        // Active_Status_Values__c = 'new' matches Case.Status 'New', so active query fires.
+        insert new Related_Object_Config__c(
+            Name                    = 'Test Cases',
+            Object_API_Name__c      = 'Case',
+            Parent_Field__c         = 'ContactId',
+            Status_Field__c         = 'Status',
+            Active_Status_Values__c = 'new',
+            Object_Type__c          = 'Contact',
+            Is_Active__c            = true,
+            Sort_Order__c           = 1
+        );
+
         AggregateResult mockRow = [
             SELECT Id pid, COUNT(Name) total
             FROM Contact WHERE Id = :c.Id
@@ -112,10 +133,10 @@ private class RelatedRecordsServiceTest {
         ][0];
 
         RelatedRecordsService.TEST_TOTAL_RESULTS = new Map<String,List<AggregateResult>>{
-            'hed__Course_Enrollment__c' => new List<AggregateResult>{ mockRow }
+            'Case' => new List<AggregateResult>{ mockRow }
         };
         RelatedRecordsService.TEST_ACTIVE_RESULTS = new Map<String,List<AggregateResult>>{
-            'hed__Course_Enrollment__c' => new List<AggregateResult>{ mockRow }
+            'Case' => new List<AggregateResult>{ mockRow }
         };
 
         Test.startTest();
@@ -124,10 +145,10 @@ private class RelatedRecordsServiceTest {
         Test.stopTest();
 
         System.assert(result.containsKey(c.Id), 'Result must contain the contact');
-        System.assertEquals(1, result.get(c.Id).getByLabel('Cours').total,
-            'Cours total must be populated from mock row');
-        System.assertEquals(1, result.get(c.Id).getByLabel('Cours').active,
-            'Cours active must be populated from mock row');
+        System.assertEquals(1, result.get(c.Id).getByLabel('Test Cases').total,
+            'total must be populated from mock row');
+        System.assertEquals(1, result.get(c.Id).getByLabel('Test Cases').active,
+            'active must be populated from mock row');
 
         RelatedRecordsService.TEST_TOTAL_RESULTS  = null;
         RelatedRecordsService.TEST_ACTIVE_RESULTS = null;
@@ -184,16 +205,29 @@ private class RelatedRecordsServiceTest {
     static void covers_noActiveStatuses_returnsZeroActive() {
         Contact c = makeContact('RelSvc_NoActiveStatus');
 
+        // NOMATCH_9XZ won't match any Case.Status value → resolveActiveStatuses returns
+        // empty set → active query never runs → active stays 0.
+        insert new Related_Object_Config__c(
+            Name                    = 'Test Cases No Active',
+            Object_API_Name__c      = 'Case',
+            Parent_Field__c         = 'ContactId',
+            Status_Field__c         = 'Status',
+            Active_Status_Values__c = 'NOMATCH_9XZ',
+            Object_Type__c          = 'Contact',
+            Is_Active__c            = true,
+            Sort_Order__c           = 1
+        );
+
         AggregateResult mockRow = [
             SELECT Id pid, COUNT(Name) total
             FROM Contact WHERE Id = :c.Id
             GROUP BY Id
         ][0];
         RelatedRecordsService.TEST_TOTAL_RESULTS = new Map<String,List<AggregateResult>>{
-            'hed__Course_Enrollment__c' => new List<AggregateResult>{ mockRow }
+            'Case' => new List<AggregateResult>{ mockRow }
         };
         RelatedRecordsService.TEST_ACTIVE_RESULTS = new Map<String,List<AggregateResult>>{
-            'hed__Course_Enrollment__c' => new List<AggregateResult>()
+            'Case' => new List<AggregateResult>()
         };
 
         Test.startTest();
@@ -201,55 +235,11 @@ private class RelatedRecordsServiceTest {
             RelatedRecordsService.getBulkCountsForContacts(new Set<Id>{ c.Id });
         Test.stopTest();
 
-        System.assertEquals(1, result.get(c.Id).getByLabel('Cours').total, 'total from mock');
-        System.assertEquals(0, result.get(c.Id).getByLabel('Cours').active, 'active must be 0');
+        System.assertEquals(1, result.get(c.Id).getByLabel('Test Cases No Active').total, 'total from mock');
+        System.assertEquals(0, result.get(c.Id).getByLabel('Test Cases No Active').active, 'active must be 0');
 
         RelatedRecordsService.TEST_TOTAL_RESULTS  = null;
         RelatedRecordsService.TEST_ACTIVE_RESULTS = null;
-    }
-
-    // ── SeeAllData fallback: tries real course enrollment data if available ────
-
-    @IsTest(SeeAllData=true)
-    static void covers_courseConnections_loopBody_seeAllData() {
-        if (!RelatedRecordsService.isEDAAvailable()) return;
-
-        List<SObject> offerings = Database.query('SELECT Id FROM hed__Course_Offering__c LIMIT 1');
-        if (offerings.isEmpty()) {
-            System.debug(LoggingLevel.WARN,
-                'RelatedRecordsServiceTest: no course offerings found — skipping');
-            return;
-        }
-        Id offeringId = offerings[0].Id;
-
-        Contact c = new Contact(LastName = 'RelSvc_CEReal_' + System.now().getTime());
-        insert c;
-
-        try {
-            SObject ce = Schema.getGlobalDescribe()
-                .get('hed__Course_Enrollment__c').newSObject();
-            ce.put('hed__Contact__c',         c.Id);
-            ce.put('hed__Course_Offering__c', offeringId);
-            ce.put('hed__Status__c',          'Current');
-            Database.insert(ce);
-        } catch (Exception ex) {
-            System.debug(LoggingLevel.WARN,
-                'RelatedRecordsServiceTest: enrollment insert blocked — ' + ex.getMessage());
-            return;
-        }
-
-        // Force the EDA hardcoded fallback configs so this test is deterministic
-        // regardless of whether the org already has custom Related_Object_Config__c
-        // records for Contact (which would otherwise fully replace the fallback list).
-        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = true;
-        Test.startTest();
-        Map<Id, MergeWrappers.RelatedCountsWrapper> result =
-            RelatedRecordsService.getBulkCountsForContacts(new Set<Id>{ c.Id });
-        Test.stopTest();
-        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = false;
-
-        System.assert(result.containsKey(c.Id));
-        System.assertEquals(1, result.get(c.Id).getByLabel('Cours').total);
     }
 
     // ── Custom object configs path ────────────────────────────────────────────
@@ -316,12 +306,10 @@ private class RelatedRecordsServiceTest {
     static void getBulkCounts_accountType_returnsMappedAccount() {
         Account acc = makeAccount('RelSvc_AccType');
 
-        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = true;
         Test.startTest();
         Map<Id, MergeWrappers.RelatedCountsWrapper> result =
             RelatedRecordsService.getBulkCounts(new Set<Id>{ acc.Id }, 'Account');
         Test.stopTest();
-        RelatedRecordsService.TEST_FORCE_EDA_FALLBACK_CONFIGS = false;
 
         System.assert(result.containsKey(acc.Id), 'Account should be in result map');
     }

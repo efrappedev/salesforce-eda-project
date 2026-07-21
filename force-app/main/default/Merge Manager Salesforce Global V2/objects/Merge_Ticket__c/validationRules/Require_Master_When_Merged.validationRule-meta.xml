@@ -4,6 +4,7 @@
     <active>true</active>
     <description>Ensures a master record ID is always recorded when a ticket is marked Merged. Guards against partial saves that would leave the audit trail incomplete.</description>
     <errorConditionFormula>AND(
+            ISCHANGED(Status__c),
             ISPICKVAL(Status__c, &apos;Merged&apos;),
             ISBLANK(Selected_Master_Id__c)
         )</errorConditionFormula>
