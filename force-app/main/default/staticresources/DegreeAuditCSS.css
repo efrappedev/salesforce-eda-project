@@ -183,6 +183,10 @@ a{ color:#1f5fbf; text-decoration:none; } a:hover{ text-decoration:underline; }
 .detail-table thead th{ background:var(--bg-soft); font-weight:600; text-transform:uppercase; font-size:12px; }
 .detail-table tbody tr:nth-child(even) td{ background:#fcfdff; }
 .detail-table th:nth-child(2), .detail-table td:nth-child(2){ text-align:left; }
+/* Modal détail: sin zebra, sin borde doble antes/entre encabezados de bloque */
+#studentDetailCapture .detail-table tbody tr:nth-child(even) td { background:#fff; }
+#studentDetailCapture .detail-table tbody tr:has(+ .opt-sub) td { border-bottom:none; }
+#studentDetailCapture .detail-table tbody tr.opt-sub:has(+ tr.opt-sub) th { border-bottom:none; }
 
 /* ========== 6) UTILIDADES / ESTADOS ========== */
 .mt-8{ margin-top:8px; } .mt-12{ margin-top:12px; } .mt-16{ margin-top:16px; }

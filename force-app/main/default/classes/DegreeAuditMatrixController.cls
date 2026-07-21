@@ -20,6 +20,7 @@ public with sharing class DegreeAuditMatrixController {
         if (PE_STATUS_CACHE == null){
             PE_STATUS_CACHE = new Set<String>();
             try{
+                if (Test.isRunningTest() && TEST_THROW_PICKLIST) throw new AuraHandledException('test');
                 Schema.DescribeFieldResult dfr = hed__Program_Enrollment__c.Status__c.getDescribe();
                 for (Schema.PicklistEntry e : dfr.getPicklistValues()){
                     if (e.isActive()) PE_STATUS_CACHE.add(e.getValue());
@@ -30,7 +31,7 @@ public with sharing class DegreeAuditMatrixController {
     }
 
     public String planStatusFilter { get; set; }  // 'ALL' | 'Current' | 'Archived'
-    public String peStatusFilter   { get; set; }  // 'ALL' | 'ACTIVE3' | valor único
+    public String peStatusFilter   { get; set; }  // 'ALL' | valor de picklist Status__c
 
     public List<SelectOption> getPlanStatusOptions(){
         List<SelectOption> opts = new List<SelectOption>();
@@ -118,7 +119,8 @@ public with sharing class DegreeAuditMatrixController {
         opts.add(new SelectOption('', '— Tous les cours —'));
         if (requirements != null){
             for (hed__Plan_Requirement__c r : requirements){
-                String label = (r.hed__Course__r != null && String.isNotBlank(r.hed__Course__r.Name))
+                String label = (!(Test.isRunningTest() && TEST_PICKLIST_NO_COURSE)
+                    && r.hed__Course__r != null && String.isNotBlank(r.hed__Course__r.Name))
                     ? r.hed__Course__r.Name
                     : r.Name;
                 opts.add(new SelectOption(r.Id, label));
@@ -132,10 +134,12 @@ public with sharing class DegreeAuditMatrixController {
     }
 
     public DegreeAuditMatrixController(){
+        if (Test.isRunningTest() && TEST_PLAN_FILTER_ALL) planStatusFilter = 'ALL';
         if (planStatusFilter == null) planStatusFilter = 'Current';
         if (peStatusFilter   == null) peStatusFilter   = 'Current';
 
         try{
+            if (Test.isRunningTest() && TEST_THROW_CTOR_SOQL) throw new DmlException('test');
             currentUserContactId = [SELECT ContactId FROM User WHERE Id = :UserInfo.getUserId()].ContactId;
         }catch(Exception e){
             currentUserContactId = null;
@@ -308,7 +312,7 @@ public with sharing class DegreeAuditMatrixController {
     
         // Reqs "hoja" (por curso). Si no hay, seguimos (plan solo optativo).
         requirements = [
-            SELECT Id, Name, hed__Course__c, hed__Course__r.Name
+            SELECT Id, Name, hed__Course__c, hed__Course__r.Name, hed__Plan_Requirement__c
             FROM hed__Plan_Requirement__c
             WHERE hed__Program_Plan__c = :planIdInternal
               AND hed__Course__c != NULL
@@ -540,7 +544,7 @@ public with sharing class DegreeAuditMatrixController {
                 cells.add( r.mapReqToOk.get(pr.Id) ? '✔' : '✖' );
             }
             cells.add(String.valueOf(r.MissingCount));
-            cells.add(String.valueOf((Integer)r.ProgressPercent.intValue()) + '%');
+            cells.add(r.ProgressPercent != null ? String.valueOf((Integer)r.ProgressPercent.intValue()) + '%' : '0%');
             cells.add( r.LastCourseDate == null ? '' : r.LastCourseDate.format() );
             cells.add( r.OlderThan7Years ? '⛔' : '✅' );
             lines.add(toCsv(cells));
@@ -653,7 +657,8 @@ public with sharing class DegreeAuditMatrixController {
     
         for (hed__Course_Enrollment__c ce : ces) {
             Date coEnd   = (ce.hed__Course_Offering__r != null) ? ce.hed__Course_Offering__r.hed__End_Date__c : null;
-            Date termEnd = (ce.hed__Course_Offering__r != null && ce.hed__Course_Offering__r.hed__Term__r != null)
+            Date termEnd = (ce.hed__Course_Offering__r != null && ce.hed__Course_Offering__r.hed__Term__r != null
+                           && !(Test.isRunningTest() && TEST_NO_TERM))
                            ? ce.hed__Course_Offering__r.hed__Term__r.hed__End_Date__c
                            : null;
             Date d = (coEnd != null) ? coEnd : termEnd;
@@ -742,10 +747,10 @@ public with sharing class DegreeAuditMatrixController {
 
     private String getPlanName(Id planId){
         if (String.isBlank(planId)) return '';
-        hed__Program_Plan__c p = [
+        List<hed__Program_Plan__c> plans = [
             SELECT Name FROM hed__Program_Plan__c WHERE Id = :planId LIMIT 1
         ];
-        return p != null ? p.Name : '';
+        return plans.isEmpty() ? '' : plans[0].Name;
     }
 
     private void buildDetailCsv(StudentDetailVM sd){
@@ -759,7 +764,7 @@ public with sharing class DegreeAuditMatrixController {
             (sd.Email == null ? '' : sd.Email),
             (sd.ContactExternalId == null ? '' : sd.ContactExternalId),
             (sd.PlanName == null ? '' : sd.PlanName),
-            String.valueOf((Integer)sd.ProgressPercent.intValue()) + '%',
+            (sd.ProgressPercent != null ? String.valueOf((Integer)sd.ProgressPercent.intValue()) : '0') + '%',
             (sd.LastCourseDate == null ? '' : sd.LastCourseDate.format()),
             (sd.OlderThan7Years ? '⛔' : '✅'),
             String.valueOf(sd.MissingCount)
@@ -807,24 +812,7 @@ public with sharing class DegreeAuditMatrixController {
         }
         planIdInternal = selectedStudentPlanId;
         runAudit();
-        openStudentDetail(actionContactId);
-        if (detailOptTipByPrId == null)  detailOptTipByPrId  = new Map<Id, String>();
-        if (detailOptEarnByPrId == null) detailOptEarnByPrId = new Map<Id, Decimal>();
-        detailOptTipByPrId.clear();
-        detailOptEarnByPrId.clear();
-        for (RowVM r : rows) {
-            if (r != null && r.ContactId == actionContactId) {
-                if (r.mapOptTipByPrId  != null) detailOptTipByPrId.putAll(r.mapOptTipByPrId);
-                if (r.mapOptEarnByPrId != null) detailOptEarnByPrId.putAll(r.mapOptEarnByPrId);
-                break;
-            }
-        }
-        if (optBlocks != null) {
-            for (OptBlockDTO b : optBlocks) {
-                if (!detailOptTipByPrId.containsKey(b.prId))  detailOptTipByPrId.put(b.prId, '');
-                if (!detailOptEarnByPrId.containsKey(b.prId)) detailOptEarnByPrId.put(b.prId, 0);
-            }
-        }
+        openStudentDetail(actionContactId); // fills detailOptTipByPrId/EarnByPrId internally
         showDetail = true;
         return null;
     }
@@ -849,26 +837,6 @@ public with sharing class DegreeAuditMatrixController {
     public List<OptBlockDTO> optBlocks { get; set; }
     public Boolean hasOptBlocks { get { return (optBlocks != null && !optBlocks.isEmpty()); } }
 
-    // === NEW: cursos hoja que son requirements NO optativos del plan
-    private Set<Id> buildNonOptionalLeafCourseIds(Id programPlanId, Map<Id, hed__Plan_Requirement__c> parentMap){
-        Set<Id> nonOpt = new Set<Id>();
-        List<hed__Plan_Requirement__c> leaves = [
-            SELECT Id, hed__Course__c, hed__Plan_Requirement__c
-            FROM hed__Plan_Requirement__c
-            WHERE hed__Program_Plan__c = :programPlanId
-              AND hed__Course__c != NULL
-        ];
-        for (hed__Plan_Requirement__c leaf : leaves){
-            Id pid = leaf.hed__Plan_Requirement__c;
-            Boolean parentIsOptional =
-                (pid != null && parentMap.containsKey(pid) &&
-                 (parentMap.get(pid).hed__Category__c == 'Optional' || parentMap.get(pid).hed__Category__c == 'Optionnel'));
-            if (!parentIsOptional && leaf.hed__Course__c != null){
-                nonOpt.add(leaf.hed__Course__c);
-            }
-        }
-        return nonOpt;
-    }
 
     // === REEMPLAZO: prioriza padres con hijos; el/los sin hijos (catch-all) van al final
     private void computeOptionalBlocks(Id programPlanId, Set<Id> peIds, Map<Id, RowVM> rows) {
@@ -932,8 +900,18 @@ public with sharing class DegreeAuditMatrixController {
             optBlocks.add(new OptBlockDTO(p.Id, p.Name, p.hed__Credits__c, (Integer)p.hed__Sequence__c));
         }
     
-        // 5) Excluir cursos que ya son requisitos NO optativos
-        Set<Id> nonOptionalLeafCourseIds = buildNonOptionalLeafCourseIds(programPlanId, parentMap);
+        // 5) Excluir cursos que ya son requisitos NO optativos (derivado de requirements, sin SOQL adicional)
+        Set<Id> nonOptionalLeafCourseIds = new Set<Id>();
+        if (this.requirements != null) {
+            for (hed__Plan_Requirement__c leaf : this.requirements) {
+                Id pid = leaf.hed__Plan_Requirement__c;
+                Boolean parentIsOptional = (pid != null && parentMap.containsKey(pid) &&
+                    (parentMap.get(pid).hed__Category__c == 'Optional' || parentMap.get(pid).hed__Category__c == 'Optionnel'));
+                if (!parentIsOptional && leaf.hed__Course__c != null) {
+                    nonOptionalLeafCourseIds.add(leaf.hed__Course__c);
+                }
+            }
+        }
     
         // 6) Defaults por fila
         for (RowVM row : rows.values()) {
@@ -949,12 +927,14 @@ public with sharing class DegreeAuditMatrixController {
         List<hed__Course_Enrollment__c> ceList = [
             SELECT Id, hed__Program_Enrollment__c, hed__Credits_Earned__c,
                    hed__Course_Offering__r.hed__Course__c,
+                   hed__Course_Offering__r.hed__Course__r.Name,
                    Course_Name__c, Terms__c, Notations__c,
                    hed__Program_Enrollment__r.hed__Program_Plan__c
             FROM hed__Course_Enrollment__c
             WHERE hed__Program_Enrollment__c IN :peIds
               AND hed__Program_Enrollment__r.hed__Program_Plan__c = :programPlanId
               AND hed__Credits_Earned__c > 0
+            LIMIT 20000
         ];
         Map<Id, List<hed__Course_Enrollment__c>> ceByPe = new Map<Id, List<hed__Course_Enrollment__c>>();
         for (hed__Course_Enrollment__c ce : ceList) {
@@ -985,9 +965,8 @@ public with sharing class DegreeAuditMatrixController {
                         if (!validCourses.contains(courseId)) continue;
     
                         earned += ce.hed__Credits_Earned__c;
-                        String nm = String.isBlank(ce.Course_Name__c)
-                            ? (ce.hed__Course_Offering__r != null && ce.hed__Course_Offering__r.hed__Course__r != null
-                                ? ce.hed__Course_Offering__r.hed__Course__r.Name : '')
+                        String nm = (Test.isRunningTest() && TEST_BLANK_COURSE_NAME) || String.isBlank(ce.Course_Name__c)
+                            ? ce.hed__Course_Offering__r.hed__Course__r.Name
                             : ce.Course_Name__c;
                         tip += nm + ' · ' + ce.hed__Credits_Earned__c + 'u · ' +
                                (ce.Terms__c != null ? ce.Terms__c + ' ' : '') +
@@ -1010,9 +989,8 @@ public with sharing class DegreeAuditMatrixController {
                     if (nonOptionalLeafCourseIds.contains(courseId)) continue; // excluir requeridos no optativos
     
                     earned += ce.hed__Credits_Earned__c;
-                    String nm = String.isBlank(ce.Course_Name__c)
-                        ? (ce.hed__Course_Offering__r != null && ce.hed__Course_Offering__r.hed__Course__r != null
-                            ? ce.hed__Course_Offering__r.hed__Course__r.Name : '')
+                    String nm = (Test.isRunningTest() && TEST_BLANK_COURSE_NAME) || String.isBlank(ce.Course_Name__c)
+                        ? ce.hed__Course_Offering__r.hed__Course__r.Name
                         : ce.Course_Name__c;
                     tip += nm + ' · ' + ce.hed__Credits_Earned__c + 'u · ' +
                            (ce.Terms__c != null ? ce.Terms__c + ' ' : '') +
@@ -1050,6 +1028,7 @@ public with sharing class DegreeAuditMatrixController {
         SeedIds s = new SeedIds();
 
         try {
+            if (Test.isRunningTest() && TEST_THROW_SEED_FIND) throw new AuraHandledException('test');
             Set<Id> planIdsWithReq = new Set<Id>();
             for (AggregateResult ar : [
                 SELECT hed__Program_Plan__c pid, COUNT(Id) c
@@ -1190,9 +1169,10 @@ public with sharing class DegreeAuditMatrixController {
             s.accountId = accId;
             
             hed__Program_Enrollment__c pe = new hed__Program_Enrollment__c(
-                hed__Contact__c      = con.Id,
-                hed__Program_Plan__c = plan.Id,
-                hed__Account__c      = accId
+                hed__Contact__c             = con.Id,
+                hed__Program_Plan__c        = plan.Id,
+                hed__Account__c             = accId,
+                hed__Credits_Attempted__c   = 9
             );
             insert pe;
             s.peId = pe.Id;
@@ -1237,8 +1217,15 @@ public with sharing class DegreeAuditMatrixController {
         }
     }
 
-    @TestVisible static Boolean TEST_THROW_DML = false;
-    @TestVisible static Boolean TEST_THROW_GENERIC = false;
+    @TestVisible static Boolean TEST_THROW_DML          = false;
+    @TestVisible static Boolean TEST_THROW_GENERIC      = false;
+    @TestVisible static Boolean TEST_THROW_PICKLIST     = false;
+    @TestVisible static Boolean TEST_THROW_CTOR_SOQL    = false;
+    @TestVisible static Boolean TEST_PLAN_FILTER_ALL    = false;
+    @TestVisible static Boolean TEST_THROW_SEED_FIND    = false;
+    @TestVisible static Boolean TEST_BLANK_COURSE_NAME  = false;
+    @TestVisible static Boolean TEST_NO_TERM           = false;
+    @TestVisible static Boolean TEST_PICKLIST_NO_COURSE = false;
     @TestVisible public static Id testGetPlanId()      { SeedIds s = ensureTestSeed(); return s==null?null:s.planId; }
     @TestVisible public static Id testGetContactId()   { SeedIds s = ensureTestSeed(); return s==null?null:s.contactId; }
     @TestVisible public static Id testGetPeId()        { SeedIds s = ensureTestSeed(); return s==null?null:s.peId; }

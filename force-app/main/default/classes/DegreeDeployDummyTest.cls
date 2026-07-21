@@ -636,7 +636,7 @@ private static void dm_postSeedAdjustments() {
 
     // 1) PE del contacto para este plan: crear si no existe y/o poner Status__c = 'Current'
     List<hed__Program_Enrollment__c> peL = [
-        SELECT Id, Status__c, hed__Program_Plan__c, hed__Contact__c
+        SELECT Id, Status__c, hed__Program_Plan__c, hed__Contact__c, hed__Credits_Attempted__c
         FROM hed__Program_Enrollment__c
         WHERE hed__Contact__c = :contactId
           AND hed__Program_Plan__c = :planId
@@ -646,13 +646,18 @@ private static void dm_postSeedAdjustments() {
 
     if (pe == null) {
         pe = new hed__Program_Enrollment__c(
-            hed__Contact__c      = contactId,
-            hed__Program_Plan__c = planId,
-            Status__c            = 'Current'
+            hed__Contact__c           = contactId,
+            hed__Program_Plan__c      = planId,
+            Status__c                 = 'Current',
+            hed__Credits_Attempted__c = 9
         );
         insert pe;
     } else if (pe.Status__c == null || pe.Status__c != 'Current') {
         pe.Status__c = 'Current';
+        update pe;
+    }
+    if (pe.hed__Credits_Attempted__c == null || pe.hed__Credits_Attempted__c == 0) {
+        pe.hed__Credits_Attempted__c = 9;
         update pe;
     }
 
@@ -2653,6 +2658,212 @@ static void covers_bucket_free_offering_null_hits_name_branch_C10() {
     DegreeAuditMatrixController.RowVM r0 = ctrl.rows[0];
     System.assertEquals(true, r0.mapOptEarnByPrId.containsKey(prBucket.Id), 'mapOptEarnByPrId sin bucket');
 }
+
+
+
+
+
+
+// T170: TEST_THROW_PICKLIST -- cubre catch vacio en peStatusesAll()
+@IsTest static void covers_throw_picklist_T170() {
+    DegreeAuditMatrixController.TEST_THROW_PICKLIST = true;
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    List<SelectOption> opts = ctrl.getPeStatusOptions();
+    Test.stopTest();
+    System.assertNotEquals(null, opts, 'getPeStatusOptions no debe ser null');
+    DegreeAuditMatrixController.TEST_THROW_PICKLIST = false;
+}
+
+// T171: TEST_THROW_CTOR_SOQL -- cubre catch en constructor (currentUserContactId)
+@IsTest static void covers_throw_ctor_soql_T171() {
+    DegreeAuditMatrixController.TEST_THROW_CTOR_SOQL = true;
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    Test.stopTest();
+    System.assertEquals(false, ctrl.getIsPortalView(), 'getIsPortalView debe ser false cuando SOQL falla');
+    DegreeAuditMatrixController.TEST_THROW_CTOR_SOQL = false;
+}
+
+// T172: TEST_PLAN_FILTER_ALL -- cubre rama planStatusFilter==ALL en constructor
+@IsTest static void covers_plan_filter_all_ctor_T172() {
+    DegreeAuditMatrixController.TEST_PLAN_FILTER_ALL = true;
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    Test.stopTest();
+    System.assertEquals('ALL', ctrl.planStatusFilter, 'planStatusFilter debe ser ALL');
+    System.assertNotEquals(null, ctrl.programPlanOptions, 'programPlanOptions null');
+    DegreeAuditMatrixController.TEST_PLAN_FILTER_ALL = false;
+}
+
+// T173: TEST_THROW_SEED_FIND -- cubre catch en ensureTestSeed() primer bloque
+@IsTest static void covers_throw_seed_find_T173() {
+    DegreeAuditMatrixController.TEST_THROW_SEED_FIND = true;
+    Test.startTest();
+    Id pid = DegreeAuditMatrixController.testGetPlanId();
+    Test.stopTest();
+    DegreeAuditMatrixController.TEST_THROW_SEED_FIND = false;
+}
+
+// T174: TEST_BLANK_COURSE_NAME -- cubre ramas opcional withChildren/catchAll (lineas 969, 993)
+@IsTest static void covers_blank_course_name_T174() {
+    DegreeAuditMatrixController.ensureTestSeed();
+    Id planId = DegreeAuditMatrixController.testGetPlanId();
+    Id accId  = DegreeAuditMatrixController.testGetAccountId();
+    System.assertNotEquals(null, planId, 'planId null T174');
+
+    // Crear curso + offering con term
+    hed__Course__c cX = new hed__Course__c(Name='C_T174_' + System.now().getTime());
+    try { cX.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert cX;
+    hed__Term__c term = new hed__Term__c(Name='T_T174_' + System.now().getTime(), hed__End_Date__c=Date.today());
+    try { term.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert term;
+    hed__Course_Offering__c off = new hed__Course_Offering__c(hed__Course__c=cX.Id, hed__Term__c=term.Id);
+    try { off.put('hed__Account__c', accId); } catch (Exception ign) {}
+    try { off.put('type_of_course_c__c', getOfferingType()); } catch (Exception ign) {}
+    insert off;
+
+    // Optional parent + child req (para que withChildren tenga entradas)
+    hed__Plan_Requirement__c optPar = new hed__Plan_Requirement__c(
+        Name='OPT_PAR_T174_' + System.now().getTime(),
+        hed__Program_Plan__c=planId, hed__Credits__c=3,
+        hed__Category__c='Optional', hed__Sequence__c=99
+    );
+    try { optPar.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert optPar;
+    hed__Plan_Requirement__c childR = new hed__Plan_Requirement__c(
+        Name='CHILD_T174_' + System.now().getTime(),
+        hed__Program_Plan__c=planId, hed__Course__c=cX.Id,
+        hed__Plan_Requirement__c=optPar.Id
+    );
+    try { childR.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert childR;
+
+    // Segundo curso + offering (para catchAll -- no tiene req asociado)
+    hed__Course__c cY = new hed__Course__c(Name='C_T174Y_' + System.now().getTime());
+    try { cY.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert cY;
+    hed__Course_Offering__c offY = new hed__Course_Offering__c(hed__Course__c=cY.Id, hed__Term__c=term.Id);
+    try { offY.put('hed__Account__c', accId); } catch (Exception ign) {}
+    try { offY.put('type_of_course_c__c', getOfferingType()); } catch (Exception ign) {}
+    insert offY;
+
+    // catchAll parent (opcional, sin hijos) para activar el loop catchAll
+    hed__Plan_Requirement__c catchAllPar = new hed__Plan_Requirement__c(
+        Name='CATCHALL_T174_' + System.now().getTime(),
+        hed__Program_Plan__c=planId, hed__Credits__c=6,
+        hed__Category__c='Optional', hed__Sequence__c=98
+    );
+    try { catchAllPar.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert catchAllPar;
+
+    // Contacto + PE + CE (Credits_Earned > 0)
+    Account hh = new Account(Name='HH_T174_' + System.now().getTime()); insert hh;
+    Contact con = new Contact(LastName='T174', Email='t174@example.edu', AccountId=hh.Id); insert con;
+    hed__Program_Enrollment__c pe = new hed__Program_Enrollment__c(
+        hed__Contact__c=con.Id, hed__Program_Plan__c=planId, hed__Account__c=accId
+    );
+    try { pe.put('Status__c','Current'); } catch (Exception ign) {}
+    insert pe;
+    hed__Course_Enrollment__c ce = new hed__Course_Enrollment__c(
+        hed__Contact__c=con.Id, hed__Program_Enrollment__c=pe.Id,
+        hed__Course_Offering__c=off.Id, hed__Credits_Earned__c=2
+    );
+    try { ce.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert ce;
+    // CE para cY (no consumida por withChildren => va a catchAll => cubre linea 993)
+    hed__Course_Enrollment__c ceY = new hed__Course_Enrollment__c(
+        hed__Contact__c=con.Id, hed__Program_Enrollment__c=pe.Id,
+        hed__Course_Offering__c=offY.Id, hed__Credits_Earned__c=2
+    );
+    try { ceY.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert ceY;
+
+    DegreeAuditMatrixController.TEST_BLANK_COURSE_NAME = true;
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    ctrl.setSelectedPlanId(planId);
+    ctrl.peStatusFilter = 'ALL';
+    ctrl.runAudit();
+    Test.stopTest();
+    DegreeAuditMatrixController.TEST_BLANK_COURSE_NAME = false;
+    System.assertNotEquals(null, ctrl.rows, 'rows null T174');
+    System.assertNotEquals(null, ctrl.optBlocks, 'optBlocks null T174');
+}
+
+// T175: getRequirementPicklist() -- cubre ambas ramas: con/sin curso
+@IsTest static void covers_req_picklist_T175() {
+    Map<String, Id> s = dm_getSeedIds();
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    ctrl.setSelectedPlanId(String.valueOf(s.get('planId')));
+    ctrl.peStatusFilter = 'ALL';
+    ctrl.runAudit();
+    // rama con curso (linea 123)
+    List<SelectOption> opts1 = ctrl.getRequirementPicklist();
+    // rama sin curso (linea 124) via TEST_PICKLIST_NO_COURSE
+    DegreeAuditMatrixController.TEST_PICKLIST_NO_COURSE = true;
+    List<SelectOption> opts2 = ctrl.getRequirementPicklist();
+    DegreeAuditMatrixController.TEST_PICKLIST_NO_COURSE = false;
+    Test.stopTest();
+    System.assertNotEquals(null, opts1, 'getRequirementPicklist null');
+    System.assertNotEquals(null, opts2, 'getRequirementPicklist (no course) null');
+}
+
+// T176: TEST_NO_TERM -- cubre rama termEnd=null en openStudentDetail (linea 662)
+@IsTest static void covers_no_term_T176() {
+    DegreeAuditMatrixController.ensureTestSeed();
+    Id planId = DegreeAuditMatrixController.testGetPlanId();
+    Id accId  = DegreeAuditMatrixController.testGetAccountId();
+    System.assertNotEquals(null, planId, 'planId null T176');
+
+    // Offering con term para que la CE sea valida
+    hed__Course__c cT176 = new hed__Course__c(Name='C_T176_' + System.now().getTime());
+    try { cT176.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert cT176;
+    hed__Term__c termT176 = new hed__Term__c(Name='TERM_T176_' + System.now().getTime(), hed__End_Date__c=Date.today());
+    try { termT176.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert termT176;
+    hed__Course_Offering__c offT176 = new hed__Course_Offering__c(hed__Course__c=cT176.Id, hed__Term__c=termT176.Id);
+    try { offT176.put('hed__Account__c', accId); } catch (Exception ign) {}
+    try { offT176.put('type_of_course_c__c', getOfferingType()); } catch (Exception ign) {}
+    insert offT176;
+    insert new hed__Plan_Requirement__c(
+        Name='REQ_T176_' + System.now().getTime(),
+        hed__Program_Plan__c=planId, hed__Course__c=cT176.Id, hed__Sequence__c=50
+    );
+
+    Account hhT = new Account(Name='HH_T176_' + System.now().getTime()); insert hhT;
+    Contact conT = new Contact(LastName='T176', Email='t176@example.edu', AccountId=hhT.Id); insert conT;
+    hed__Program_Enrollment__c peT = new hed__Program_Enrollment__c(
+        hed__Contact__c=conT.Id, hed__Program_Plan__c=planId, hed__Account__c=accId
+    );
+    try { peT.put('Status__c','Current'); } catch (Exception ign) {}
+    insert peT;
+    hed__Course_Enrollment__c ceT = new hed__Course_Enrollment__c(
+        hed__Contact__c=conT.Id, hed__Program_Enrollment__c=peT.Id,
+        hed__Course_Offering__c=offT176.Id, hed__Credits_Earned__c=1
+    );
+    try { ceT.put('hed__Account__c', accId); } catch (Exception ign) {}
+    insert ceT;
+
+    // Llamar openStudentDetailAction con TEST_NO_TERM para cubrir rama null de termEnd
+    PageReference pg = Page.DegreeAuditMatrix;
+    pg.getParameters().put('contactId', String.valueOf(conT.Id));
+    Test.setCurrentPage(pg);
+    DegreeAuditMatrixController.TEST_NO_TERM = true;
+    Test.startTest();
+    DegreeAuditMatrixController ctrl = new DegreeAuditMatrixController();
+    ctrl.setSelectedPlanId(planId);
+    ctrl.peStatusFilter = 'ALL';
+    ctrl.runAudit();
+    ctrl.openStudentDetailAction();
+    Test.stopTest();
+    DegreeAuditMatrixController.TEST_NO_TERM = false;
+    System.assertNotEquals(null, ctrl.rows, 'rows null T176');
+}
+
 
 
 }

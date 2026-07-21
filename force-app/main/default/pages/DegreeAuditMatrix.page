@@ -261,10 +261,10 @@
           </div>
         </apex:outputPanel>
 
-        <!-- Mensaje para portal (solo detalle) -->
-        <apex:outputPanel rendered="{!isPortalView}" layout="block">
-          <div class="note-fr">Vue portail: la matrice n’est pas affichée. Ouvrez le détail de l’étudiant.</div>
         </apex:outputPanel>
+      <!-- Mensaje para portal (solo detalle) -->
+      <apex:outputPanel rendered="{!isPortalView}" layout="block">
+        <div class="note-fr">Vue portail: la matrice n'est pas affichée. Ouvrez le détail de l'étudiant.</div>
       </apex:outputPanel>
     </apex:outputPanel>
 
@@ -412,8 +412,6 @@
         // Funciona tanto si vienen con saltos de línea como si todo está en una sola línea.
         function parseOptTooltip(ttl){
           if (!ttl) return [];
-        
-            if (!ttl) return [];
 
           // Normalizar entidades y saltos (si existieran)
           ttl = ttl
@@ -609,8 +607,6 @@
               var raw = td.dataset.rawtitle || td.getAttribute('title') || '';
               var courses = parseOptTooltip(raw);
               showOptCoursesPopover(ev, blockTitle, courses);
-        
-              showOptCoursesPopover(ev, blockTitle, courses);
             }, false);
         
             tbody.dataset.optRevealAttached = '1';
@@ -625,6 +621,7 @@
           var p = document.getElementById('modalPanel');
           return p && p.style.display === 'block';
         })();
+
     
         // Helpers CSV
         // --- Delimitador dinámico para CSV (Numbers en Mac FR -> ';', resto -> ',') ---
@@ -671,36 +668,35 @@
           }).join(CSV_DELIM);
         }
         function download(name, text){
-          // 1) BOM para Excel + 2) forzar CRLF
           var BOM = '\uFEFF';
           var normalized = (text || '')
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n')
             .replace(/\n/g, '\r\n');
-    
-          var dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + normalized);
-    
+          var blob = new Blob([BOM + normalized], { type: 'text/csv;charset=utf-8;' });
+          var url = URL.createObjectURL(blob);
+          // Mismo mecanismo que jsPDF: navegar location.href en lugar de a.click()
           var a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = dataUrl;
           a.download = name;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(function(){ document.body.removeChild(a); }, 0);
-    
-          // Safari/iOS fallback (mismo dataUrl con BOM+CRLF)
-          var ua = navigator.userAgent || '';
-          var isIOS = /iP(ad|hone|od)/.test(ua);
-          var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-          if (isSafari || isIOS){
-            try{
-              var iframe = document.createElement('iframe');
-              iframe.style.display = 'none';
-              iframe.src = dataUrl;
-              document.body.appendChild(iframe);
-              setTimeout(function(){ document.body.removeChild(iframe); }, 1500);
-            }catch(e){}
-          }
+          a.rel = 'noopener';
+          a.href = url;
+          setTimeout(function(){ a.click(); URL.revokeObjectURL(url); }, 0);
+        }
+
+        function getProgramSlug(){
+          try {
+            var sel = document.querySelector('select[id$="pp"]');
+            if (!sel || sel.selectedIndex < 0) return '';
+            var txt = (sel.options[sel.selectedIndex].text || '').trim();
+            if (!txt || txt.charAt(0) === '-') return '';
+            // Quitar acentos (NFD descompone, luego se eliminan los combining chars)
+            var slug = txt.normalize('NFD').replace(/[\u0300-\u036F]/g, '')
+              .replace(/[^a-zA-Z0-9\s\-]/g, '')
+              .trim()
+              .replace(/\s+/g, '_')
+              .substring(0, 50);
+            return slug;
+          } catch(e) { return ''; }
         }
     
         // 2) Si modal: exporta CSV de detalle (ID solo en primera fila)
@@ -835,7 +831,7 @@
 
       var nameEl = document.querySelector('#studentDetailCapture .detail-grid strong');
       var stu  = (nameEl && nameEl.textContent) ? nameEl.textContent.trim() : 'etudiant';
-      var slug = stu.replace(/[^\w\-]+/g,'_');
+      var slug = stu.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9\-]+/g,'_').replace(/^_+|_+$/g,'') || 'etudiant';
       var d = new Date(), y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2);
       var fileName = 'Degree_audit_' + slug + '_' + y + m + day + '.csv';
 
@@ -929,7 +925,8 @@
         var reqv  = (idxReqCol>=0 && cols.length>idxReqCol)? cols[idxReqCol] : '';
         out.push(joinCSVLine([fl[0], fl[1], email, idc, manq, pct, derr, y7, reqv]));
       }
-      download('Degree_audit_matrice_filtre.csv', csvSepHint() + out.join('\n'));
+      var _ps = getProgramSlug();
+      download((_ps ? 'Degree_audit_' + _ps + '_filtre' : 'Degree_audit_matrice_filtre') + '.csv', csvSepHint() + out.join('\n'));
       return;
     }
 
@@ -955,7 +952,8 @@
       var reqVals = reqIndices.map(function(i){ return (cols.length>i) ? cols[i] : ''; });
       out.push(joinCSVLine([fl[0], fl[1], email, idc, manq, pct, derr, y7].concat(reqVals)));
     }
-    download('Degree_audit_matrice.csv', csvSepHint() + out.join('\n'));
+    var _ps2 = getProgramSlug();
+    download((_ps2 ? 'Degree_audit_' + _ps2 : 'Degree_audit_matrice') + '.csv', csvSepHint() + out.join('\n'));
 
   }catch(err){
     console.error(err);
@@ -1355,8 +1353,10 @@ function showHelpFilters(evt){
                 
                   var td1 = document.createElement('td');
                   td1.style.textAlign = 'center';
-                  td1.className = 'ico ok';
-                  td1.innerHTML = '&#10003;';
+                  var chk1 = document.createElement('span');
+                  chk1.className = 'ico ok';
+                  chk1.innerHTML = '&#10003;';
+                  td1.appendChild(chk1);
                 
                   var td2 = document.createElement('td');
                   td2.textContent = course;
@@ -1547,5 +1547,6 @@ function showHelpFilters(evt){
   <!-- Popover contenedor -->
   <div id="helpPopover" class="help-popover" aria-hidden="true"></div>
   <div id="optPopover" class="help-popover" aria-hidden="true"></div>
-  
+
+
 </apex:page>
