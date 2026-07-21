@@ -58,7 +58,10 @@ Manuales y SOWs/*/Private & Shared/
 Manuales y SOWs/Matrize degree/Degree Matriz complete/
 
 # Bulk API job result CSVs at root — datos de org, no son código
-750b*.csv
+750*.csv
+
+# Google Sheets exports con datos reales de org — no son código
+Googlesheet scripts/*.csv
 
 # Test data bulk files — not code
 test-data/

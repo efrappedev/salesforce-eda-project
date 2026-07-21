@@ -26,7 +26,8 @@
 
 ## Reglas de deploy
 
-- **NUNCA hacer deploy directamente.** El usuario siempre corre: `./manifest/deploy-production.sh production`
+- **Cambios que tocan Apex (`.cls`):** NUNCA hacer deploy directo a producción. El usuario siempre corre el script de producción él mismo (ej. `./manifest/deploy-production.sh production`).
+- **Cambios 100% LWC (sin ningún `.cls` tocado):** SÍ se puede correr el script de deploy a producción directamente, sin esperar a que el usuario lo corra. Confirmado explícitamente por el usuario (2026-07-21): "si solo es LWC puedes actualizarlo, solo no se actualiza APEX".
 - Solo hacer dry-run/validate si el usuario lo pide explícitamente.
 
 ## Stack

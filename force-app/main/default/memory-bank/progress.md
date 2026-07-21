@@ -1,5 +1,347 @@
 # Progress — Safe Merge Management System
 
+## ✅ Bulk Data Editor — DEPLOYADO EN AEBEQ PRODUCCIÓN (2026-07-21)
+
+Usuario corrió el script él mismo. Deploy ID `0AfOH000001bnxF0AQ`, Succeeded, 72 tests / 0
+fallas, 100% coverage. Bulk Data Editor ya está en producción en SEMBEQ y AEBEQ. Falta (manual):
+asignar permission set a usuarios de AEBEQ y verificar mini flujo real en esa org.
+
+
+## ✅ Merge Manager V2 EDA + V2 non-EDA — DEPLOYADOS A PRODUCCIÓN (2026-07-21)
+
+- SEMBEQ producción: V2 for EDA ✅ + legacy cleanup (EDARelatedRecordsService + EDAServiceCoverageTest eliminadas) ✅
+- AEBEQ producción: V2 non-EDA ✅ (primera instalación en producción — fresh install)
+Cambios incluidos: brush icon dashboard, lazy-load spinner 300ms, fix paréntesis relTypeLabel (mergeWizard.js:586).
+Scripts actualizados a patrón verbose+coverage: deploy-production.sh y deploy-v2-eda-production.sh ya muestran salida en vivo + tabla de cobertura al terminar.
+Scripts de cobertura creados: manifest/coverage-eda.sh y manifest/coverage-v2.sh (validate-only, 5 test classes propias).
+
+
+
+## ✅ Bulk Data Editor — Botón X DEPLOYADO A PRODUCCIÓN (2026-07-21)
+
+Nueva regla permanente (CLAUDE.md): cambios 100% LWC se pueden deployar directo a producción sin
+esperar al usuario; solo Apex requiere que el usuario corra el script él mismo. Deploy del botón
+X confirmado Succeeded vía `sf project deploy report`. Bug adicional arreglado en
+`deploy-bulk-editor-production.sh`: línea de warning del CLI rompía el parseo JSON — ahora se
+recorta todo antes del primer `{`.
+
+
+## ✅ Bulk Data Editor — Botón X para limpiar búsqueda en Object/Field/Filter (2026-07-21)
+
+`bulkSearchableSelect` (componente compartido usado en Object/Field/Filter pickers del wizard
+base + Record Type Change) ganó un botón X que limpia el texto escrito y reabre la lista, sin
+tocar el valor ya seleccionado (solo se confirma al elegir una opción nueva). Deployado a SEMBEQ
+y AEBEQ, sin tests (LWC-only). Producción pendiente — el usuario corre el script él mismo.
+
+
+## ✅ Bulk Data Editor — DEPLOYADO A PRODUCCIÓN (2026-07-21)
+
+Usuario corrió el deploy a producción. Succeeded, 72 tests, 0 failures, 100% cobertura en las 8
+clases (verificado vía `sf project deploy report --use-most-recent --json`, no solo por el
+script). El script no imprimió nada por un bug de bash (pipe+heredoc compitiendo por el stdin de
+Python en `deploy-bulk-editor-production.sh`) — ya arreglado, no afectó el deploy real. Mismo
+bug probablemente late en `deploy-v2-eda-production.sh`, sin arreglar aún. Falta: asignar
+permission set a usuarios (manual) + prueba funcional en producción.
+
+
+## ✅ Bulk Data Editor — Countdown en toast + script de deploy a producción creado (2026-07-21)
+
+Toast "Change reverted successfully." ahora muestra countdown en vivo ("(closing in Ns)") vía
+`setInterval`, deployado a ambos sandboxes sin correr tests (LWC-only, nueva regla explícita del
+usuario: tests de Apex solo cuando se toca Apex, dry-run a producción solo tras confirmación
+manual). Se creó `manifest/deploy-bulk-editor-production.sh` (no existía ninguno) siguiendo el
+patrón de `deploy-v2-eda-production.sh`: safety gate, `--json` + tabla de cobertura por clase,
+`RunSpecifiedTests`. Deploya todo (classes/lwc/objects/app/tab/flexipage/permissionset/profile
+Admin) salvo asignación de permission set a usuarios (manual). Script creado pero NO ejecutado —
+el usuario lo corre él mismo.
+
+## ✅ Bulk Data Editor — Ronda de UX en Record Type Change + History (2026-07-21)
+
+9 puntos de feedback del usuario tras probar en SEMBEQ sandbox, todos LWC-only (sin Apex):
+1 bug real arreglado en el componente compartido `bulkSearchableSelect` (reabrir un combobox ya
+lleno solo mostraba la opción seleccionada, no la lista completa — guard `!this.isOpen`
+invertido). Resto son UX: filtro de Record Type ahora `lightning-combobox` plano (no
+autocomplete, con opción "Any Record Type"), label "Search (optional)" en vez de "Search term",
+`type="search"` para botón de borrado nativo, mini-refresh de History (`@api refresh()` +
+evento `rundone`) tras un run o un Undo sin hard refresh, toast de Undo auto-cierra a 4s, badge
+"Undone" renombrado a "Already Reverted". Verificado: SEMBEQ y AEBEQ ambos 76/76 tests, 100%
+(sin cambio esperado, Apex intacto). Producción sigue sin nada deployado — pendiente del usuario.
+
+## ✅ Bulk Data Editor — AEBEQ sandbox actualizado, ahora igual que SEMBEQ (2026-07-20)
+
+AEBEQ tenía solo la app base (2026-07-16, sin Record Type Change ni los fixes de hoy). Deploy
+completo vía `deploy-bulk-editor-aebeq-sandbox.sh`. Verificado: 76/76 tests, 100% en las 9
+clases — igual que SEMBEQ. **Producción: 0 clases `Bulk*` (confirmado por SOQL), nada
+deployado todavía. Pendiente:** deploy real a producción por el usuario.
+
+## ✅ Bulk Data Editor — Auditoría de governor limits, 2 bugs de longitud arreglados, 100% confirmado por dry-run de producción (2026-07-20)
+
+Pedido del usuario: revisar toda la app (incluida la feature de Record Type Change) buscando
+violaciones a reglas/límites de Salesforce ("desbordamientos, limites etc").
+
+- SOQL/DML en loops: ninguno — la app ya está correctamente bulkificada en los 3 batches.
+- **Bug 1** (`BulkEditController.startBulkEdit`): `newValue` sin tope de longitud podía exceder
+  el campo destino real y tirar `STRING_TOO_LONG` en el insert del log. Fix: valida contra
+  `dfr.getLength()` y **rechaza** con mensaje claro (dato real que se escribe en registros, no
+  se puede truncar sin corromper).
+- **Bug 2** (`BulkRecordTypeController.startRecordTypeChange`): `searchSummary` sin tope directo
+  a `Old_Value_Display__c` (Text 255). Fix: nuevo helper `truncateForLog()`, **trunca** (es solo
+  anotación de auditoría, no dato real).
+- Resto de las clases (`BulkEditService`, `BulkEditBatch`, `BulkEditUndoBatch`,
+  `BulkRecordTypeChangeBatch`, `BulkRecordTypeService`, `BulkEditWrappers`) y los 10
+  field-meta.xml de ambos objetos custom: revisados, limpios.
+- Tests nuevos: `testStartBulkEdit_newValueTooLong_throws`,
+  `testStartRecordTypeChange_longSearchSummary_truncatedSafely`.
+- Sandbox SEMBEQ: 74/74 tests, 100%. **Dry-run producción** (`RunSpecifiedTests`, 4 test
+  classes): `Succeeded`, 70 tests, 0 failures, **100% real en las 9 clases**.
+
+**Ronda 2 (mismo día) — auditoría de permisos/CRUD/SOQL injection/XSS**, mismo checklist usado
+para Merge Manager (`[[security_review]]`). SOQL injection, XSS, sharing, `isDeletable()`,
+`@TestVisible`, IDs hardcodeados: todo limpio. **Bug real:**
+`BulkRecordTypeService.getSearchableFields()`/`searchRecords()` no verificaban
+`Account.isAccessible()` a nivel de objeto (solo el campo). Fix: `assertAccountAccessible()` +
+2 tests nuevos. Nota de diseño documentada (no bug): el audit log (`Bulk_Edit_Log__c`
+`viewAllRecords=true`) es visible a todo el que tenga el Permission Set, sin FLS sobre el campo
+original — igual patrón que `Merge_Log__c`. Sandbox 76/76, 100%. Dry-run producción: `Succeeded`,
+72 tests, 0 failures, 100% en las 9 clases.
+- **Pendiente:** solo el deploy real a producción por el usuario.
+
+## ✅ Bulk Data Editor — Feature "Mass Record Type Change" (Account), 100% cobertura confirmada por dry-run de producción (2026-07-20)
+
+Nueva feature aditiva (plan aprobado, no modifica el wizard de value-edit): buscar Accounts por
+Record Type y/o término libre en un campo, seleccionar manualmente vía checkboxes, cambiar el
+Record Type solo de los seleccionados, con Undo.
+
+- 3 clases Apex nuevas (`BulkRecordTypeService`, `BulkRecordTypeController`,
+  `BulkRecordTypeChangeBatch`), 1 LWC nuevo (`bulkRecordTypeChange`), mode-toggle en
+  `bulkDataEditor`, display update en `bulkEditHistory`, 1 cambio quirúrgico a
+  `BulkEditService.resolveFieldDescribe()` (permite `RecordTypeId` para que `BulkEditUndoBatch`
+  sin modificar sirva Undo gratis a esta feature).
+- Tests nuevos: `BulkRecordTypeControllerTest.cls` (17 tests), `BulkRecordTypeChangeBatchTest.cls`
+  (5 tests, incluye round-trip completo de Undo).
+- Deploy sandbox SEMBEQ: primera corrida 70/70 tests pero `BulkRecordTypeController` en 92%
+  (2 ramas `catch(Exception)` genéricas sin cubrir). Fix con flags `TEST_FORCE_*` ya existentes
+  (uno extendido, uno reutilizado de `BulkEditService`) — sin flags nuevos. Redeploy: 72/72
+  tests, 100% en las 3 clases nuevas.
+- **Dry-run acotado a producción** (`RunSpecifiedTests`, 4 test classes, no RunLocalTests):
+  `Succeeded`, 68 tests, 0 failures, **100% real en las 9 clases** de la app (6 ya-producción
+  intactas + 3 nuevas). Detalle completo en `activeContext.md`.
+- Pasada manual de UX en sandbox ✅ confirmada por el usuario (2026-07-20): busca por Record
+  Type + nombre, selecciona varios, cambia Record Type — funciona como se pidió.
+- **Pendiente:** solo el deploy real a producción por el usuario (sin script dedicado todavía).
+
+## ✅ Bulk Data Editor — Construido y deployado a sandbox AEBEQ (2026-07-16)
+
+App completa deployada exitosamente a `e.frappe@aebeq.qc.ca.partialae`. 22/22 tests Apex
+pasando, cobertura 83-100% por clase (por debajo del 100% intencionalmente — el usuario pidió
+no invertir más tiempo en cobertura hasta que la app esté aprobada en UX; los tests "de
+verdad" para producción se harán en una fase posterior). Ver detalle completo, bugs de
+metadata encontrados, y lecciones de testing de batches en `activeContext.md`.
+
+**Siguiente paso:** el usuario prueba la app en el sandbox AEBEQ y da feedback de UX antes de
+tocar producción.
+
+**2026-07-16 (mismo día, sesión de testing UX):**
+- Fix auto-load de pestaña en App Launcher (era el mismo glitch de caché de App Definition
+  que "No Items" — se resolvió solo al re-guardar el wizard de Navigation Items, sin tocar código).
+- Fix bug real: "List has no rows for assignment to SObject" — 3 queries sin guarda contra
+  0 filas (`getJobStatus`, `BulkEditUndoBatch.start/execute`). Ver detalle en `activeContext.md`.
+  Deployado a sandbox AEBEQ ✅, 22/22 tests OK.
+
+**2026-07-17 (segunda ronda de testing UX):**
+- Fix bug real: crash "Cannot read properties of undefined (reading 'buckets')" al
+  seleccionar campos tipo Geolocation (ej. "Other Latitude") o Currency — GROUP BY revienta
+  en la plataforma para campos con `isGroupable() = false`. Fix en 3 capas: filtrar esos
+  campos del picklist de `getEditableFields()`, defensa extra en `getValueDistribution()`,
+  y guard `if:true={distribution}` en el template. Ver detalle completo + lección sobre dónde
+  NO poner el check (`resolveFieldDescribe` compartido) en `activeContext.md`.
+- Rediseño completo del wizard por pedido del usuario: de pasos apilados verticalmente a un
+  wizard tipo instalador (un solo paso visible a la vez, estado explícito `wizardStep`,
+  botones "← Back" en pasos 2-4, path indicator clickeable, ancho contenido a 640px para
+  monitores ultrawide).
+- Deployado a sandbox AEBEQ ✅ (2 rondas de deploy, la primera con el check de agrupabilidad
+  mal ubicado rompió un test — corregido). 22/22 tests pasando (100%).
+- **Pendiente:** usuario retesta en sandbox AEBEQ y confirma si el wizard nuevo y la ausencia
+  de campos problemáticos en el picker resuelven su feedback.
+- Deploy adicional a sandbox SEMBEQ (`e.frappe@sembeq.qc.ca.partialdev`) — usuario pidió
+  probar ahí porque tiene más cuentas/datos de prueba disponibles. Nuevo script
+  `manifest/deploy-bulk-editor-sembeq-sandbox.sh` (mismo patrón que el de AEBEQ, mismo código
+  fuente — la app es genérica, sin dependencias EDA). Primer deploy en este sandbox → todo
+  "Created". 22/22 tests pasando (100%). App ahora vive en ambos sandboxes (AEBEQ y SEMBEQ).
+
+**2026-07-17 (tercera ronda — searchable select + layout):**
+- Nuevo componente reutilizable `lwc/bulkSearchableSelect` — combobox custom con SLDS
+  (`slds-combobox`) que filtra opciones por substring al escribir (ej. escribir "S" muestra
+  todos los campos que contienen "S"). `lightning-combobox` nativo no soporta esto (solo abre
+  un picklist estático) — por eso se construyó desde cero con un `<input>` + listbox propio,
+  manteniendo el mismo contrato de evento (`onchange` con `detail.value`) que
+  `lightning-combobox`, así que `bulkDataEditor.js` no necesitó cambios, solo el HTML.
+- Reemplazado en 3 lugares dentro de `bulkDataEditor.html`: selector de Object (paso 1),
+  selector de Field (paso 2), y selector de New Value cuando el campo es picklist (paso 4).
+- CSS del wizard: `.wizard-container` pasó de `margin: 0 auto` (centrado) a `margin: 0`
+  (alineado a la izquierda) — el usuario sintió que centrar solo repartía el espacio vacío a
+  ambos lados en vez de resolverlo. **Pendiente explícito del usuario:** seguir iterando el
+  diseño visual general de la app (se ve "poco digerible", mucho espacio no aprovechado) —
+  esto es la primera de varias iteraciones de layout, no está cerrado.
+- Deployado a AEBEQ y SEMBEQ sandbox ✅. 22/22 tests en ambos (100% — cambios fueron solo LWC,
+  no tocaron Apex).
+
+**2026-07-17 (investigación "Script-thrown exception" en Account.SEMBEQ__c):**
+- Usuario reportó crash "Script-thrown exception" en step 5 (Applying mass update) al hacer un
+  segundo intento de mass edit sobre `Account.SEMBEQ__c` (checkbox) en sandbox SEMBEQ. Primer
+  intento (2944 registros false→true) SÍ había completado bien.
+- **No dejó ningún rastro server-side** — ni `Bulk_Edit_Log__c` ni `AsyncApexJob` nuevo — lo
+  que apunta a que fue un fallo transitorio del lado del navegador (probablemente caché de
+  Lightning con el bundle LWC viejo justo después del deploy de searchable-select), no un bug
+  reproducible en Apex.
+- **Reproducción controlada:** corrí `startBulkEdit` para `Account.SEMBEQ__c` a escala completa
+  (8,203 registros — TODOS los Account de la org, valor true→true sin cambio real) vía Apex
+  anónimo. Batch completó 42/42 chunks, 0 errores. Esto descarta la teoría de límite de
+  "5,000 registros por job" — Batch Apex no tiene ese techo (soporta hasta 50M vía
+  QueryLocator); el chunking en grupos de 200 (`Database.executeBatch(batch, 200)`) ya está
+  aplicado automáticamente, no requiere cambios de código.
+- Datos de prueba (log + 8,203 snapshots del test true→true) limpiados después de verificar.
+  También se había hecho una prueba menor con `AEBEQ__c` (107 registros true→false) que se
+  revirtió correctamente con `BulkEditUndoBatch` — sirvió además para confirmar que el flujo
+  de undo funciona bien a pequeña escala.
+- **Pendiente:** pedirle al usuario que reintente el mismo mass edit en SEMBEQ__c (o cualquier
+  checkbox) después de un hard refresh del navegador (Ctrl+Shift+R / limpiar caché), y que si
+  vuelve a fallar, copie el mensaje completo de la consola del navegador (Network tab, response
+  body del request a Apex) en vez de solo el texto del banner — "Script-thrown exception" es el
+  mensaje genérico que Salesforce muestra cuando el mensaje real de la excepción no viaja al
+  cliente (típicamente por AuraHandledException con mensaje null u otro fallo no capturable),
+  así que el texto real de error puede estar solo en el Network tab o en Setup > Apex Jobs.
+
+## 🆕 Bulk Data Editor — Plan de diseño original (2026-07-16) — ya construido, ver arriba
+
+Proyecto nuevo, independiente de Merge Manager. Editor masivo tipo Excel: elegir objeto →
+campo → tabla de valores distintos + conteo → reemplazar → update masivo (10,000+ registros).
+Genérico desde el día 1, sin dependencia EDA/NPC — un solo build para SEMBEQ y AEBEQ.
+
+### Estructura de carpetas propuesta
+```
+force-app/main/default/Bulk Data Editor/
+  applications/Bulk_Data_Editor.app-meta.xml
+  tabs/Bulk_Data_Editor.tab-meta.xml
+  flexipages/Bulk_Data_Editor.flexipage-meta.xml
+  permissionsets/Bulk_Data_Editor_Access.permissionset-meta.xml
+  classes/
+    BulkEditController.cls        (with sharing — adapter LWC)
+    BulkEditService.cls           (discovery, distribution, validación)
+    BulkEditBatch.cls             (Database.Batchable + Stateful — update + snapshots)
+    BulkEditUndoBatch.cls         (Database.Batchable — revierte desde snapshots)
+    BulkEditWrappers.cls          (DTOs @AuraEnabled)
+    BulkEditControllerTest.cls / BulkEditBatchTest.cls  (objetivo 85%+ cobertura)
+  objects/
+    Bulk_Edit_Log__c        (Object_Type__c, Field_API_Name__c, New_Value__c,
+                              Records_Affected__c, Status__c, Undo_Status__c,
+                              Batch_Job_Id__c, Executed_By__c, Executed_Date__c)
+    Bulk_Edit_Snapshot__c   (Master-Detail a Log: Record_Id__c(18), Old_Value__c)
+                            — un registro por fila afectada, habilita el undo
+  lwc/
+    bulkDataEditor        (orquestador: selector objeto → campo)
+    bulkValueTable         (tabla valores distintos + conteo, click-to-edit)
+    bulkEditConfirmModal   (preview + confirmación explícita, re-cuenta antes de ejecutar)
+    bulkEditProgress       (polling de AsyncApexJob, barra de progreso)
+    bulkEditHistory        (log de ediciones pasadas + botón "Deshacer")
+```
+
+### Decisiones técnicas clave
+- **Todo pasa por Batch Apex**, sin importar el volumen — no hay path síncrono separado,
+  porque cada registro necesita snapshot individual para el undo. Simplifica el código.
+- **Query de distribución**: `SELECT Campo, COUNT(Id) cnt FROM Objeto GROUP BY Campo
+  ORDER BY COUNT(Id) DESC LIMIT 2000`. Límite duro de Salesforce de 2,000 filas agrupadas
+  — si se trunca, la UI avisa "mostrando los 2,000 valores más frecuentes".
+- **Tipos de campo excluidos del selector** (SOQL no permite GROUP BY sobre ellos):
+  multi-select picklist, campos encriptados, long text area / rich text.
+- **Blacklist de objetos de plataforma** excluidos siempre del discovery aunque el usuario
+  tenga acceso: `User`, `Profile`, `PermissionSet`, `PermissionSetAssignment`, `UserRole`,
+  `ApexClass`, `ApexTrigger` + ruido habitual (`*History`, `*Share`, `*Feed`, `*ChangeEvent`).
+- **Undo**: `BulkEditBatch.execute()` inserta un `Bulk_Edit_Snapshot__c` por registro ANTES
+  de aplicar el update. `BulkEditUndoBatch` revierte desde los snapshots en lotes de 200.
+  Riesgo aceptado: si un registro cambió por otra vía entre el edit y el undo, se sobrescribe
+  igual (mismo trade-off que el undo de Merge Manager).
+- **FLS/CRUD**: `DescribeFieldResult.isUpdateable()` chequeado antes de arrancar el batch.
+- **Confirmación**: modal con objeto + campo + valor viejo → nuevo + conteo exacto
+  (re-consultado justo antes de ejecutar, no el conteo cacheado de la tabla).
+
+### Fases de implementación
+| Fase | Contenido |
+|---|---|
+| 1 | Objetos custom (`Bulk_Edit_Log__c`, `Bulk_Edit_Snapshot__c`) + Permission Set |
+| 2 | `BulkEditService` + `BulkEditController` (discovery, distribution, picklist values) + tests |
+| 3 | `BulkEditBatch` + `BulkEditUndoBatch` + tests (85%+ desde el inicio) |
+| 4 | LWC: `bulkDataEditor` + `bulkValueTable` + `bulkEditConfirmModal` + `bulkEditProgress` |
+| 5 | `bulkEditHistory` (ver logs + undo) + app/tab/flexipage |
+| 6 | Deploy sandbox → pruebas con volumen real (10k+) → dry-run producción → usuario deploya |
+
+**Estado:** diseño aprobado por el usuario (2026-07-16). Esperando luz verde para Fase 1.
+
+---
+
+## ✅ Editable Close Reasons — V2 + EDA (2026-07-07)
+
+### Apex: `MergeController.cls` (V2 + EDA)
+- `getReasonConfig()`: lee sentinel `__reason_config__` → devuelve JSON config
+- `saveReasonConfig(configJson)`: guarda/inserta sentinel `__reason_config__`
+- `renameReason(oldVal, newVal, ticketStatus)`: actualiza `Closed_Reason__c` + `Notes__c` en tickets afectados
+
+### JSON config structure (en `Custom_Close_Reasons__c` del sentinel):
+```json
+{ "tvLabels": {"fp-household":"Domicile diff."}, "clLabels": {}, "tvCustom": [], "clCustom": [] }
+```
+- `tvLabels/clLabels`: overrides predefined reasons (key → custom label)
+- `tvCustom/clCustom`: custom reasons by section
+
+### LWC: `mergeObjectConfig` (V2 + EDA)
+- Sección "Raisons de clôture" → sub-tabs [À Valider | Clôture]
+- Predefined: inputs editables + botón ↺ para reset
+- Custom: inputs editables + ✕ para eliminar
+- Add new reasons per section with duplicate validation (dentro del mismo tab)
+- Save button en footer → llama `renameReason` para cada cambio + `saveReasonConfig`
+
+### LWC: `mergeWizard` (V2 + EDA)
+- `closedReasonOptions`: usa `_reasonConfig.tvLabels` + `tvCustom` (valores configurados)
+- `closeReasonOptions`: usa `_reasonConfig.clLabels` + `clCustom` (fallback a legacy)
+- `openDismissModal`: carga config nueva + legacy custom en paralelo
+- `confirmAddReason`: guarda en nuevo config (no en sentinel legacy)
+- `confirmDismiss` CL: usa clLabels para predefined, closeReason directo para custom
+
+### Deploys sandbox:
+- AEBEQ (`e.frappe@aebeq.qc.ca.partialae`): LWC deployed `0AfbZ00000CCf3jSAD`, Apex ya existía ✅
+- SEMBEQ (`e.frappe@sembeq.qc.ca.partialdev`): todo desplegado `Changed` ✅
+
+
+
+## ✅ Merge Manager Global V2 for EDA — COMPLETO (2026-07-03)
+
+### Nueva carpeta: `Merge Manager Salesforce Global V2 for EDA/`
+- Copia completa de Global V2 + wizard de relaciones EDA portado desde V3
+- **Botón "Créer une relation"** en footer del wizard — centro, visible solo para tickets de Contact
+- **Toggle en Settings** → sección "Funcionalidades" (última, ícono `utility:setup`) → activa/desactiva el botón → Save → page reload
+- **localStorage key**: `mergeManager_relBtn_enabled` — default ON (true) sin config previa
+- **Modal relaciones**: selección 2 candidatos → tipo → swap ⇄ → preview → insert `hed__Relationship__c`
+- **EDA guard**: `getRelationshipTypes` retorna vacío + `createRelationship` lanza excepción si EDA no instalado
+- **i18n**: FR/EN/ES completo (relaciones + funcionalidades)
+- **Apex**: `TEST_EDA_NOT_AVAILABLE` + `getRelationshipTypes()` + `createRelationship()`
+- **Tests**: +3 en `MergeExecutionControllerTest.cls`
+- **Último deploy sandbox**: `0AfSv00000KgO8rKAF` — Succeeded ✅
+- **PMD governance**: 0 violaciones de seguridad ✅
+- **Dry-run producción**: **265/265 tests · 10/10 clases 100%** ✅
+  - DataNormalizationUtil, MergeAuditService, MergeController, MergeExecutionService,
+    MergeScanBatch, MergeScanService, MergeTicketService, MergeWrappers,
+    RelatedRecordsService, SnapshotService — todas al 100%
+- **Global V2 original NO tocado** — marketplace sin cambios
+- **Deploy producción**: pendiente — usuario corre script cuando quiera
+
+## ✅ DegreeAuditMatrix — 100% cobertura + visual fix (2026-07-03) — LISTO PARA PRODUCCIÓN
+
+- **Visual**: checkmarks `ico ok` ahora en `<span>` dentro `<td>` (modal principal `DegreeAuditMatrix.page`)
+- **CSS**: 3 reglas scoped `#studentDetailCapture` en `DegreeAuditCSS.css`
+- **Coverage**: 97.9% → 100% (765/765) via 7 flags @TestVisible + 7 test methods T170-T176
+- **Dry-run producción**: 76/76 tests, 0 fallas, Succeeded ✅
+- **Pending**: usuario corre `./manifest/deploy-production.sh production`
+
 ## ⏳ ReleveDesNotes Cleanup — Script listo, pendiente producción (2026-06-30)
 
 - `manifest/deploy-delete-releve.sh production` — elimina ReleveDesNotes.cls + ReleveDesNotesTest.cls + GenererReleveDesNotes (Aura)
@@ -597,3 +939,246 @@ Requisito para AppExchange / venta como producto.
 - Security Review de Salesforce (semanas de proceso)
 - Declarar EDA como optional dependency
 - Revisar `deleteAllTickets` para security review
+
+## 2026-07-06 — Non-EDA 100% coverage completado
+
+### Dry-run #5 AEBEQ — 100% ✅
+- Deploy ID: `0AfOH000001axYr0AI`
+- 295 tests, 0 failures, todas las clases al 100%
+
+### Cambios para cubrir líneas problemáticas
+**MergeController.cls**:
+- `TEST_FORCE_LOOKUP_MATCH = false` — fuerza condición en for-ref loop (líneas 1174-1175)
+- `TEST_INIT_PARENT_TYPES = null` — override de lista de parent types en `initDefaultConfigsIfEmpty` (líneas 1397-1409)
+- Ternario en `initDefaultConfigsIfEmpty` para usar el flag
+
+**MergeExecutionControllerTest.cls** (+4 tests):
+1. `ctrl_getEmailObjectCandidates_forceLookupMatch_coversRefLoopBody` → 1174-1175
+2. `ctrl_getDiscoverableObjects_freshScan_coversAddBranch` → 1258-1262
+3. `ctrl_initDefaultConfigsIfEmpty_withInjectedChild_coversPayloadBuild` → 1397-1409
+4. `ticket_buildMatrix_account_withCaseConfig_coversRelatedCountsAggLoop` → MergeTicketService 207-211
+
+### Principio de portabilidad
+Todos los tests usan únicamente:
+- `Case.ContactId` (estándar en toda org Salesforce)
+- `Merge_Ticket__c` (objeto del paquete, siempre presente)
+- Flags @TestVisible (genéricos, no org-específicos)
+
+## 2026-07-17 — Bulk Data Editor: undo BDE-00000 confirmado, no era un bug
+
+Usuario reportó como error el JSON crudo de respuesta al hacer click en "Undo" sobre
+BDE-00000 (2944 Accounts, SEMBEQ__c, sandbox SEMBEQ). El JSON en realidad mostraba
+`"state": "SUCCESS"`.
+
+Verificado:
+- `bulkEditHistory.html`: el box "Starting..." está correctamente scopeado por fila
+  (`data-progress-log-id={entry.logId}` dentro del `<li>` de cada entry, condicionado a
+  `entry.showProgress`) — no es un componente huérfano, es el label inicial normal antes del
+  primer poll.
+- SOQL confirma `Bulk_Edit_Log__c` BDE-00000 → `Status__c = 'Undone'` (undo completó bien).
+  BDE-00001 (AEBEQ__c, 107 registros) también `'Undone'`.
+
+Sin cambios de código — no había bug. Reportado al usuario aclarando que el JSON pegado era
+éxito, no error.
+
+**Sigue abierto:** el "Script-thrown exception" original al editar el checkbox
+`Account.SEMBEQ__c` (reportado antes en esta misma sesión) no se ha podido reproducir — no
+relacionado con este undo. Pendiente que el usuario reintente y capture el Network tab si
+vuelve a pasar.
+
+## 2026-07-17 — Fix: progress UI de undo estancada en "Starting..." + Process ID visible
+
+Usuario insistió (5 hard refreshes) que la caja de progreso seguía en "Starting..." pese a
+que el backend ya mostraba `Undone`. Pidió que la app muestre errores reales y el ID del
+proceso.
+
+**Causa raíz real encontrada en código:** `BulkEditController.undoBulkEdit()` nunca
+actualizaba `Batch_Job_Id__c` del log al Id del batch de UNDO — quedaba apuntando al batch
+del edit original ya completado, así que el polling de `getJobStatus` consultaba el
+`AsyncApexJob` equivocado. Además `bulkEditProgress.js` no reconocía los statuses
+`Undone`/`Undo Failed` en `isSuccess`/`isFailed` (solo los del flujo de edit), así que aunque
+el polling terminara bien no se mostraba ningún banner de resultado para undo.
+
+**Fix:** `BulkEditController.cls` actualiza `Batch_Job_Id__c` tras lanzar el undo batch;
+`BulkEditWrappers.JobStatusResult` expone `batchJobId`; `bulkEditProgress.js`/`.html`
+reconocen `Undone`/`Undo Failed` y muestran "Process ID: {batchJobId}" siempre visible.
+
+Deploy SEMBEQ ✅ (20/20 tests) · AEBEQ ✅ (22/22 tests). Pendiente que el usuario pruebe un
+undo nuevo para confirmar visualmente.
+
+**Actualización:** confirmado por el usuario con screenshots — funcionó perfecto (Undo In
+Progress → barra de progreso → Process ID visible → "Change reverted successfully.") ✅
+
+## 2026-07-17 — Root cause real de "Script-thrown exception" encontrado (2 causas)
+
+1. **AuraHandledException quirk de plataforma:** `new AuraHandledException(msg)` sin llamar
+   `.setMessage(msg)` después no propaga el mensaje real al cliente — Lightning lo sanitiza a
+   "Script-thrown exception". Los 9 throw sites de `BulkEditController.cls` tenían este bug.
+   Fix: helper `asAuraException()` que sí llama `setMessage()`.
+2. **Race condition real en Step 5:** `bulkDataEditor.js handleConfirmRun` llamaba
+   `progressCmp.start()` justo después de `this.currentLogId = result.logId`, pero el binding
+   reactivo `log-id={currentLogId}` del hijo se actualiza async — `.then()` corre fuera del
+   ciclo de render de LWC, entonces a veces `progressCmp.logId` seguía `undefined` cuando
+   `start()` llamaba `poll()`, causando "log no encontrado" en el primer poll. Por eso nunca
+   se pudo reproducir vía Apex anónimo (sin LWC de por medio) pero sí en el navegador real.
+   Fix: `start(explicitLogId, explicitBatchJobId)` acepta los IDs como parámetros directos en
+   vez de depender solo del property binding.
+
+Bonus pedido por el usuario: `bulkEditProgress.html` ahora muestra Log ID + Process ID
+también dentro del banner de error, para poder reportarlo directo sin Network tab.
+
+Deploy SEMBEQ ✅ (22/22) · AEBEQ ✅ (22/22). Pendiente que el usuario reintente el mass-edit
+de `Account.SEMBEQ__c` que fallaba.
+
+## 2026-07-17 — Performance: chunk size de batch subido de 200 a 2000
+
+Usuario preguntó por qué un undo de 2934 registros (Contact—SEMBEQ) tardaba tanto ("9 of 15"
+pasos) y si se podía acelerar.
+
+**Causa:** `Database.executeBatch(..., 200)` — con 200 registros por chunk, 2934 registros
+eran 15 chunks, cada uno una transacción separada pasando por la cola async de Apex.
+
+**Fix:** `BATCH_CHUNK_SIZE = 2000` (máximo de la plataforma) en `BulkEditController.cls`,
+usado en ambos `Database.executeBatch()` (edit y undo). Seguro porque `BulkEditBatch`/
+`BulkEditUndoBatch` no hacen SOQL por registro — solo 1 update + 1 insert de snapshot por
+chunk (~4000 filas DML máx con chunk=2000, bien debajo del límite de 10,000/transacción).
+2934 registros pasan de 15 chunks a 2.
+
+**Bonus:** corregido label engañoso — `processedRecords`/`totalRecords` vienen de
+`AsyncApexJob.JobItemsProcessed`/`TotalJobItems` (conteo de CHUNKS, no de registros
+individuales). Texto cambiado a "Batch X of Y" en `bulkEditProgress.html`.
+
+Deploy SEMBEQ ✅ (22/22) · AEBEQ ✅ (22/22).
+
+**Actualización (mismo día):** usuario probó con 2934 registros y reportó que con chunk=2000
+(solo 2 chunks) la barra se sentía "trabada" mucho tiempo — sin progreso intermedio visible
+dentro de un chunk tan grande. Bajado a `BATCH_CHUNK_SIZE = 400` (pedido explícito del
+usuario) como punto medio: ~7-8 chunks para 2934 registros, progreso visible constante sin
+tantos round-trips como el original 200. Redeploy SEMBEQ ✅ (22/22) · AEBEQ ✅ (22/22).
+
+## 2026-07-17 — Feature: filtro/cruce opcional en Step 3 (cross-filter)
+
+Usuario pidió poder cruzar el mass-edit con un segundo campo (ej. "Preferred Language" en
+blanco → nuevo valor, pero SOLO para registros con Mailing State = Quebec) en vez de aplicar
+el cambio a todos los registros con el campo en blanco a nivel org. Confirmado vía
+AskUserQuestion: 1 solo filtro, embebido dentro del Step 3 existente (no paso nuevo).
+
+**Cambios:** `BulkEditService.cls` (+`getFilterableFields`, `+resolveFilterFieldDescribe`,
+`+getFilterFieldValueDistribution`, `getValueDistribution` +3 params) · `BulkEditController.cls`
+(`startBulkEdit` 8→12 params, valida y guarda el filtro en el log, +2 endpoints nuevos,
+`getEditHistory` expone el filtro) · `BulkEditBatch.cls` (constructor 7→10 params, ANDa la
+condición del filtro al WHERE) · 2 campos nuevos en `Bulk_Edit_Log__c`
+(`Filter_Field_Label__c`, `Filter_Value_Display__c`) + FLS en Admin profile y
+`Bulk_Data_Editor_Access` permission set · `bulkDataEditor.js/html/css` (sección "+ Add
+filter" en Step 3, reutiliza `c-bulk-searchable-select` y `c-bulk-value-table` sin componentes
+nuevos) · `bulkEditConfirmModal.js/html` y `bulkEditHistory.js/html` (muestran el filtro
+aplicado).
+
+6 tests nuevos (Controller + Batch), todos verifican que el filtro efectivamente restringe el
+conteo/update al subconjunto correcto.
+
+Deploy SEMBEQ ✅ (28/28 tests, 100%) · AEBEQ ✅ (28/28 tests, 100%). Pendiente que el usuario
+pruebe el flujo con su caso real (Preferred Language + Mailing State = Quebec).
+
+## 2026-07-17 — Ajuste UX del filtro (feedback con screenshots)
+
+Usuario probó el filtro y reportó 3 problemas: (1) la página crecía y pedía scroll al elegir
+valor de filtro, (2) el ícono de selección de fila era un lápiz que parecía "editar" en vez de
+"seleccionar", (3) faltaba una explicación completa de qué haría el cambio y por qué — pidió el
+estilo del modal nativo de EDA "Create a relationship" (oración completa con términos en negrita).
+
+**Fix:** picker de valor de filtro cambiado de `c-bulk-value-table` (lista con scroll que
+empujaba el layout) a un segundo `c-bulk-searchable-select` (dropdown flotante, no empuja
+página) al lado del combobox de campo · ícono de fila cambiado de lápiz a flecha
+(`utility:chevronright`) · 3 oraciones explicativas completas agregadas en Step 3, Step 4 y el
+modal de confirmación, reemplazando chips/fragmentos sueltos · CSS general con sombra sutil en
+las cajas del wizard y mejor jerarquía visual.
+
+Deploy SEMBEQ ✅ (28/28 tests, 100%) · AEBEQ ✅ (28/28 tests, 100%).
+
+## 2026-07-17 — Segunda ronda de UX del filtro: 2 columnas con listas
+
+Usuario reportó: ambos estados (con/sin filtro) deberían verse igual (agregar título "Filter"
+en los dos), prefería volver a listas visibles (`c-bulk-value-table`) en vez del combobox
+flotante del ajuste anterior, mostradas en 2 columnas (izquierda = filtro, derecha = valor
+principal) para que no crezca la página, y las oraciones explicativas se veían con las palabras
+pegadas (ej. "whereMailing State/Province = QCwill") por un bug de colapso de espacios en
+blanco de LWC cuando un `<strong>{expr}</strong>` empieza en una nueva línea del template.
+
+**Fix:** filtro rediseñado como grid de 2 columnas (`slds-grid slds-gutters`) — columna
+izquierda con combobox de campo + `c-bulk-value-table` para el valor de filtro, columna derecha
+con el `c-bulk-value-table` del valor principal · agregado título "Filter" consistente en ambos
+estados · las 3 oraciones dinámicas (Step 3, Step 4, modal) reescritas en una sola línea física
+en el `.html` para evitar el colapso de espacio de LWC.
+
+**Instrucción explícita del usuario, vigente para esta fase de iteración:** NO correr tests de
+Apex/cobertura durante estas rondas de ajuste visual — solo deployar a sandbox para revisar.
+Los tests completos se harán al final, cuando el usuario confirme que la UI está lista.
+
+Deploy SEMBEQ ✅ · AEBEQ ✅ (solo deploy, sin tests, según instrucción).
+
+## 2026-07-17 — Tercera ronda: rediseño Step 3 con checkboxes y confirmación explícita
+
+Usuario envió 2 screenshots: el estado real (2 columnas de la ronda anterior) se veía "muy
+cerca" (columnas apretadas, cajas grises tocándose), y un mockup de referencia con: tarjetas de
+filtro con checkmark de selección, lista de valor principal con checkboxes, más espacio entre
+columnas, y una barra de confirmación inferior ("Confirmando el valor actual para X registros
+filtrados." + botones "Continuar al Paso 4" / "Cancelar") en vez de avanzar automáticamente al
+hacer click en una fila.
+
+**Cambios de comportamiento (no solo visuales):**
+- El filtro ya no es un modo "picker" que se abre/cierra — la columna de filtro está siempre
+  visible en Step 3 junto a la columna de valor principal (se cargan `filterFieldOptions` al
+  entrar a Step 3, en `handleFieldChange` y `handleStartAnother`).
+- Seleccionar una fila (filtro o valor principal) ya NO navega automáticamente — solo marca/
+  desmarca la selección (toggle, click de nuevo para deseleccionar). Avanzar a Step 4 requiere
+  click explícito en "Continue to Step 4", que solo aparece una vez que hay un valor principal
+  seleccionado (`showStep3Footer`/`step3StatusText` getters nuevos).
+- `c-bulk-value-table` ahora indica selección con un checkbox real (`utility:check` sobre
+  fondo azul si `isSelected`) en vez del ícono de flecha `utility:chevronright` — se agregó
+  `@api selectedIsBlank` (antes solo `selectedRawValue`, que no distinguía filas "Blank").
+
+**Visual:** columnas separadas con `gap: 2rem` (antes gutter de grid más apretado) + conector
+visual (flecha `utility:forward`) entre ambas columnas, oculto en pantallas angostas · barra de
+confirmación con fondo azul claro consistente con las demás cajas explicativas del wizard.
+
+**Archivos:** `bulkValueTable.js/html/css` (checkbox de selección + prop `selectedIsBlank`) ·
+`bulkDataEditor.js` (quitado `showFilterPicker`/`showAddFilterButton`/`handleAddFilterClick`/
+`handleCancelAddFilter`; agregado toggle en `handleBucketSelect`/`handleFilterValueSelect`,
+`handleContinueToNewValue`, `handleCancelValueSelection`, getters `selectedFilterRawValue`,
+`selectedFilterIsBlank`, `selectedBucketRawValue`, `selectedBucketIsBlank`, `showStep3Footer`,
+`step3StatusText`) · `bulkDataEditor.html/css` (Step 3 reescrito como `.step3-columns` con
+`.step3-col` + `.step3-connector` + `.step3-footer`, reemplazando el grid `.filter-picking-*`
+anterior).
+
+Deploy SEMBEQ ✅ · AEBEQ ✅ (solo deploy, sin tests, según instrucción vigente). Pendiente que
+el usuario revise visualmente si este diseño resuelve el "muy cerca" y si el patrón de
+confirmación explícita (en vez de auto-avance) le gusta.
+
+## ✅ 2026-07-17 — Cobertura 100% real en producción confirmada, app lista para deploy
+
+Usuario pidió cierre técnico final: "checa la cobertura contra producción y si son necesarios
+más @test para llegar al 100% hazlo, quiero tenerlo preparado para producción."
+
+- Dry-run inicial contra producción (`--test-level RunSpecifiedTests --tests
+  BulkEditControllerTest --tests BulkEditBatchTest`) detectó 19 líneas sin cubrir en
+  `BulkEditBatch`, `BulkEditUndoBatch`, `BulkEditController`, `BulkEditService` — todas
+  branches defensivas (CRUD/FLS denegado, DML fallido, truncado de error log, tipos
+  Schema.DisplayType) inalcanzables con un usuario Admin de test.
+- Cerradas con el patrón `@TestVisible static Boolean TEST_FORCE_*` (mismo patrón que
+  `MergeController.TEST_FORCE_ACCOUNT_NOT_DELETABLE`) + 22 tests nuevos (12 en
+  `BulkEditBatchTest.cls`, 10 en `BulkEditControllerTest.cls`). Detalle completo de cada flag,
+  el gap cross-org de AEBEQ (`isCalculated()` en `getFilterableFields`), y el bug de test async
+  (`Database.executeBatch` sin `Test.startTest/stopTest` corre después del test y pisa la
+  aserción) en `activeContext.md`.
+- SEMBEQ sandbox: 50/50 tests, 100% en todas las clases. AEBEQ sandbox: 50/50 tests, 100% en
+  todas las clases.
+- **Dry-run final de producción (acotado, no RunLocalTests):** `status: Succeeded`, 48 tests,
+  0 failures, **100% real en las 6 clases** (BulkEditBatch 66/66, BulkEditController 140/140,
+  BulkEditService 249/249, BulkEditUndoBatch 51/51, BulkEditWrappers 19/19, BulkEditException
+  0/0).
+
+**Estado: Bulk Data Editor técnicamente listo para producción.** Falta que el usuario corra el
+deploy real (no hay script dedicado de producción para este módulo aún — se puede armar uno
+tipo `deploy-bulk-editor-production.sh` si el usuario lo pide, siguiendo el patrón de los
+scripts sandbox existentes).
