@@ -32,6 +32,8 @@ OBJECTS = [
     "CampaignMember",               # hijo de Campaign y Contact
     "Opportunity",
     "Campaign",                     # especial: borrado vía Apex (bulk API no funciona)
+    "BenefitDisbursement",          # hijo de BenefitAssignment — borrar antes que Account
+    "BenefitAssignment",            # referencia Account — borrar antes que Contact/Account
     "Contact",
     "Account",
     # FundraisingConfig: NO se borra — es configuración, no demo

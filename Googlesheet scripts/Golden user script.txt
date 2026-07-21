@@ -1,0 +1,3020 @@
+// ==================================================================
+// MENU
+// ==================================================================
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('🛠️ Identify Salesforce')
+    .addItem('▶️ Lancer Nettoyage (FR)', 'abrirPanelLimpiezaFR')
+    .addItem('▶️ Run Cleaning (EN)', 'abrirPanelLimpiezaEN')
+    .addSeparator()
+    .addItem('🧭 Lancer Address Checker', 'abrirPanelAdresse')
+    .addItem('🏠 Lancer Courrier / Foyer', 'abrirPanelCourrierFoyer')
+    .addSeparator()
+    .addItem('🏢 Lancer Companies Checker', 'abrirPanelCompaniesChecker')
+    .addSeparator()
+    .addItem('🌟 Lancer Golden Record', 'abrirPanelMerge')
+    .addToUi();
+}
+
+// ==================================================================
+// LIMPIEZA - HELPERS
+// ==================================================================
+function l2i(letter) {
+  var col = 0, len = letter.length;
+  for (var i = 0; i < len; i++) {
+    col += (letter.charCodeAt(i) - 64) * Math.pow(26, len - i - 1);
+  }
+  return col;
+}
+
+function norm(str) {
+  return (str || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+}
+
+function normEmail(str) {
+  return (str || "").toString().trim().toLowerCase();
+}
+
+function getPlatformType(p) {
+  var val = (p || "").toString().trim().toUpperCase();
+
+  if (val.indexOf("ZEFFY") !== -1 && val.indexOf("AEBEQ") !== -1) return "ZEFFY_AEBEQ";
+  if (val.indexOf("ZEFFY") !== -1 && val.indexOf("SEMBEQ") !== -1) return "ZEFFY_SEMBEQ";
+  if (val.indexOf("SALES") !== -1) return "SALESFORCE";
+  if (val.indexOf("PRODON") !== -1) return "PRODON";
+  if (val.indexOf("ZEFFY") !== -1) return "ZEFFY_OTHER";
+
+  return "OTHER";
+}
+
+// ==================================================================
+// LIMPIEZA - PANELS
+// ==================================================================
+function abrirPanelLimpiezaFR() {
+  abrirPanelLimpieza('FR');
+}
+
+function abrirPanelLimpiezaEN() {
+  abrirPanelLimpieza('EN');
+}
+
+function abrirPanelLimpieza(lang) {
+  var txt = {
+    FR: {
+      title: '🚦 Nettoyage',
+      desc: 'Saisissez les colonnes pour analyser les doublons par prénom + nom + CP.',
+      src: '📥 Colonnes source',
+      out: '📤 Colonnes de destination',
+      c1: '1. Prénom :',
+      c2: '2. Nom :',
+      c3: '3. Code Postal :',
+      c4: '4. IDs / No client :',
+      c5: '5. Email :',
+      c6: '6. Plateforme :',
+      c7: '7. Même Prénom et Nom :',
+      c8: '8. Sémaphore 🚦 :',
+      c9: '9. Même Personne Diff Email :',
+      c10: '10. ID SalesForce :',
+      c11: '11. ID Prodon :',
+      c12: '12. ID Zeffy AEBEQ :',
+      c13: '13. ID Zeffy SEMBEQ :',
+      btn: '▶️ Analyser',
+      fill: '❌ Remplissez toutes les colonnes.',
+      wait: '⏳ Traitement en cours...',
+      done: '✅ ',
+      err: '❌ '
+    },
+    EN: {
+      title: '🚦 Cleaning',
+      desc: 'Enter the columns to analyze duplicates by first name + last name + postal code.',
+      src: '📥 Source columns',
+      out: '📤 Output columns',
+      c1: '1. First Name:',
+      c2: '2. Last Name:',
+      c3: '3. Postal Code:',
+      c4: '4. IDs / Client No:',
+      c5: '5. Email:',
+      c6: '6. Platform:',
+      c7: '7. Same First and Last Name:',
+      c8: '8. Semaphore 🚦:',
+      c9: '9. Same Person Diff Email:',
+      c10: '10. ID SalesForce:',
+      c11: '11. ID Prodon:',
+      c12: '12. ID Zeffy AEBEQ:',
+      c13: '13. ID Zeffy SEMBEQ:',
+      btn: '▶️ Run',
+      fill: '❌ Fill all columns.',
+      wait: '⏳ Processing...',
+      done: '✅ ',
+      err: '❌ '
+    }
+  }[lang];
+
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 15px;
+        background-color: #f8f9fa;
+        color: #333;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #e67e22;
+        padding-bottom: 5px;
+      }
+      .desc {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 15px;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: bold;
+        color: #888;
+        text-transform: uppercase;
+        margin: 12px 0 6px;
+        letter-spacing: 0.5px;
+      }
+      .form-group {
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      label {
+        font-size: 11px;
+        font-weight: bold;
+        flex: 1;
+      }
+      input {
+        width: 55px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        font-weight: bold;
+      }
+      .divider {
+        border: none;
+        border-top: 1px dashed #ccc;
+        margin: 12px 0;
+      }
+      .output-section {
+        background: #fff3e0;
+        border: 1px solid #ffe0b2;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+      .output-section .section-label {
+        color: #d35400;
+      }
+      .btn {
+        background-color: #e67e22;
+        color: white;
+        padding: 12px;
+        border: none;
+        width: 100%;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-top: 15px;
+        font-size: 14px;
+      }
+      .btn:hover {
+        background-color: #d35400;
+      }
+      #msg {
+        margin-top: 15px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+        color: #27ae60;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">${txt.title}</div>
+    <div class="desc">${txt.desc}</div>
+
+    <div class="section-label">${txt.src}</div>
+    <div class="form-group"><label>${txt.c1}</label><input type="text" id="c1" value="S"></div>
+    <div class="form-group"><label>${txt.c2}</label><input type="text" id="c2" value="T"></div>
+    <div class="form-group"><label>${txt.c3}</label><input type="text" id="c3" value="V"></div>
+    <div class="form-group"><label>${txt.c4}</label><input type="text" id="c4" value="I"></div>
+    <div class="form-group"><label>${txt.c5}</label><input type="text" id="c5" value="W"></div>
+    <div class="form-group"><label>${txt.c6}</label><input type="text" id="c6" value="H"></div>
+
+    <hr class="divider">
+
+    <div class="output-section">
+      <div class="section-label">${txt.out}</div>
+      <div class="form-group"><label>${txt.c7}</label><input type="text" id="c7" value="J"></div>
+      <div class="form-group"><label>${txt.c8}</label><input type="text" id="c8" value="K"></div>
+      <div class="form-group"><label>${txt.c9}</label><input type="text" id="c9" value="L"></div>
+      <div class="form-group"><label>${txt.c10}</label><input type="text" id="c10" value="M"></div>
+      <div class="form-group"><label>${txt.c11}</label><input type="text" id="c11" value="N"></div>
+      <div class="form-group"><label>${txt.c12}</label><input type="text" id="c12" value="O"></div>
+      <div class="form-group"><label>${txt.c13}</label><input type="text" id="c13" value="P"></div>
+    </div>
+
+    <button class="btn" id="btn-run" onclick="runLimpieza()">${txt.btn}</button>
+    <div id="msg"></div>
+
+    <script>
+      function runLimpieza() {
+        var btn = document.getElementById('btn-run');
+        var msg = document.getElementById('msg');
+        var inputs = { lang: '${lang}' };
+
+        for (var i = 1; i <= 13; i++) {
+          inputs['c' + i] = document.getElementById('c' + i).value.toUpperCase().trim();
+          if (!inputs['c' + i]) {
+            msg.innerHTML = ${JSON.stringify(txt.fill)};
+            msg.style.color = "#c0392b";
+            return;
+          }
+        }
+
+        msg.innerHTML = ${JSON.stringify(txt.wait)};
+        msg.style.color = "#d35400";
+        btn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = ${JSON.stringify(txt.done)} + res;
+            msg.style.color = "#27ae60";
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = ${JSON.stringify(txt.err)} + err.message;
+            msg.style.color = "#c0392b";
+            btn.disabled = false;
+          })
+          .procesarLimpiezaDesdePanel(inputs);
+      }
+    </script>
+  </body>
+  </html>
+  `;
+
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutput(html)
+      .setTitle(lang === 'FR' ? '🚦 Outils Salesforce' : '🚦 Salesforce Tools')
+      .setWidth(330)
+  );
+}
+
+// ==================================================================
+// LIMPIEZA - MOTOR
+// Reglas:
+// - Grupo estricto: Nombre + Apellido + CP
+// - Grupo amplio: Nombre + Apellido
+// - Verde: mismo Nombre + Apellido + CP, sin conflicto real
+// - Amarillo: mismo Nombre + Apellido, pero CP distinto
+// - Rojo: en el mismo Nombre + Apellido + CP, misma fuente con IDs distintos
+// - Transparente: sin ID usable / sin email usable
+// - En rojo NO copia nada
+// - Zeffy usa EMAIL como ID, separado en AEBEQ y SEMBEQ
+// ==================================================================
+function procesarLimpiezaDesdePanel(cStr) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var n = data.length - 1;
+  var lang = cStr.lang || 'FR';
+
+  if (n < 1) {
+    throw new Error(lang === 'FR' ? 'Pas assez de données.' : 'Not enough data.');
+  }
+
+  var cF  = l2i(cStr.c1);
+  var cL  = l2i(cStr.c2);
+  var cP  = l2i(cStr.c3);
+  var cId = l2i(cStr.c4);
+  var cEm = l2i(cStr.c5);
+  var cPl = l2i(cStr.c6);
+
+  var cCt = l2i(cStr.c7);
+  var cSm = l2i(cStr.c8);
+  var cDf = l2i(cStr.c9);
+  var cSF = l2i(cStr.c10);
+  var cPr = l2i(cStr.c11);
+  var cZA = l2i(cStr.c12);
+  var cZS = l2i(cStr.c13);
+
+  var ctOut = [], smOut = [], dfOut = [], sfOut = [], prOut = [], zaOut = [], zsOut = [];
+  for (var x = 0; x < n; x++) {
+    ctOut.push([""]);
+    smOut.push([""]);
+    dfOut.push([""]);
+    sfOut.push([""]);
+    prOut.push([""]);
+    zaOut.push([""]);
+    zsOut.push([""]);
+  }
+
+  var mapStrict = {};
+  var mapBroad = {};
+
+  for (var i = 1; i <= n; i++) {
+    var firstName = (data[i][cF - 1] || "").toString().trim();
+    var lastName  = (data[i][cL - 1] || "").toString().trim();
+    var cpRaw     = (data[i][cP - 1] || "").toString().trim().toUpperCase();
+    var rawId     = (data[i][cId - 1] || "").toString().trim();
+    var email     = normEmail(data[i][cEm - 1] || "");
+    var platform  = (data[i][cPl - 1] || "").toString().trim();
+    var pType     = getPlatformType(platform);
+
+    if (!firstName && !lastName) continue;
+
+    var keyBroad = norm(firstName) + "|" + norm(lastName);
+    var keyStrict = norm(firstName) + "|" + norm(lastName) + "|" + norm(cpRaw);
+
+    if (!mapBroad[keyBroad]) {
+      mapBroad[keyBroad] = {
+        rows: [],
+        cps: new Set(),
+        hasEmptyCP: false
+      };
+    }
+
+    mapBroad[keyBroad].rows.push(i);
+    if (cpRaw) mapBroad[keyBroad].cps.add(cpRaw);
+    else mapBroad[keyBroad].hasEmptyCP = true;
+
+    if (!mapStrict[keyStrict]) {
+      mapStrict[keyStrict] = {
+        rows: [],
+        emails: new Set(),
+        sfIds: new Set(),
+        prIds: new Set(),
+        zfAebeq: new Set(),
+        zfSembeq: new Set()
+      };
+    }
+
+    var gs = mapStrict[keyStrict];
+    gs.rows.push(i);
+
+    if (email) gs.emails.add(email);
+
+    if (pType === "SALESFORCE") {
+      if (rawId) gs.sfIds.add(rawId);
+    } else if (pType === "PRODON") {
+      if (rawId) gs.prIds.add(rawId);
+    } else if (pType === "ZEFFY_AEBEQ") {
+      if (email) gs.zfAebeq.add(email);
+    } else if (pType === "ZEFFY_SEMBEQ") {
+      if (email) gs.zfSembeq.add(email);
+    }
+  }
+
+  function hasUsableData(groupStrict) {
+    return (
+      groupStrict.sfIds.size > 0 ||
+      groupStrict.prIds.size > 0 ||
+      groupStrict.zfAebeq.size > 0 ||
+      groupStrict.zfSembeq.size > 0
+    );
+  }
+
+  function isRedConflict(groupStrict) {
+  return (
+    groupStrict.sfIds.size > 1 ||
+    groupStrict.prIds.size > 1
+  );
+}
+
+  var redText = lang === 'FR' ? "🔴 Conflit ID" : "🔴 ID Conflict";
+  var yellowText = lang === 'FR' ? "🟡 Vérifier CP" : "🟡 Check Postal Code";
+  var greenText = lang === 'FR' ? "🟢 OK Match" : "🟢 OK Match";
+
+  for (var kb in mapBroad) {
+    var broadGroup = mapBroad[kb];
+    var isYellowGroup = broadGroup.rows.length > 1 && (broadGroup.cps.size > 1 || broadGroup.hasEmptyCP);
+
+    for (var r = 0; r < broadGroup.rows.length; r++) {
+      var rowIdx = broadGroup.rows[r];
+
+      var firstName = (data[rowIdx][cF - 1] || "").toString().trim();
+      var lastName  = (data[rowIdx][cL - 1] || "").toString().trim();
+      var cpRaw     = (data[rowIdx][cP - 1] || "").toString().trim().toUpperCase();
+
+      var keyStrict = norm(firstName) + "|" + norm(lastName) + "|" + norm(cpRaw);
+      var strictGroup = mapStrict[keyStrict];
+
+      var red = isRedConflict(strictGroup);
+      var transparent = !hasUsableData(strictGroup);
+
+      ctOut[rowIdx - 1] = [broadGroup.rows.length];
+      dfOut[rowIdx - 1] = [strictGroup.emails.size];
+
+      if (red) {
+        smOut[rowIdx - 1] = [redText];
+        sfOut[rowIdx - 1] = [""];
+        prOut[rowIdx - 1] = [""];
+        zaOut[rowIdx - 1] = [""];
+        zsOut[rowIdx - 1] = [""];
+        continue;
+      }
+
+      if (transparent) {
+        smOut[rowIdx - 1] = [""];
+        sfOut[rowIdx - 1] = [""];
+        prOut[rowIdx - 1] = [""];
+        zaOut[rowIdx - 1] = [""];
+        zsOut[rowIdx - 1] = [""];
+        continue;
+      }
+
+      smOut[rowIdx - 1] = [isYellowGroup ? yellowText : greenText];
+
+      sfOut[rowIdx - 1] = [strictGroup.sfIds.size === 1 ? Array.from(strictGroup.sfIds)[0] : ""];
+      prOut[rowIdx - 1] = [strictGroup.prIds.size === 1 ? Array.from(strictGroup.prIds)[0] : ""];
+      zaOut[rowIdx - 1] = [strictGroup.zfAebeq.size === 1 ? Array.from(strictGroup.zfAebeq)[0] : ""];
+      zsOut[rowIdx - 1] = [strictGroup.zfSembeq.size === 1 ? Array.from(strictGroup.zfSembeq)[0] : ""];
+    }
+  }
+
+  sheet.getRange(2, cCt, n, 1).setValues(ctOut);
+  sheet.getRange(2, cSm, n, 1).setValues(smOut);
+  sheet.getRange(2, cDf, n, 1).setValues(dfOut);
+  sheet.getRange(2, cSF, n, 1).setValues(sfOut);
+  sheet.getRange(2, cPr, n, 1).setValues(prOut);
+  sheet.getRange(2, cZA, n, 1).setValues(zaOut);
+  sheet.getRange(2, cZS, n, 1).setValues(zsOut);
+
+  return lang === 'FR' ? 'Nettoyage terminé.' : 'Cleaning completed.';
+}
+
+// ==================================================================
+// GOLDEN RECORD - PANEL
+// INTACTO
+// ==================================================================
+function abrirPanelMerge() {
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #333; }
+      .title { font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; border-bottom: 2px solid #4CAF50; padding-bottom: 5px; }
+      .desc { font-size: 12px; color: #666; margin-bottom: 15px; }
+      .section-label { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; margin: 12px 0 6px; letter-spacing: 0.5px; }
+      .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+      label { font-size: 11px; font-weight: bold; }
+      input { width: 45px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; text-align: center; font-weight: bold; }
+      .btn { background-color: #4CAF50; color: white; padding: 12px; border: none; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 14px; }
+      .btn:hover { background-color: #45a049; }
+      .btn-add { background-color: #3498db; color: white; padding: 8px; border: none; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 12px; }
+      #msg { margin-top: 15px; font-size: 12px; font-weight: bold; text-align: center; color: #d35400; }
+      .extra-section { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; }
+    </style>
+  </head>
+  <body>
+    <div class="title">🌟 Golden Record</div>
+    <div class="desc">Fusion par personne + adresses consolidées + courrier physique.</div>
+
+    <div class="section-label">📥 Colonnes source</div>
+    <div class="form-group"><label>1. Prénom:</label><input type="text" id="c1" value="S"></div>
+    <div class="form-group"><label>2. Nom:</label><input type="text" id="c2" value="T"></div>
+    <div class="form-group"><label>3. No de client (source brute):</label><input type="text" id="c3" value="I"></div>
+    <div class="form-group"><label>4. Sémaphore 🚦:</label><input type="text" id="c4" value="K"></div>
+    <div class="form-group"><label>5. Plateforme:</label><input type="text" id="c5" value="H"></div>
+    <div class="form-group"><label>6. Adresse:</label><input type="text" id="c6" value="U"></div>
+    <div class="form-group"><label>7. Code Postal:</label><input type="text" id="c7" value="V"></div>
+    <div class="form-group"><label>8. Ville:</label><input type="text" id="c8" value="AE"></div>
+    <div class="form-group"><label>9. Province:</label><input type="text" id="c9" value="AF"></div>
+    <div class="form-group"><label>10. Pays:</label><input type="text" id="c10" value="AD"></div>
+    <div class="form-group"><label>11. Adresse Normalisée:</label><input type="text" id="c11" value="AI"></div>
+    <div class="form-group"><label>12. Email:</label><input type="text" id="c12" value="W"></div>
+    <div class="form-group"><label>13. Téléphone:</label><input type="text" id="c13" value="AG"></div>
+    <div class="form-group"><label style="color:#c0392b;">14. Cie (Exclure):</label><input type="text" id="c14" value="AB"></div>
+    <div class="form-group"><label>15. Merge Tag:</label><input type="text" id="c15" value="Q"></div>
+    <div class="form-group"><label>16. Merge Key Manual:</label><input type="text" id="c16" value="R"></div>
+    <div class="form-group"><label>17. Courrier Group ID:</label><input type="text" id="c17" value="AP"></div>
+    <div class="form-group"><label>18. Nb Personnes Adresse:</label><input type="text" id="c18" value="AQ"></div>
+    <div class="form-group"><label>19. Reçoit Courrier:</label><input type="text" id="c19" value="AR"></div>
+    <div class="form-group"><label>20. Adresse Process Status:</label><input type="text" id="c20" value="AO"></div>
+
+    <div class="extra-section">
+      <div id="extra-cols-container"></div>
+      <button class="btn-add" onclick="addExtraCol()">+ Ajouter Colonne Extra</button>
+    </div>
+
+    <button class="btn" id="btn-run" onclick="runMerge()">▶️ Créer Golden Record</button>
+    <div id="msg"></div>
+
+    <script>
+      var extraCount = 0;
+
+      function addExtraCol() {
+        extraCount++;
+        var div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = '<label>Extra ' + extraCount + ':</label><input type="text" class="extra-input" id="ex' + extraCount + '" value="">';
+        document.getElementById('extra-cols-container').appendChild(div);
+      }
+
+      function runMerge() {
+        var btn = document.getElementById('btn-run');
+        var msg = document.getElementById('msg');
+        var baseInputs = [];
+
+        for (var i = 1; i <= 20; i++) {
+          baseInputs.push(document.getElementById('c' + i).value.toUpperCase().trim());
+        }
+
+        var extraInputs = [];
+        var extraElements = document.querySelectorAll('.extra-input');
+        for (var j = 0; j < extraElements.length; j++) {
+          var val = extraElements[j].value.toUpperCase().trim();
+          if (val !== "") extraInputs.push(val);
+        }
+
+        msg.innerHTML = "⏳ Traitement... / Processing...";
+        btn.disabled = true;
+
+        var data = {
+          prenom:              baseInputs[0],
+          nom:                 baseInputs[1],
+          idSF:                baseInputs[2],
+          semaforo:            baseInputs[3],
+          plateforme:          baseInputs[4],
+          adresse:             baseInputs[5],
+          cp:                  baseInputs[6],
+          ville:               baseInputs[7],
+          province:            baseInputs[8],
+          pays:                baseInputs[9],
+          adresseNorm:         baseInputs[10],
+          email:               baseInputs[11],
+          telephone:           baseInputs[12],
+          compagnie:           baseInputs[13],
+          mergeTag:            baseInputs[14],
+          mergeKeyManual:      baseInputs[15],
+          courrierGroupId:     baseInputs[16],
+          nbPersonnesAdresse:  baseInputs[17],
+          recoitCourrier:      baseInputs[18],
+          adresseProcessStatus: baseInputs[19],
+          extras:              extraInputs
+        };
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "✅ " + res;
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            btn.disabled = false;
+          })
+          .procesarMergeDesdePanel(data);
+      }
+    </script>
+  </body>
+  </html>
+  `;
+  var htmlOutput = HtmlService.createHtmlOutput(html).setTitle('🌟 Outils Salesforce').setWidth(320);
+  SpreadsheetApp.getUi().showSidebar(htmlOutput);
+}
+
+// ==================================================================
+// GOLDEN RECORD - MOTOR
+// INTACTO
+// ==================================================================
+function procesarMergeDesdePanel(cStr) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data  = sheet.getDataRange().getDisplayValues();
+  if (data.length < 2) throw new Error("Pas assez de données.");
+
+  function l2iMerge(letter) {
+    var col = 0, len = letter.length;
+    for (var i = 0; i < len; i++) {
+      col += (letter.charCodeAt(i) - 64) * Math.pow(26, len - i - 1);
+    }
+    return col - 1;
+  }
+
+  function normalize(str) {
+    return (str || "").toString().trim().toUpperCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "");
+  }
+
+  function getPlatName(raw) {
+    var val = (raw || "").toString().toUpperCase().trim();
+    return val === "" ? "INCONNUE" : val;
+  }
+
+  function isGreen(semaforo) {
+    return (semaforo || "").toString().indexOf("🟢") !== -1;
+  }
+
+  function isYellow(semaforo) {
+    return (semaforo || "").toString().indexOf("🟡") !== -1;
+  }
+
+  function isRed(semaforo) {
+    return (semaforo || "").toString().indexOf("🔴") !== -1;
+  }
+
+  function isZeffyAebeq(platRaw) {
+    var p = (platRaw || "").toString().toUpperCase();
+    return p.indexOf("ZEFFY") !== -1 && p.indexOf("AEBEQ") !== -1;
+  }
+
+  function isZeffySembeq(platRaw) {
+    var p = (platRaw || "").toString().toUpperCase();
+    return p.indexOf("ZEFFY") !== -1 && p.indexOf("SEMBEQ") !== -1;
+  }
+
+  function isSalesforce(platRaw) {
+    return (platRaw || "").toString().toUpperCase().indexOf("SALES") !== -1;
+  }
+
+  function isProdon(platRaw) {
+    return (platRaw || "").toString().toUpperCase().indexOf("PRODON") !== -1;
+  }
+
+  function getAddressPriority(platRaw) {
+    if (isZeffyAebeq(platRaw) || isZeffySembeq(platRaw)) return 1;
+    if (isSalesforce(platRaw)) return 2;
+    if (isProdon(platRaw)) return 3;
+    return 9;
+  }
+
+  function countFilledParts(ad, cp, ville, province, pays) {
+    var score = 0;
+    if ((ad || "").toString().trim()) score++;
+    if ((cp || "").toString().trim()) score++;
+    if ((ville || "").toString().trim()) score++;
+    if ((province || "").toString().trim()) score++;
+    if ((pays || "").toString().trim()) score++;
+    return score;
+  }
+
+  function nbValueRank(v) {
+    var t = (v || "").toString().trim().toUpperCase();
+    if (t === "+4") return 5;
+    var n = parseInt(t, 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function bestNbValue(currentVal, newVal) {
+    return nbValueRank(newVal) > nbValueRank(currentVal) ? newVal : currentVal;
+  }
+
+function setToSortedString(s, sep) {
+  return Array.from(s).sort().join(sep || " | ");
+}
+
+function getEmailKeysSFProdon(emailMap) {
+  var salesforceKey = "";
+  var prodonKey = "";
+
+  for (var k in emailMap) {
+    var up = (k || "").toString().toUpperCase();
+    if (!salesforceKey && up.indexOf("SALES") !== -1) salesforceKey = k;
+    if (!prodonKey && up.indexOf("PRODON") !== -1) prodonKey = k;
+  }
+
+  return {
+    salesforceKey: salesforceKey,
+    prodonKey: prodonKey
+  };
+}
+
+function getEmailsSalesforceOutput(emailMap) {
+  var keys = getEmailKeysSFProdon(emailMap);
+  return keys.salesforceKey && emailMap[keys.salesforceKey]
+    ? Array.from(emailMap[keys.salesforceKey]).sort()
+    : [];
+}
+
+function getEmailsOtherOutput(emailMap) {
+  var keys = getEmailKeysSFProdon(emailMap);
+  var sfSet = keys.salesforceKey && emailMap[keys.salesforceKey]
+    ? emailMap[keys.salesforceKey]
+    : new Set();
+
+  var prodonArr = keys.prodonKey && emailMap[keys.prodonKey]
+    ? Array.from(emailMap[keys.prodonKey]).sort()
+    : [];
+
+  return prodonArr.filter(function(email) {
+    return !sfSet.has(email);
+  });
+}
+
+function getEmailsForOutput(emailMap, platformName) {
+  var up = (platformName || "").toString().toUpperCase();
+
+  if (up.indexOf("SALES") !== -1 || up.indexOf("PRODON") !== -1) {
+    return [];
+  }
+
+  return emailMap[platformName] ? Array.from(emailMap[platformName]).sort() : [];
+}
+
+  var c = {
+    prenom:             l2iMerge(cStr.prenom),
+    nom:                l2iMerge(cStr.nom),
+    idSF:               l2iMerge(cStr.idSF),
+    semaforo:           l2iMerge(cStr.semaforo),
+    plateforme:         l2iMerge(cStr.plateforme),
+    adresse:            l2iMerge(cStr.adresse),
+    cp:                 l2iMerge(cStr.cp),
+    ville:              l2iMerge(cStr.ville),
+    province:           l2iMerge(cStr.province),
+    pays:               l2iMerge(cStr.pays),
+    adresseNorm:        l2iMerge(cStr.adresseNorm),
+    email:              l2iMerge(cStr.email),
+    telephone:          l2iMerge(cStr.telephone),
+    compagnie:          l2iMerge(cStr.compagnie),
+    mergeTag:           l2iMerge(cStr.mergeTag),
+    mergeKeyManual:     l2iMerge(cStr.mergeKeyManual),
+    courrierGroupId:    l2iMerge(cStr.courrierGroupId),
+    nbPersonnesAdresse: l2iMerge(cStr.nbPersonnesAdresse),
+    recoitCourrier:     l2iMerge(cStr.recoitCourrier),
+    adresseProcessStatus: l2iMerge(cStr.adresseProcessStatus)
+  };
+
+  var cExtras = cStr.extras.map(function(letra) { return l2iMerge(letra); });
+
+  var mapMerged = {};
+  var recheckRows = [];
+  var stats = {
+    total: 0,
+    exclComp: 0,
+    exclRojo: 0,
+    vacios: 0,
+    recheck: 0,
+    procesados: 0
+  };
+
+for (var i = 1; i < data.length; i++) {
+  stats.total++;
+
+  var semaforo       = (data[i][c.semaforo] || "").toString().trim();
+  var mergeTag       = (data[i][c.mergeTag] || "").toString().trim().toUpperCase();
+  var mergeKeyManual = normalize(data[i][c.mergeKeyManual] || "");
+  var compania       = (data[i][c.compagnie] || "").toString().trim();
+  var addrProcStatus = (data[i][c.adresseProcessStatus] || "").toString().trim().toUpperCase();
+
+  if (
+    addrProcStatus === "ERROR_GOOGLE" ||
+    addrProcStatus === "ERROR_CANADA" ||
+    addrProcStatus === "SKIPPED"
+  ) {
+    stats.recheck++;
+    recheckRows.push(data[i].slice());
+    continue;
+  }
+
+  if (compania !== "") {
+    stats.exclComp++;
+    recheckRows.push(data[i].slice());
+    continue;
+  }
+
+    if (isRed(semaforo)) {
+      stats.exclRojo++;
+      recheckRows.push(data[i].slice());
+      continue;
+    }
+
+    var pre = (data[i][c.prenom] || "").toString().trim();
+    var n   = (data[i][c.nom]    || "").toString().trim();
+
+    if (pre === "" && n === "") {
+      stats.vacios++;
+      recheckRows.push(data[i].slice());
+      continue;
+    }
+
+    if (semaforo === "") {
+      stats.recheck++;
+      recheckRows.push(data[i].slice());
+      continue;
+    }
+
+    var cp = (data[i][c.cp] || "").toString().trim().toUpperCase().replace(/\s+/g, "");
+    var key = "";
+
+    if (isGreen(semaforo)) {
+      key = normalize(pre) + normalize(n) + cp;
+    } else if (isYellow(semaforo)) {
+      if (mergeTag === "X" || mergeKeyManual === "") {
+        stats.recheck++;
+        recheckRows.push(data[i].slice());
+        continue;
+      }
+      key = "MANUAL|" + mergeKeyManual;
+    } else {
+      stats.recheck++;
+      recheckRows.push(data[i].slice());
+      continue;
+    }
+
+    if (!mapMerged[key]) {
+      var eSets = [];
+      for (var k = 0; k < cExtras.length; k++) eSets.push(new Set());
+
+      mapMerged[key] = {
+        prenom: pre,
+        nom: n,
+        idsSalesforce: new Set(),
+        idsProdon: new Set(),
+        idsZeffyAebeq: new Set(),
+        idsZeffySembeq: new Set(),
+        plateformes: new Set(),
+        telephones: new Set(),
+        emailsParPlateforme: {},
+        aebeq: new Set(),
+        mq: new Set(),
+        sembeq: new Set(),
+        excl: new Set(),
+        exclDate: new Set(),
+        exclRaison: new Set(),
+        commentaires: new Set(),
+        extras: eSets,
+
+        recoitCourrier: false,
+        courrierGroupIds: new Set(),
+        adressesByNorm: {}
+      };
+    }
+
+    var r = mapMerged[key];
+
+    var rawId   = (data[i][c.idSF]       || "").toString().trim();
+    var email   = (data[i][c.email]      || "").toString().toLowerCase().trim();
+    var platRaw = (data[i][c.plateforme] || "").toString().trim();
+    var platKey = getPlatName(platRaw);
+
+    if (isSalesforce(platRaw) && rawId) r.idsSalesforce.add(rawId);
+    if (isProdon(platRaw) && rawId)     r.idsProdon.add(rawId);
+    if (isZeffyAebeq(platRaw) && email) r.idsZeffyAebeq.add(email);
+    if (isZeffySembeq(platRaw) && email) r.idsZeffySembeq.add(email);
+
+    r.plateformes.add(platKey);
+
+    var tel = (data[i][c.telephone] || "").toString().trim();
+    if (tel) r.telephones.add(tel);
+
+    if (email) {
+      if (!r.emailsParPlateforme[platKey]) r.emailsParPlateforme[platKey] = new Set();
+      r.emailsParPlateforme[platKey].add(email);
+    }
+
+    if ((data[i][0] || "").toString().trim()) r.aebeq.add(data[i][0]);
+    if ((data[i][1] || "").toString().trim()) r.mq.add(data[i][1]);
+    if ((data[i][2] || "").toString().trim()) r.sembeq.add(data[i][2]);
+    if ((data[i][3] || "").toString().trim()) r.excl.add(data[i][3]);
+
+    var drw = data[i][4];
+    var dvl = (drw instanceof Date)
+      ? Utilities.formatDate(drw, Session.getScriptTimeZone(), "yyyy-MM-dd")
+      : (drw || "").toString();
+    if (dvl.trim()) r.exclDate.add(dvl.trim());
+
+    if ((data[i][5] || "").toString().trim()) r.exclRaison.add(data[i][5]);
+    if ((data[i][6] || "").toString().trim()) r.commentaires.add(data[i][6]);
+
+    for (var e = 0; e < cExtras.length; e++) {
+      var exV = (data[i][cExtras[e]] || "").toString().trim();
+      if (exV) r.extras[e].add(exV);
+    }
+
+    var recoit = (data[i][c.recoitCourrier] || "").toString().trim();
+    if (recoit === "1") r.recoitCourrier = true;
+
+    var topCourrierGroupId = (data[i][c.courrierGroupId] || "").toString().trim();
+    if (topCourrierGroupId) r.courrierGroupIds.add(topCourrierGroupId);
+
+    var addrNorm = (data[i][c.adresseNorm] || "").toString().trim();
+    var ad       = (data[i][c.adresse]     || "").toString().trim();
+    var cpFull   = (data[i][c.cp]          || "").toString().trim();
+    var vi       = (data[i][c.ville]       || "").toString().trim();
+    var prov     = (data[i][c.province]    || "").toString().trim();
+    var pays     = (data[i][c.pays]        || "").toString().trim();
+    var nbAdr    = (data[i][c.nbPersonnesAdresse] || "").toString().trim();
+
+    if (addrNorm) {
+      if (!r.adressesByNorm[addrNorm]) {
+        r.adressesByNorm[addrNorm] = {
+          norm: addrNorm,
+          address: ad,
+          cp: cpFull,
+          ville: vi,
+          province: prov,
+          pays: pays,
+          bestPriority: getAddressPriority(platRaw),
+          firstRow: i,
+          platforms: new Set(),
+          ids: new Set(),
+          courrierGroups: new Set(),
+          nbPersonnesAdresse: nbAdr || "",
+          zeffySupport: false
+        };
+      }
+
+      var adrRef = r.adressesByNorm[addrNorm];
+      var priority = getAddressPriority(platRaw);
+
+      adrRef.platforms.add(platKey);
+      if (topCourrierGroupId) adrRef.courrierGroups.add(topCourrierGroupId);
+      adrRef.nbPersonnesAdresse = bestNbValue(adrRef.nbPersonnesAdresse, nbAdr);
+
+      if (isZeffyAebeq(platRaw) || isZeffySembeq(platRaw)) adrRef.zeffySupport = true;
+
+      var idLabel = "";
+      if (isSalesforce(platRaw) && rawId) idLabel = "SALESFORCE: " + rawId;
+      else if (isProdon(platRaw) && rawId) idLabel = "PRODON: " + rawId;
+      else if (isZeffyAebeq(platRaw) && email) idLabel = "ZEFFY_AEBEQ: " + email;
+      else if (isZeffySembeq(platRaw) && email) idLabel = "ZEFFY_SEMBEQ: " + email;
+
+      if (idLabel) adrRef.ids.add(idLabel);
+
+      var currentScore = countFilledParts(adrRef.address, adrRef.cp, adrRef.ville, adrRef.province, adrRef.pays);
+      var newScore = countFilledParts(ad, cpFull, vi, prov, pays);
+
+      if (
+        priority < adrRef.bestPriority ||
+        (priority === adrRef.bestPriority && newScore > currentScore)
+      ) {
+        adrRef.bestPriority = priority;
+        adrRef.address = ad;
+        adrRef.cp = cpFull;
+        adrRef.ville = vi;
+        adrRef.province = prov;
+        adrRef.pays = pays;
+      }
+    }
+
+    stats.procesados++;
+  }
+
+  var maxEmPerPlat = {};
+  var max = { tel: 1, sf: 1, prodon: 1, zeffyA: 1, zeffyS: 1, ex: [] };
+  for (var ex0 = 0; ex0 < cExtras.length; ex0++) max.ex.push(1);
+
+  var maxAddrSlots = 1;
+
+  for (var keyMax in mapMerged) {
+    var rr = mapMerged[keyMax];
+
+    if (rr.idsSalesforce.size > max.sf) max.sf = rr.idsSalesforce.size;
+    if (rr.idsProdon.size > max.prodon) max.prodon = rr.idsProdon.size;
+    if (rr.idsZeffyAebeq.size > max.zeffyA) max.zeffyA = rr.idsZeffyAebeq.size;
+    if (rr.idsZeffySembeq.size > max.zeffyS) max.zeffyS = rr.idsZeffySembeq.size;
+    if (rr.telephones.size > max.tel) max.tel = rr.telephones.size;
+
+  var emailsSfOut = getEmailsSalesforceOutput(rr.emailsParPlateforme);
+var emailsOtherOut = getEmailsOtherOutput(rr.emailsParPlateforme);
+
+if (!maxEmPerPlat["SALESFORCE"]) maxEmPerPlat["SALESFORCE"] = 1;
+if (!maxEmPerPlat["OTHER"]) maxEmPerPlat["OTHER"] = 1;
+
+if (emailsSfOut.length > maxEmPerPlat["SALESFORCE"]) maxEmPerPlat["SALESFORCE"] = emailsSfOut.length;
+if (emailsOtherOut.length > maxEmPerPlat["OTHER"]) maxEmPerPlat["OTHER"] = emailsOtherOut.length;
+
+for (var p2 in rr.emailsParPlateforme) {
+  var emailsOutP2 = getEmailsForOutput(rr.emailsParPlateforme, p2);
+  if (emailsOutP2.length === 0) continue;
+
+  if (!maxEmPerPlat[p2]) maxEmPerPlat[p2] = 1;
+  if (emailsOutP2.length > maxEmPerPlat[p2]) maxEmPerPlat[p2] = emailsOutP2.length;
+}
+
+    for (var ex1 = 0; ex1 < cExtras.length; ex1++) {
+      if (rr.extras[ex1].size > max.ex[ex1]) max.ex[ex1] = rr.extras[ex1].size;
+    }
+
+    var addrCount = Object.keys(rr.adressesByNorm).length;
+    if (addrCount > maxAddrSlots) maxAddrSlots = addrCount;
+  }
+
+var platKeysEmails = Object.keys(maxEmPerPlat).sort(function(a, b) {
+  function getWeight(name) {
+    var up = (name || "").toString().toUpperCase();
+    if (up === "SALESFORCE") return 1;
+    if (up === "OTHER") return 2;
+    if (up.indexOf("ZEFF") !== -1) return 3;
+    return 4;
+  }
+
+  var wA = getWeight(a), wB = getWeight(b);
+  if (wA !== wB) return wA - wB;
+  return a.localeCompare(b);
+});
+
+  var headers = [
+    "Constituent AEBEQ","Constituent MQ","Constituent SEMBEQ",
+    "Excl.?","Excl. (date)","Excl. (raison)","Commentaires",
+    "Plateformes (Sources)","Prénom","Nom"
+  ];
+
+  for (var j = 1; j <= max.sf; j++) headers.push(max.sf > 1 ? "ID Salesforce " + j : "ID Salesforce");
+  for (var j2 = 1; j2 <= max.prodon; j2++) headers.push(max.prodon > 1 ? "ID Prodon " + j2 : "ID Prodon");
+  for (var j3 = 1; j3 <= max.zeffyA; j3++) headers.push(max.zeffyA > 1 ? "ID Zeffy AEBEQ " + j3 : "ID Zeffy AEBEQ");
+  for (var j4 = 1; j4 <= max.zeffyS; j4++) headers.push(max.zeffyS > 1 ? "ID Zeffy SEMBEQ " + j4 : "ID Zeffy SEMBEQ");
+
+  headers.push("Reçoit Courrier");
+  headers.push("Courrier Group IDs");
+  headers.push("Nb Adresses Uniques");
+  headers.push("Adresse Review Status");
+
+  for (var a = 1; a <= maxAddrSlots; a++) {
+    headers.push("Address " + a);
+    headers.push("CP " + a);
+    headers.push("Ville " + a);
+    headers.push("Province " + a);
+    headers.push("Pays " + a);
+    headers.push("Sources Adresse " + a);
+    headers.push("IDs Adresse " + a);
+    headers.push("Courrier Group ID " + a);
+    headers.push("Nb Personnes Adresse " + a);
+  }
+
+  for (var pIdx2 = 0; pIdx2 < platKeysEmails.length; pIdx2++) {
+    var pName2 = platKeysEmails[pIdx2];
+    var m2 = maxEmPerPlat[pName2] || 0;
+    for (var j6 = 1; j6 <= m2; j6++) {
+      var suffix2 = m2 > 1 ? " " + j6 : "";
+      headers.push("Email " + pName2 + suffix2);
+    }
+  }
+
+  for (var j7 = 1; j7 <= max.tel; j7++) headers.push("Téléphone " + j7);
+
+  for (var ex2 = 0; ex2 < cExtras.length; ex2++) {
+    var colName = (data[0][cExtras[ex2]] || "Extra").toString().trim();
+    for (var j8 = 1; j8 <= max.ex[ex2]; j8++) headers.push(colName + " " + j8);
+  }
+
+  var rowsArray = [];
+
+  function fill(s, m, targetRow) {
+    var a = Array.from(s).sort();
+    for (var jj = 0; jj < m; jj++) targetRow.push(a[jj] || "");
+  }
+
+  for (var keyOut in mapMerged) {
+    var r2 = mapMerged[keyOut];
+
+    var addrList = Object.keys(r2.adressesByNorm).map(function(k) {
+      return r2.adressesByNorm[k];
+    });
+
+    addrList.sort(function(a, b) {
+      if (a.bestPriority !== b.bestPriority) return a.bestPriority - b.bestPriority;
+      if (b.platforms.size !== a.platforms.size) return b.platforms.size - a.platforms.size;
+      return a.firstRow - b.firstRow;
+    });
+
+    var zeffyDistinct = addrList.filter(function(a) { return a.zeffySupport; }).length;
+    var reviewStatus = "OK";
+    if (zeffyDistinct > 1) reviewStatus = "REVIEW_MULTIPLE_ZEFFY";
+    else if (addrList.length > 1) reviewStatus = "MULTIPLE_ADDRESSES";
+
+    var row = [
+      Array.from(r2.aebeq).join(", "),
+      Array.from(r2.mq).join(", "),
+      Array.from(r2.sembeq).join(", "),
+      Array.from(r2.excl).join(", "),
+      Array.from(r2.exclDate).join(", "),
+      Array.from(r2.exclRaison).join(" | "),
+      Array.from(r2.commentaires).join(" | "),
+      Array.from(r2.plateformes).sort().join(", "),
+      r2.prenom,
+      r2.nom
+    ];
+
+    fill(r2.idsSalesforce, max.sf, row);
+    fill(r2.idsProdon, max.prodon, row);
+    fill(r2.idsZeffyAebeq, max.zeffyA, row);
+    fill(r2.idsZeffySembeq, max.zeffyS, row);
+
+    row.push(r2.recoitCourrier ? "1" : "");
+    row.push(setToSortedString(r2.courrierGroupIds, " | "));
+    row.push(String(addrList.length));
+    row.push(reviewStatus);
+
+    for (var adx = 0; adx < maxAddrSlots; adx++) {
+      if (adx < addrList.length) {
+        row.push(addrList[adx].address || "");
+        row.push(addrList[adx].cp || "");
+        row.push(addrList[adx].ville || "");
+        row.push(addrList[adx].province || "");
+        row.push(addrList[adx].pays || "");
+        row.push(setToSortedString(addrList[adx].platforms, ", "));
+        row.push(setToSortedString(addrList[adx].ids, " | "));
+        row.push(setToSortedString(addrList[adx].courrierGroups, " | "));
+        row.push(addrList[adx].nbPersonnesAdresse || "");
+      } else {
+        row.push("", "", "", "", "", "", "", "", "");
+      }
+    }
+
+for (var pIdx4 = 0; pIdx4 < platKeysEmails.length; pIdx4++) {
+  var pName4 = platKeysEmails[pIdx4];
+  var m4 = maxEmPerPlat[pName4] || 0;
+  var aEm = [];
+
+  if (pName4 === "SALESFORCE") {
+    aEm = getEmailsSalesforceOutput(r2.emailsParPlateforme);
+  } else if (pName4 === "OTHER") {
+    aEm = getEmailsOtherOutput(r2.emailsParPlateforme);
+  } else {
+    aEm = getEmailsForOutput(r2.emailsParPlateforme, pName4);
+  }
+
+  for (var j10 = 0; j10 < m4; j10++) {
+    row.push(j10 < aEm.length ? aEm[j10] : "");
+  }
+}
+
+    fill(r2.telephones, max.tel, row);
+    for (var ex3 = 0; ex3 < cExtras.length; ex3++) fill(r2.extras[ex3], max.ex[ex3], row);
+
+    rowsArray.push(row);
+  }
+
+  rowsArray.sort(function(a, b) {
+    var nA = (a[9] || "").toLowerCase();
+    var nB = (b[9] || "").toLowerCase();
+    if (nA < nB) return -1;
+    if (nA > nB) return 1;
+
+    var pA = (a[8] || "").toLowerCase();
+    var pB = (b[8] || "").toLowerCase();
+    if (pA < pB) return -1;
+    if (pA > pB) return 1;
+
+    return 0;
+  });
+
+  var outD = [headers];
+  var colD = [headers.map(function() { return "#d9ead3"; })];
+
+  for (var i2 = 0; i2 < rowsArray.length; i2++) {
+    outD.push(rowsArray[i2]);
+    colD.push(new Array(rowsArray[i2].length).fill(null));
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var goldenName = "Golden Record 🌟";
+  var goldenSheet = ss.getSheetByName(goldenName);
+  if (goldenSheet) ss.deleteSheet(goldenSheet);
+  goldenSheet = ss.insertSheet(goldenName);
+  goldenSheet.getRange(1, 1, outD.length, outD[0].length).setValues(outD);
+  goldenSheet.getRange(1, 1, colD.length, colD[0].length).setBackgrounds(colD);
+  goldenSheet.getRange(1, 1, 1, outD[0].length).setFontWeight("bold");
+  goldenSheet.autoResizeColumns(1, outD[0].length);
+
+  var recheckName = "Recheck ⚠️";
+  var recheckSheet = ss.getSheetByName(recheckName);
+  if (recheckSheet) ss.deleteSheet(recheckSheet);
+  recheckSheet = ss.insertSheet(recheckName);
+  recheckSheet.getRange(1, 1, 1, data[0].length).setValues([data[0]]);
+  if (recheckRows.length > 0) {
+    recheckSheet.getRange(2, 1, recheckRows.length, recheckRows[0].length).setValues(recheckRows);
+  }
+  recheckSheet.getRange(1, 1, 1, data[0].length).setFontWeight("bold");
+  recheckSheet.autoResizeColumns(1, data[0].length);
+
+  return "Analysés : " + stats.total +
+         " | Compagnies -> Recheck : " + stats.exclComp +
+         " | Rouges -> Recheck : " + stats.exclRojo +
+         " | Vides / Sans Nom -> Recheck : " + (stats.vacios + stats.recheck) +
+         " | Contacts Golden : " + (outD.length - 1);
+}
+
+// ==================================================================
+// SCRIPT 3 — ADDRESS CHECKER
+// - Séparé de Courrier / Foyer
+// - Choix du provider: Google ou Canada Post
+// - API key demandée au moment de l'exécution
+// - Traite seulement le status choisi
+// - Si status vide => ne fait rien
+// ==================================================================
+
+// ==================================================================
+// HELPERS — Adresse Checker
+// ==================================================================
+function normAdresse(str) {
+  return (str || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildAdresseLocale(adresse, cp, ville, province, pays) {
+  return [adresse, ville, province, cp, pays].filter(Boolean).join(", ");
+}
+
+function buildAdresseKeyForCache(adresse, cp, ville, province, pays) {
+  return [
+    normAdresse(adresse),
+    normAdresse(cp),
+    normAdresse(ville),
+    normAdresse(province),
+    normAdresse(pays)
+  ].join("|");
+}
+
+function extractGoogleAddressParts(result) {
+  var comps = result.address_components || [];
+
+  function getComp(type) {
+    for (var i = 0; i < comps.length; i++) {
+      if (comps[i].types && comps[i].types.indexOf(type) !== -1) {
+        return comps[i].long_name || "";
+      }
+    }
+    return "";
+  }
+
+  var streetNumber = getComp("street_number");
+  var route        = getComp("route");
+  var subpremise   = getComp("subpremise");
+  var locality     = getComp("locality") || getComp("postal_town") || getComp("sublocality") || getComp("administrative_area_level_3");
+  var province     = getComp("administrative_area_level_1");
+  var country      = getComp("country");
+  var postalCode   = getComp("postal_code");
+
+  var street = [streetNumber, route].filter(Boolean).join(" ").trim();
+  if (subpremise) street = street ? street + ", " + subpremise : subpremise;
+
+  return {
+    adresseNorm: buildAdresseKeyForCache(street, postalCode, locality, province, country),
+    adresseOut: street || (result.formatted_address || ""),
+    cpOut: postalCode || "",
+    villeOut: locality || "",
+    provinceOut: province || "",
+    paysOut: country || ""
+  };
+}
+
+function geocodeAdresseGoogle(fullAddress, apiKey) {
+  if (!apiKey) throw new Error("API key Google manquante.");
+
+  var url = "https://maps.googleapis.com/maps/api/geocode/json"
+    + "?address=" + encodeURIComponent(fullAddress)
+    + "&language=fr"
+    + "&region=ca"
+    + "&key=" + encodeURIComponent(apiKey);
+
+  var response = UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true,
+    method: "get",
+    contentType: "application/json"
+  });
+
+  var code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error("Google HTTP " + code);
+  }
+
+  var json = JSON.parse(response.getContentText());
+  if (json.status !== "OK" || !json.results || !json.results.length) {
+    throw new Error("Google " + (json.status || "UNKNOWN"));
+  }
+
+  return extractGoogleAddressParts(json.results[0]);
+}
+
+function canadaPostFind(fullAddress, apiKey) {
+  if (!apiKey) throw new Error("API key Canada Post manquante.");
+
+  var url = "https://ws1.postescanada-canadapost.ca/addresscomplete/interactive/find/v2.10/json3.ws"
+    + "?Key=" + encodeURIComponent(apiKey)
+    + "&SearchTerm=" + encodeURIComponent(fullAddress)
+    + "&Country=CAN"
+    + "&LanguagePreference=FR"
+    + "&MaxSuggestions=7";
+
+  var response = UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true,
+    method: "get",
+    contentType: "application/json"
+  });
+
+  var code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error("Canada Find HTTP " + code);
+  }
+
+  var json = JSON.parse(response.getContentText());
+  if (!json || !json.Items || !json.Items.length) {
+    throw new Error("Canada Find EMPTY");
+  }
+
+  if (json.Items[0] && json.Items[0].Error) {
+    throw new Error("Canada Find " + json.Items[0].Error + ": " + json.Items[0].Description);
+  }
+
+  for (var i = 0; i < json.Items.length; i++) {
+    if ((json.Items[i].Next || "").toString().toUpperCase() === "RETRIEVE") {
+      return json.Items[i];
+    }
+  }
+
+  return json.Items[0];
+}
+
+function canadaPostRetrieve(itemId, apiKey) {
+  var url = "https://ws1.postescanada-canadapost.ca/addresscomplete/interactive/retrieve/v2.11/json3.ws"
+    + "?Key=" + encodeURIComponent(apiKey)
+    + "&Id=" + encodeURIComponent(itemId);
+
+  var response = UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true,
+    method: "get",
+    contentType: "application/json"
+  });
+
+  var code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error("Canada Retrieve HTTP " + code);
+  }
+
+  var json = JSON.parse(response.getContentText());
+  if (!json || !json.Items || !json.Items.length) {
+    throw new Error("Canada Retrieve EMPTY");
+  }
+
+  if (json.Items[0] && json.Items[0].Error) {
+    throw new Error("Canada Retrieve " + json.Items[0].Error + ": " + json.Items[0].Description);
+  }
+
+  var item = json.Items[0];
+
+  var adresse = [item.Line1, item.Line2].filter(Boolean).join(", ").trim();
+  var cp = item.PostalCode || "";
+  var ville = item.City || "";
+  var province = item.ProvinceCode || item.ProvinceName || item.AdminAreaCode || item.AdminAreaName || "";
+  var pays = item.CountryIso2 || item.CountryName || "";
+
+  return {
+    adresseNorm: buildAdresseKeyForCache(adresse, cp, ville, province, pays),
+    adresseOut: adresse,
+    cpOut: cp,
+    villeOut: ville,
+    provinceOut: province,
+    paysOut: pays
+  };
+}
+
+function geocodeAdresseCanadaPost(fullAddress, apiKey) {
+  var found = canadaPostFind(fullAddress, apiKey);
+  if (!found || !found.Id) {
+    throw new Error("Canada Find sans Id");
+  }
+  return canadaPostRetrieve(found.Id, apiKey);
+}
+
+// ==================================================================
+// PANEL SIDEBAR — Address Checker
+// ==================================================================
+function abrirPanelAdresse() {
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #333; }
+      .title { font-size: 16px; font-weight: bold; color: #1a5276; margin-bottom: 10px; border-bottom: 2px solid #2e86c1; padding-bottom: 5px; }
+      .desc { font-size: 12px; color: #666; margin-bottom: 15px; }
+      .section-label { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; margin: 12px 0 6px; letter-spacing: 0.5px; }
+      .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+      label { font-size: 11px; font-weight: bold; flex: 1; }
+      input, select {
+        width: 95px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        font-weight: bold;
+      }
+      .textkey {
+        width: 170px !important;
+        text-transform: none !important;
+        text-align: left !important;
+        font-weight: normal !important;
+      }
+      .divider { border: none; border-top: 1px dashed #ccc; margin: 12px 0; }
+      .output-section { background: #eaf4fb; border: 1px solid #aed6f1; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+      .output-section .section-label { color: #1a5276; }
+      .btn { background-color: #2e86c1; color: white; padding: 10px; border: none; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 13px; }
+      .btn:hover { background-color: #1a5276; }
+      .btn-secondary { background-color: #7f8c8d; }
+      .btn-secondary:hover { background-color: #626e70; }
+      .btn-danger { background-color: #c0392b; }
+      .btn-danger:hover { background-color: #922b21; }
+      .info { font-size: 11px; color: #555; background: #fef9e7; border: 1px solid #f9e79f; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+      #msg { margin-top: 15px; font-size: 12px; font-weight: bold; text-align: center; }
+      #stateBox { margin-top: 12px; padding: 8px; background: #f4f6f7; border: 1px solid #d5dbdb; border-radius: 4px; font-size: 11px; white-space: pre-line; }
+      .button-row { display: flex; gap: 8px; }
+      .button-row .btn { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="title">🧭 Address Checker</div>
+    <div class="desc">Nettoie les adresses avec Google ou Canada Post.</div>
+
+    <div class="info">
+      💡 Le script ne traite que le status choisi.
+      <br>Si le status de la ligne est vide, il ne fait rien.
+      <br>Max rows this run = total à traiter automatiquement, avec reprise.
+    </div>
+
+    <div class="section-label">📥 Colonnes source</div>
+    <div class="form-group"><label>1. Adresse :</label><input type="text" id="c1" value="U"></div>
+    <div class="form-group"><label>2. Code Postal :</label><input type="text" id="c2" value="V"></div>
+    <div class="form-group"><label>3. Pays :</label><input type="text" id="c3" value="AD"></div>
+    <div class="form-group"><label>4. Ville :</label><input type="text" id="c4" value="AE"></div>
+    <div class="form-group"><label>5. Province :</label><input type="text" id="c5" value="AF"></div>
+
+    <hr class="divider">
+
+    <div class="output-section">
+      <div class="section-label">📤 Colonnes de sortie</div>
+      <div class="form-group"><label>6. Adresse Normalisée :</label><input type="text" id="c6" value="AI"></div>
+      <div class="form-group"><label>7. Adresse Fournisseur :</label><input type="text" id="c7" value="AJ"></div>
+      <div class="form-group"><label>8. CP Fournisseur :</label><input type="text" id="c8" value="AK"></div>
+      <div class="form-group"><label>9. Ville Fournisseur :</label><input type="text" id="c9" value="AL"></div>
+      <div class="form-group"><label>10. Province Fournisseur :</label><input type="text" id="c10" value="AM"></div>
+      <div class="form-group"><label>11. Pays Fournisseur :</label><input type="text" id="c11" value="AN"></div>
+      <div class="form-group"><label>12. Adresse Process Status :</label><input type="text" id="c12" value="AO"></div>
+    </div>
+
+    <div class="section-label">⚙️ Exécution</div>
+    <div class="form-group">
+      <label>13. Provider :</label>
+      <select id="c13">
+        <option value="GOOGLE">GOOGLE</option>
+        <option value="CANADA">CANADA</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>14. API Key :</label>
+      <input type="text" class="textkey" id="c14" value="">
+    </div>
+
+    <div class="form-group">
+      <label>15. Status to process :</label>
+      <select id="c15">
+        <option value=""></option>
+        <option value="PENDING_GOOGLE">PENDING_GOOGLE</option>
+        <option value="PENDING_CANADA">PENDING_CANADA</option>
+        <option value="ERROR_GOOGLE">ERROR_GOOGLE</option>
+        <option value="ERROR_CANADA">ERROR_CANADA</option>
+      </select>
+    </div>
+
+    <div class="form-group"><label>16. Max rows this run :</label><input type="text" id="c16" value="100"></div>
+
+    <button class="btn" id="btn-start" onclick="startAdresse()">▶️ Start / Resume</button>
+
+      <div class="button-row">
+      <button class="btn btn-secondary" id="btn-pause" onclick="pauseAdresse()">⏸ Pause</button>
+      <button class="btn btn-danger" id="btn-stop" onclick="stopAdresse()">⏹ Stop</button>
+      </div>
+
+      <button class="btn btn-secondary" id="btn-clear-key" onclick="clearAdresseApiKey()">🧹 Clear saved API key</button>
+      <button class="btn btn-secondary" id="btn-refresh" onclick="refreshAdresseState()">🔄 Refresh status</button>
+
+    <div id="msg"></div>
+    <div id="stateBox">Chargement du statut...</div>
+
+    <script>
+      function collectInputs() {
+        var inputs = {};
+        for (var i = 1; i <= 16; i++) {
+          inputs['c' + i] = document.getElementById('c' + i).value.trim();
+        }
+        return inputs;
+      }
+
+      function renderState(state) {
+        var box = document.getElementById('stateBox');
+        if (!state) {
+          box.innerHTML = "Aucun état.";
+          return;
+        }
+
+        box.innerHTML =
+          "Mode: " + (state.mode || "IDLE") +
+          "\\nProvider: " + (state.provider || "-") +
+          "\\nStatus ciblé: " + (state.statusToProcess || "-") +
+          "\\nTraité: " + (state.processedCount || 0) + " / " + (state.maxTargetRows || 0) +
+          "\\nDernière ligne scannée: " + (state.lastScanRow || 1) +
+          "\\nTrigger actif: " + (state.triggerActive ? "OUI" : "NON") +
+          "\\nMessage: " + (state.message || "-");
+      }
+
+      function refreshAdresseState() {
+        google.script.run
+          .withSuccessHandler(function(state) {
+            renderState(state);
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('stateBox').innerHTML = "Erreur: " + err.message;
+          })
+          .getAdresseJobState();
+      }
+
+      function startAdresse() {
+        var msg = document.getElementById('msg');
+        var inputs = collectInputs();
+
+        if (!inputs.c15) {
+          msg.innerHTML = "ℹ️ Status to process vide: rien à faire.";
+          msg.style.color = "#2c3e50";
+          return;
+        }
+
+        if (!inputs.c14) {
+          msg.innerHTML = "❌ API Key requise.";
+          msg.style.color = "#c0392b";
+          return;
+        }
+
+        msg.innerHTML = "⏳ Démarrage...";
+        msg.style.color = "#d35400";
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "✅ " + res;
+            msg.style.color = "#27ae60";
+            refreshAdresseState();
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+            refreshAdresseState();
+          })
+          .procesarAdresseDesdePanel(inputs);
+      }
+
+      function pauseAdresse() {
+        var msg = document.getElementById('msg');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "⏸ " + res;
+            msg.style.color = "#7f8c8d";
+            refreshAdresseState();
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+          })
+          .pauseAdresseJob();
+      }
+
+      function clearAdresseApiKey() {
+        var msg = document.getElementById('msg');
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "🧹 " + res;
+            msg.style.color = "#2e86c1";
+            document.getElementById('c14').value = "";
+            refreshAdresseState();
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+            refreshAdresseState();
+          })
+          .clearAdresseApiKeyIfIdle();
+      }
+
+      function stopAdresse() {
+        var msg = document.getElementById('msg');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "⏹ " + res;
+            msg.style.color = "#c0392b";
+            refreshAdresseState();
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+          })
+          .stopAdresseJob();
+      }
+
+      refreshAdresseState();
+    </script>
+  </body>
+  </html>
+  `;
+
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutput(html)
+      .setTitle('🧭 Address Checker')
+      .setWidth(380)
+  );
+}
+
+// ==================================================================
+// MOTOR — Address Checker
+// ==================================================================
+function procesarAdresseDesdePanel(cStr) {
+  var provider = (cStr.c13 || "").toString().trim().toUpperCase();
+  var apiKey = (cStr.c14 || "").toString().trim();
+  var statusToProcess = (cStr.c15 || "").toString().trim().toUpperCase();
+  var maxRun = parseInt(cStr.c16, 10);
+
+  if (!statusToProcess) {
+    return "Status vide: rien traité.";
+  }
+
+  if (provider !== "GOOGLE" && provider !== "CANADA") {
+    throw new Error("Provider invalide. Choisis GOOGLE ou CANADA.");
+  }
+
+  if (!apiKey) {
+    throw new Error("API Key manquante.");
+  }
+
+  if (isNaN(maxRun) || maxRun <= 0) {
+    throw new Error("Max rows this run invalide.");
+  }
+
+  var props = PropertiesService.getDocumentProperties();
+  var current = getAdresseJobState_();
+
+  var newConfig = {
+    c1: cStr.c1, c2: cStr.c2, c3: cStr.c3, c4: cStr.c4, c5: cStr.c5,
+    c6: cStr.c6, c7: cStr.c7, c8: cStr.c8, c9: cStr.c9, c10: cStr.c10,
+    c11: cStr.c11, c12: cStr.c12, c13: provider, c14: apiKey, c15: statusToProcess, c16: String(maxRun)
+  };
+
+  var newSignature = JSON.stringify({
+    c1: newConfig.c1, c2: newConfig.c2, c3: newConfig.c3, c4: newConfig.c4, c5: newConfig.c5,
+    c6: newConfig.c6, c7: newConfig.c7, c8: newConfig.c8, c9: newConfig.c9, c10: newConfig.c10,
+    c11: newConfig.c11, c12: newConfig.c12, c13: newConfig.c13, c15: newConfig.c15, c16: newConfig.c16
+  });
+
+  var oldSignature = props.getProperty('ADRESSE_JOB_SIGNATURE') || '';
+
+  var shouldRestart = !current.mode || current.mode === 'COMPLETED' || current.mode === 'IDLE' || oldSignature !== newSignature;
+
+  if (shouldRestart) {
+    clearAdresseTrigger_();
+    props.setProperties({
+      ADRESSE_JOB_CONFIG: JSON.stringify(newConfig),
+      ADRESSE_JOB_SIGNATURE: newSignature,
+      ADRESSE_JOB_MODE: 'RUNNING',
+      ADRESSE_JOB_LAST_ROW: '1',
+      ADRESSE_JOB_PROCESSED_COUNT: '0',
+      ADRESSE_JOB_MESSAGE: 'Démarrage nouveau job'
+    }, true);
+  } else {
+    props.setProperty('ADRESSE_JOB_MODE', 'RUNNING');
+    props.setProperty('ADRESSE_JOB_MESSAGE', 'Reprise du job');
+    props.setProperty('ADRESSE_JOB_CONFIG', JSON.stringify(newConfig));
+  }
+
+  var res = runAdresseJobChunk_();
+  return res;
+}
+
+function getAdresseJobState_() {
+  var props = PropertiesService.getDocumentProperties();
+  var configRaw = props.getProperty('ADRESSE_JOB_CONFIG');
+  var config = configRaw ? JSON.parse(configRaw) : null;
+
+  return {
+    mode: props.getProperty('ADRESSE_JOB_MODE') || 'IDLE',
+    provider: config ? config.c13 : '',
+    statusToProcess: config ? config.c15 : '',
+    maxTargetRows: parseInt(config ? config.c16 : '0', 10) || 0,
+    processedCount: parseInt(props.getProperty('ADRESSE_JOB_PROCESSED_COUNT') || '0', 10),
+    lastScanRow: parseInt(props.getProperty('ADRESSE_JOB_LAST_ROW') || '1', 10),
+    message: props.getProperty('ADRESSE_JOB_MESSAGE') || '',
+    triggerActive: hasAdresseTrigger_()
+  };
+}
+
+function getAdresseJobState() {
+  return getAdresseJobState_();
+}
+
+function hasAdresseTrigger_() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'adresseJobTriggerRunner') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearAdresseTrigger_() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'adresseJobTriggerRunner') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+}
+
+function scheduleNextAdresseRun_() {
+  clearAdresseTrigger_();
+  ScriptApp.newTrigger('adresseJobTriggerRunner')
+    .timeBased()
+    .after(60 * 1000)
+    .create();
+}
+
+function pauseAdresseJob() {
+  var props = PropertiesService.getDocumentProperties();
+  props.setProperty('ADRESSE_JOB_MODE', 'PAUSED');
+  props.setProperty('ADRESSE_JOB_MESSAGE', 'Job en pause');
+  clearAdresseTrigger_();
+  return 'Job en pause. Progression conservée.';
+}
+
+function stopAdresseJob() {
+  var props = PropertiesService.getDocumentProperties();
+  props.setProperty('ADRESSE_JOB_MODE', 'STOPPED');
+  props.setProperty('ADRESSE_JOB_MESSAGE', 'Job arrêté');
+  clearAdresseTrigger_();
+  return 'Job arrêté. Progression conservée.';
+}
+
+function adresseJobTriggerRunner() {
+  runAdresseJobChunk_();
+}
+
+function runAdresseJobChunk_() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    var props = PropertiesService.getDocumentProperties();
+    var mode = props.getProperty('ADRESSE_JOB_MODE') || 'IDLE';
+
+    if (mode !== 'RUNNING') {
+      clearAdresseTrigger_();
+      return 'Job non actif.';
+    }
+
+    var configRaw = props.getProperty('ADRESSE_JOB_CONFIG');
+    if (!configRaw) {
+      clearAdresseTrigger_();
+      props.setProperty('ADRESSE_JOB_MODE', 'IDLE');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Configuration absente');
+      return 'Configuration absente.';
+    }
+
+    var cStr = JSON.parse(configRaw);
+
+    var provider = (cStr.c13 || '').toString().trim().toUpperCase();
+    var apiKey = (cStr.c14 || '').toString().trim();
+    var statusToProcess = (cStr.c15 || '').toString().trim().toUpperCase();
+    var maxTargetRows = parseInt(cStr.c16, 10);
+
+    if (!statusToProcess) {
+      props.setProperty('ADRESSE_JOB_MODE', 'STOPPED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Status vide');
+      clearAdresseTrigger_();
+      return 'Status vide.';
+    }
+
+    if (!apiKey) {
+      props.setProperty('ADRESSE_JOB_MODE', 'STOPPED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'API Key manquante');
+      clearAdresseTrigger_();
+      return 'API Key manquante.';
+    }
+
+    if (isNaN(maxTargetRows) || maxTargetRows <= 0) {
+      props.setProperty('ADRESSE_JOB_MODE', 'STOPPED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Max rows invalide');
+      clearAdresseTrigger_();
+      return 'Max rows invalide.';
+    }
+
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = sheet.getDataRange().getValues();
+    var n = data.length - 1;
+
+    if (n < 1) {
+      props.setProperty('ADRESSE_JOB_MODE', 'COMPLETED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Pas assez de données');
+      clearAdresseTrigger_();
+      return 'Pas assez de données.';
+    }
+
+    var cAdr  = l2i(cStr.c1);
+    var cCP   = l2i(cStr.c2);
+    var cPay  = l2i(cStr.c3);
+    var cVil  = l2i(cStr.c4);
+    var cProv = l2i(cStr.c5);
+
+    var cAdrNorm = l2i(cStr.c6);
+    var cAdrOut  = l2i(cStr.c7);
+    var cCPOut   = l2i(cStr.c8);
+    var cVilOut  = l2i(cStr.c9);
+    var cProvOut = l2i(cStr.c10);
+    var cPayOut  = l2i(cStr.c11);
+    var cProc    = l2i(cStr.c12);
+
+    var adrNormOut = [], adrOut = [], cpOut = [], vilOut = [], provOut = [], payOut = [], procOut = [];
+    for (var x = 0; x < n; x++) {
+      adrNormOut.push([data[x + 1][cAdrNorm - 1] || ""]);
+      adrOut.push([data[x + 1][cAdrOut - 1] || ""]);
+      cpOut.push([data[x + 1][cCPOut - 1] || ""]);
+      vilOut.push([data[x + 1][cVilOut - 1] || ""]);
+      provOut.push([data[x + 1][cProvOut - 1] || ""]);
+      payOut.push([data[x + 1][cPayOut - 1] || ""]);
+      procOut.push([data[x + 1][cProc - 1] || ""]);
+    }
+
+    var processedCount = parseInt(props.getProperty('ADRESSE_JOB_PROCESSED_COUNT') || '0', 10);
+    var lastScanRow = parseInt(props.getProperty('ADRESSE_JOB_LAST_ROW') || '1', 10);
+
+    if (processedCount >= maxTargetRows) {
+      props.setProperty('ADRESSE_JOB_MODE', 'COMPLETED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Objectif atteint');
+      clearAdresseTrigger_();
+      return 'Objectif déjà atteint.';
+    }
+
+    var processedNow = 0;
+    var cache = {};
+    var doneStatus = provider === "GOOGLE" ? "DONE_GOOGLE" : "DONE_CANADA";
+    var errorStatus = provider === "GOOGLE" ? "ERROR_GOOGLE" : "ERROR_CANADA";
+    var startMs = new Date().getTime();
+    var maxChunkMs = 5.5 * 60 * 1000;
+    var reachedEnd = true;
+    var currentRowScanned = lastScanRow;
+
+    for (var i = lastScanRow + 1; i <= n; i++) {
+      currentRowScanned = i;
+
+      if ((new Date().getTime() - startMs) > maxChunkMs) {
+        reachedEnd = false;
+        break;
+      }
+
+      if ((processedCount + processedNow) >= maxTargetRows) {
+        reachedEnd = false;
+        break;
+      }
+
+      var currentStatus = (data[i][cProc - 1] || "").toString().trim().toUpperCase();
+      if (currentStatus !== statusToProcess) {
+        continue;
+      }
+
+      var idx = i - 1;
+      var adr  = (data[i][cAdr  - 1] || "").toString().trim();
+      var cp   = (data[i][cCP   - 1] || "").toString().trim();
+      var vil  = (data[i][cVil  - 1] || "").toString().trim();
+      var prov = (data[i][cProv - 1] || "").toString().trim();
+      var pay  = (data[i][cPay  - 1] || "").toString().trim();
+
+      if (!adr && !cp && !vil) {
+        procOut[idx] = ["SKIPPED"];
+        processedNow++;
+        continue;
+      }
+
+      var fullAddress = buildAdresseLocale(adr, cp, vil, prov, pay);
+      var cacheKey = provider + "|" + buildAdresseKeyForCache(adr, cp, vil, prov, pay);
+
+      try {
+        var result;
+
+        if (cache[cacheKey]) {
+          result = cache[cacheKey];
+        } else {
+          if (provider === "GOOGLE") {
+            result = geocodeAdresseGoogle(fullAddress, apiKey);
+          } else {
+            result = geocodeAdresseCanadaPost(fullAddress, apiKey);
+          }
+          cache[cacheKey] = result;
+        }
+
+        adrNormOut[idx] = [result.adresseNorm || ""];
+        adrOut[idx]     = [result.adresseOut || ""];
+        cpOut[idx]      = [result.cpOut || ""];
+        vilOut[idx]     = [result.villeOut || ""];
+        provOut[idx]    = [result.provinceOut || ""];
+        payOut[idx]     = [result.paysOut || ""];
+        procOut[idx]    = [doneStatus];
+        processedNow++;
+
+      } catch (e) {
+        procOut[idx] = [errorStatus];
+        processedNow++;
+      }
+    }
+
+    sheet.getRange(2, cAdrNorm, n, 1).setValues(adrNormOut);
+    sheet.getRange(2, cAdrOut,  n, 1).setValues(adrOut);
+    sheet.getRange(2, cCPOut,   n, 1).setValues(cpOut);
+    sheet.getRange(2, cVilOut,  n, 1).setValues(vilOut);
+    sheet.getRange(2, cProvOut, n, 1).setValues(provOut);
+    sheet.getRange(2, cPayOut,  n, 1).setValues(payOut);
+    sheet.getRange(2, cProc,    n, 1).setValues(procOut);
+
+    var newProcessedCount = processedCount + processedNow;
+    props.setProperty('ADRESSE_JOB_PROCESSED_COUNT', String(newProcessedCount));
+    props.setProperty('ADRESSE_JOB_LAST_ROW', String(currentRowScanned));
+
+    var foundMoreMatchingAhead = false;
+    if (!reachedEnd && currentRowScanned < n && newProcessedCount < maxTargetRows) {
+      foundMoreMatchingAhead = true;
+    }
+
+    if (reachedEnd || newProcessedCount >= maxTargetRows) {
+      props.setProperty('ADRESSE_JOB_MODE', 'COMPLETED');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'Terminé');
+      clearAdresseTrigger_();
+    } else {
+      props.setProperty('ADRESSE_JOB_MODE', 'RUNNING');
+      props.setProperty('ADRESSE_JOB_MESSAGE', 'En attente de reprise automatique');
+      scheduleNextAdresseRun_();
+    }
+
+    return "Provider: " + provider +
+           " | Status traité: " + statusToProcess +
+           " | Traité maintenant: " + processedNow +
+           " | Total traité: " + newProcessedCount + "/" + maxTargetRows;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function clearAdresseApiKeyIfIdle() {
+  var props = PropertiesService.getDocumentProperties();
+  var mode = props.getProperty('ADRESSE_JOB_MODE') || 'IDLE';
+
+  if (mode === 'RUNNING') {
+    throw new Error('El job está corriendo. Pausa o detén primero antes de borrar la API key.');
+  }
+
+  var configRaw = props.getProperty('ADRESSE_JOB_CONFIG');
+
+  if (!configRaw) {
+    return 'No hay configuración guardada.';
+  }
+
+  try {
+    var config = JSON.parse(configRaw);
+    config.c14 = "";
+    props.setProperty('ADRESSE_JOB_CONFIG', JSON.stringify(config));
+    props.setProperty('ADRESSE_JOB_MESSAGE', 'API key borrada manualmente');
+    return 'API key borrada de la configuración guardada.';
+  } catch (e) {
+    throw new Error('No se pudo limpiar la API key: ' + e.message);
+  }
+}
+
+// ==================================================================
+// SCRIPT 4 — COURRIER / FOYER
+// - Basé sur Adresse Normalisée
+// - Sans plateformes ni IDs
+// - 1 seul destinataire par domicile
+// - Vert = Prénom + Nom
+// - Jaune = Merge Key Manual
+// - Sortie: Group ID, Nb Personnes Adresse, Reçoit Courrier
+// ==================================================================
+
+function ouvrirMessageCourrier_(msg) {
+  return msg || '';
+}
+
+function hasGreenSemaforo_(val) {
+  return (val || '').toString().indexOf('🟢') !== -1;
+}
+
+function hasYellowSemaforo_(val) {
+  return (val || '').toString().indexOf('🟡') !== -1;
+}
+
+function hasRedSemaforo_(val) {
+  return (val || '').toString().indexOf('🔴') !== -1;
+}
+
+function normalizeCourrierText_(str) {
+  return (str || '')
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeCourrierNameKey_(firstName, lastName) {
+  return normalizeCourrierText_(firstName) + '|' + normalizeCourrierText_(lastName);
+}
+
+function bucketNbPersonnes_(count) {
+  count = parseInt(count, 10);
+  if (isNaN(count) || count < 1) return '';
+  return String(count);
+}
+
+function buildCourrierGroupId_(adresseNorm) {
+  var raw = normalizeCourrierText_(adresseNorm);
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, raw);
+  var hex = digest.map(function(b) {
+    var v = (b < 0 ? b + 256 : b).toString(16).toUpperCase();
+    return v.length === 1 ? '0' + v : v;
+  }).join('');
+  return 'CG_' + hex.substring(0, 10);
+}
+
+function chooseCourrierRecipientPerson_(persons) {
+  if (!persons || !persons.length) return null;
+
+  var ordered = persons.slice().sort(function(a, b) {
+    return a.firstRow - b.firstRow;
+  });
+
+  var males = ordered.filter(function(p) { return p.genre === 'M'; });
+  if (males.length) return males[0];
+
+  var females = ordered.filter(function(p) { return p.genre === 'F'; });
+  if (females.length) return females[0];
+
+  return ordered[0];
+}
+
+function abrirPanelCourrierFoyer() {
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #333; }
+      .title { font-size: 16px; font-weight: bold; color: #6c3483; margin-bottom: 10px; border-bottom: 2px solid #8e44ad; padding-bottom: 5px; }
+      .desc { font-size: 12px; color: #666; margin-bottom: 15px; }
+      .section-label { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; margin: 12px 0 6px; letter-spacing: 0.5px; }
+      .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+      label { font-size: 11px; font-weight: bold; flex: 1; }
+      input {
+        width: 70px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        font-weight: bold;
+      }
+      .divider { border: none; border-top: 1px dashed #ccc; margin: 12px 0; }
+      .output-section {
+        background: #f5eef8;
+        border: 1px solid #d2b4de;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+      .output-section .section-label { color: #6c3483; }
+      .btn {
+        background-color: #8e44ad;
+        color: white;
+        padding: 12px;
+        border: none;
+        width: 100%;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-top: 15px;
+        font-size: 14px;
+      }
+      .btn:hover { background-color: #6c3483; }
+      .info {
+        font-size: 11px;
+        color: #555;
+        background: #fcf3cf;
+        border: 1px solid #f7dc6f;
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 10px;
+      }
+      #msg {
+        margin-top: 15px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">🏠 Courrier / Foyer</div>
+    <div class="desc">Détecte les domiciles, compte les personnes uniques et marque un seul destinataire avec 1.</div>
+
+    <div class="info">
+      Règles:
+      <br>• Vert = personne par Prénom + Nom
+      <br>• Jaune = personne par Merge Key Manual
+      <br>• Rouge / vide = ignoré
+      <br>• Adresse requise = Adresse Normalisée + status DONE_GOOGLE ou DONE_CANADA
+      <br>• Un seul destinataire par domicile: M prioritaire, sinon F, sinon premier.
+    </div>
+
+    <div class="section-label">📥 Colonnes source</div>
+    <div class="form-group"><label>1. Sémaphore :</label><input type="text" id="c1" value="K"></div>
+    <div class="form-group"><label>2. Merge Key Manual :</label><input type="text" id="c2" value="R"></div>
+    <div class="form-group"><label>3. Prénom :</label><input type="text" id="c3" value="S"></div>
+    <div class="form-group"><label>4. Nom :</label><input type="text" id="c4" value="T"></div>
+    <div class="form-group"><label>5. Adresse Normalisée :</label><input type="text" id="c5" value="AI"></div>
+    <div class="form-group"><label>6. Adresse Process Status :</label><input type="text" id="c6" value="AO"></div>
+    <div class="form-group"><label>7. Genre :</label><input type="text" id="c7" value="CT"></div>
+
+    <hr class="divider">
+
+    <div class="output-section">
+      <div class="section-label">📤 Colonnes de sortie</div>
+      <div class="form-group"><label>8. Courrier Group ID :</label><input type="text" id="c8" value="AP"></div>
+      <div class="form-group"><label>9. Nb Personnes Adresse :</label><input type="text" id="c9" value="AQ"></div>
+      <div class="form-group"><label>10. Reçoit Courrier :</label><input type="text" id="c10" value="AR"></div>
+    </div>
+
+    <button class="btn" id="btn-run" onclick="runCourrier()">🏠 Lancer Courrier / Foyer</button>
+    <div id="msg"></div>
+
+    <script>
+      function runCourrier() {
+        var btn = document.getElementById('btn-run');
+        var msg = document.getElementById('msg');
+        var inputs = {};
+
+        for (var i = 1; i <= 10; i++) {
+          inputs['c' + i] = document.getElementById('c' + i).value.toUpperCase().trim();
+          if (!inputs['c' + i]) {
+            msg.innerHTML = "❌ Remplissez toutes les colonnes.";
+            msg.style.color = "#c0392b";
+            return;
+          }
+        }
+
+        msg.innerHTML = "⏳ Traitement...";
+        msg.style.color = "#d35400";
+        btn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "✅ " + res;
+            msg.style.color = "#27ae60";
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+            btn.disabled = false;
+          })
+          .procesarCourrierFoyerDesdePanel(inputs);
+      }
+    </script>
+  </body>
+  </html>
+  `;
+
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutput(html)
+      .setTitle('🏠 Courrier / Foyer')
+      .setWidth(350)
+  );
+}
+
+function procesarCourrierFoyerDesdePanel(cStr) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var n = data.length - 1;
+
+  if (n < 1) {
+    throw new Error('Pas assez de données.');
+  }
+
+  var cSem   = l2i(cStr.c1);
+  var cMerge = l2i(cStr.c2);
+  var cFirst = l2i(cStr.c3);
+  var cLast  = l2i(cStr.c4);
+  var cAddr  = l2i(cStr.c5);
+  var cStat  = l2i(cStr.c6);
+  var cGenre = l2i(cStr.c7);
+
+  var cGrp   = l2i(cStr.c8);
+  var cNb    = l2i(cStr.c9);
+  var cRecv  = l2i(cStr.c10);
+
+  var grpOut = [], nbOut = [], recvOut = [];
+  for (var x = 0; x < n; x++) {
+    grpOut.push([""]);
+    nbOut.push([""]);
+    recvOut.push([""]);
+  }
+
+  var addressMap = {};
+  var validRows = 0;
+  var ignoredRows = 0;
+
+  for (var i = 1; i <= n; i++) {
+    var idx = i - 1;
+
+    var sem = (data[i][cSem - 1] || '').toString().trim();
+    var mergeKey = (data[i][cMerge - 1] || '').toString().trim();
+    var firstName = (data[i][cFirst - 1] || '').toString().trim();
+    var lastName = (data[i][cLast - 1] || '').toString().trim();
+    var addrNorm = (data[i][cAddr - 1] || '').toString().trim();
+    var addrStatus = (data[i][cStat - 1] || '').toString().trim().toUpperCase();
+    var genre = (data[i][cGenre - 1] || '').toString().trim().toUpperCase();
+
+    if (!addrNorm) {
+      ignoredRows++;
+      continue;
+    }
+
+    if (addrStatus !== 'DONE_GOOGLE' && addrStatus !== 'DONE_CANADA') {
+      ignoredRows++;
+      continue;
+    }
+
+    if (hasRedSemaforo_(sem) || !sem) {
+      ignoredRows++;
+      continue;
+    }
+
+    var personKey = '';
+    if (hasYellowSemaforo_(sem)) {
+      if (!mergeKey) {
+        ignoredRows++;
+        continue;
+      }
+      personKey = 'MANUAL|' + normalizeCourrierText_(mergeKey);
+    } else if (hasGreenSemaforo_(sem)) {
+      personKey = 'NAME|' + normalizeCourrierNameKey_(firstName, lastName);
+      if (personKey === 'NAME||') {
+        ignoredRows++;
+        continue;
+      }
+    } else {
+      ignoredRows++;
+      continue;
+    }
+
+    var addrKey = normalizeCourrierText_(addrNorm);
+    if (!addressMap[addrKey]) {
+      addressMap[addrKey] = {
+        address: addrNorm,
+        rows: [],
+        persons: {}
+      };
+    }
+
+    addressMap[addrKey].rows.push(i);
+
+    if (!addressMap[addrKey].persons[personKey]) {
+      addressMap[addrKey].persons[personKey] = {
+        personKey: personKey,
+        firstRow: i,
+        firstName: firstName,
+        lastName: lastName,
+        genre: (genre === 'M' || genre === 'F') ? genre : '',
+        rows: []
+      };
+    }
+
+    var personRef = addressMap[addrKey].persons[personKey];
+    personRef.rows.push(i);
+
+    if (!personRef.genre && (genre === 'M' || genre === 'F')) {
+      personRef.genre = genre;
+    }
+
+    validRows++;
+  }
+
+  var domicileCount = 0;
+
+  for (var addrKey in addressMap) {
+    domicileCount++;
+
+    var group = addressMap[addrKey];
+    var groupId = buildCourrierGroupId_(group.address);
+
+    var persons = Object.keys(group.persons).map(function(pk) {
+      return group.persons[pk];
+    }).sort(function(a, b) {
+      return a.firstRow - b.firstRow;
+    });
+
+    var nbPersons = persons.length;
+    var bucket = bucketNbPersonnes_(nbPersons);
+    var recipient = chooseCourrierRecipientPerson_(persons);
+    var recipientRow = recipient ? recipient.firstRow : null;
+
+    for (var p = 0; p < persons.length; p++) {
+      var person = persons[p];
+      for (var r = 0; r < person.rows.length; r++) {
+        var sheetRow = person.rows[r];
+        var outIdx = sheetRow - 1;
+
+        grpOut[outIdx] = [groupId];
+        nbOut[outIdx] = [bucket];
+        recvOut[outIdx] = [sheetRow === recipientRow ? '1' : ''];
+      }
+    }
+  }
+
+  sheet.getRange(2, cGrp, n, 1).setValues(grpOut);
+  sheet.getRange(2, cNb, n, 1).setValues(nbOut);
+  sheet.getRange(2, cRecv, n, 1).setValues(recvOut);
+
+  return 'Courrier/Foyer terminé. Domiciles: ' + domicileCount +
+         ' | Lignes valides: ' + validRows +
+         ' | Lignes ignorées: ' + ignoredRows;
+}
+
+// ==================================================================
+// SCRIPT 5 — COMPANIES CHECKER
+// - Nouveau module séparé
+// - Ne touche PAS Merge Key Manual
+// - Marque Q/R avec couleurs pour révision
+// - Defaults pour Recheck Companies:
+//   H = Plateforme
+//   I = No client
+//   Q = Company Check Mark
+//   R = Company Check Reason
+//   S = Merge Key Manual
+//   V = Compagnie
+//   W = Adresse Normalisée
+// ==================================================================
+
+function abrirPanelCompaniesChecker() {
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #333; }
+      .title { font-size: 16px; font-weight: bold; color: #145a32; margin-bottom: 10px; border-bottom: 2px solid #27ae60; padding-bottom: 5px; }
+      .desc { font-size: 12px; color: #666; margin-bottom: 15px; }
+      .section-label { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; margin: 12px 0 6px; letter-spacing: 0.5px; }
+      .form-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+      label { font-size: 11px; font-weight: bold; flex: 1; }
+      input {
+        width: 70px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-transform: uppercase;
+        text-align: center;
+        font-weight: bold;
+      }
+      .divider { border: none; border-top: 1px dashed #ccc; margin: 12px 0; }
+      .output-section {
+        background: #eafaf1;
+        border: 1px solid #a9dfbf;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+      .output-section .section-label { color: #145a32; }
+      .info {
+        font-size: 11px;
+        color: #555;
+        background: #fcf3cf;
+        border: 1px solid #f7dc6f;
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 10px;
+      }
+      .btn {
+        background-color: #27ae60;
+        color: white;
+        padding: 12px;
+        border: none;
+        width: 100%;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-top: 15px;
+        font-size: 14px;
+      }
+      .btn:hover { background-color: #145a32; }
+      #msg {
+        margin-top: 15px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">🏢 Companies Checker</div>
+    <div class="desc">Marque les compagnies similaires par adresse base + ville + nom fort.</div>
+
+    <div class="info">
+      Règles:
+      <br>• Ne modifie pas Merge Key Manual.
+      <br>• Écrit seulement Company Check Mark et Reason.
+      <br>• Vert = match fort.
+      <br>• Jaune = probable, à vérifier.
+      <br>• Orange = nom similaire, adresse différente.
+      <br>• Rouge = conflit possible.
+    </div>
+
+    <div class="section-label">📥 Colonnes source</div>
+    <div class="form-group"><label>1. Plateforme :</label><input type="text" id="c1" value="H"></div>
+    <div class="form-group"><label>2. No client :</label><input type="text" id="c2" value="I"></div>
+    <div class="form-group"><label>3. Merge Key Manual :</label><input type="text" id="c3" value="S"></div>
+    <div class="form-group"><label>4. Compagnie :</label><input type="text" id="c4" value="V"></div>
+    <div class="form-group"><label>5. Adresse Normalisée :</label><input type="text" id="c5" value="W"></div>
+
+    <hr class="divider">
+
+    <div class="output-section">
+      <div class="section-label">📤 Colonnes de sortie</div>
+      <div class="form-group"><label>6. Company Check Mark :</label><input type="text" id="c6" value="Q"></div>
+      <div class="form-group"><label>7. Company Check Reason :</label><input type="text" id="c7" value="R"></div>
+    </div>
+
+    <button class="btn" id="btn-run" onclick="runCompanies()">🏢 Lancer Companies Checker</button>
+    <div id="msg"></div>
+
+    <script>
+      function runCompanies() {
+        var btn = document.getElementById('btn-run');
+        var msg = document.getElementById('msg');
+        var inputs = {};
+
+        for (var i = 1; i <= 7; i++) {
+          inputs['c' + i] = document.getElementById('c' + i).value.toUpperCase().trim();
+          if (!inputs['c' + i]) {
+            msg.innerHTML = "❌ Remplissez toutes les colonnes.";
+            msg.style.color = "#c0392b";
+            return;
+          }
+        }
+
+        msg.innerHTML = "⏳ Traitement...";
+        msg.style.color = "#d35400";
+        btn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            msg.innerHTML = "✅ " + res;
+            msg.style.color = "#27ae60";
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            msg.innerHTML = "❌ " + err.message;
+            msg.style.color = "#c0392b";
+            btn.disabled = false;
+          })
+          .procesarCompaniesCheckerDesdePanel(inputs);
+      }
+    </script>
+  </body>
+  </html>
+  `;
+
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutput(html)
+      .setTitle('🏢 Companies Checker')
+      .setWidth(360)
+  );
+}
+
+function procesarCompaniesCheckerDesdePanel(cStr) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getDisplayValues();
+  var n = data.length - 1;
+
+  if (n < 1) {
+    throw new Error('Pas assez de données.');
+  }
+
+  var cPlat  = l2i(cStr.c1);
+  var cId    = l2i(cStr.c2);
+  var cMerge = l2i(cStr.c3);
+  var cName  = l2i(cStr.c4);
+  var cAddr  = l2i(cStr.c5);
+  var cMark  = l2i(cStr.c6);
+  var cReas  = l2i(cStr.c7);
+
+  var markOut = [];
+  var reasonOut = [];
+  var bgMark = [];
+  var bgReason = [];
+
+  for (var x = 0; x < n; x++) {
+    markOut.push([""]);
+    reasonOut.push([""]);
+    bgMark.push([null]);
+    bgReason.push([null]);
+  }
+
+  var records = [];
+  var groupsByAddress = {};
+  var groupsByNameToken = {};
+
+  for (var i = 1; i <= n; i++) {
+    var idx = i - 1;
+
+    var platform = (data[i][cPlat - 1] || '').toString().trim();
+    var rawId = (data[i][cId - 1] || '').toString().trim();
+    var mergeManual = (data[i][cMerge - 1] || '').toString().trim();
+    var companyName = (data[i][cName - 1] || '').toString().trim();
+    var addrNorm = (data[i][cAddr - 1] || '').toString().trim();
+
+    var parsedAddr = companyParseAdresseNormalisee_(addrNorm);
+    var tokens = companyStrongNameTokens_(companyName, parsedAddr.city);
+
+    var rec = {
+      row: i + 1,
+      idx: idx,
+      platform: platform,
+      rawId: rawId,
+      mergeManual: mergeManual,
+      companyName: companyName,
+      addrNorm: addrNorm,
+      streetPart: parsedAddr.streetPart,
+      postal: parsedAddr.postal,
+      city: parsedAddr.city,
+      province: parsedAddr.province,
+      country: parsedAddr.country,
+      postalKey: companyNormalizePostal_(parsedAddr.postal),
+      cityKey: companyNormalizeText_(parsedAddr.city),
+      addressBaseKey: parsedAddr.addressBaseKey,
+      addressGroupKey: parsedAddr.addressGroupKey,
+      addressBaseDisplay: parsedAddr.addressBaseDisplay,
+      nameTokens: tokens,
+      nameClean: tokens.join(' '),
+      marked: false
+    };
+
+    records.push(rec);
+
+    if (rec.addressGroupKey) {
+      if (!groupsByAddress[rec.addressGroupKey]) groupsByAddress[rec.addressGroupKey] = [];
+      groupsByAddress[rec.addressGroupKey].push(rec);
+    }
+
+    for (var t = 0; t < tokens.length; t++) {
+      var tok = tokens[t];
+      if (!groupsByNameToken[tok]) groupsByNameToken[tok] = [];
+      groupsByNameToken[tok].push(rec);
+    }
+  }
+
+  var groupCounter = 1;
+  var statsStrong = 0;
+  var statsReview = 0;
+  var statsOrange = 0;
+  var statsConflict = 0;
+
+  for (var addrKey in groupsByAddress) {
+    var group = groupsByAddress[addrKey];
+    if (group.length < 2) continue;
+
+    var groupCode = 'CMP-' + companyPad4_(groupCounter++);
+    var postalSet = companyUniqueNonBlank_(group.map(function(r) { return r.postalKey; }));
+    var platformSet = companyUniqueNonBlank_(group.map(function(r) { return companyNormalizeText_(r.platform); }));
+    var idConflict = companyHasSameSourceDifferentIds_(group);
+    var nameOverlap = companyGroupHasNameOverlap_(group);
+
+    var color = '#fff2cc';
+    var reasonPrefix = '🟡 SAME_BASE_REVIEW';
+    var reason = '';
+
+    if (idConflict) {
+      color = '#f4cccc';
+      reasonPrefix = '🔴 POSSIBLE_ID_CONFLICT';
+      reason = 'Même adresse base, mais même plateforme avec No client différents.';
+      statsConflict++;
+    } else if (postalSet.length > 1 && nameOverlap) {
+      color = '#fff2cc';
+      reasonPrefix = '🟡 SAME_BASE_CP_DIFF';
+      reason = 'Même adresse base + ville + nom compatible, mais CP différent: ' + postalSet.join(', ');
+      statsReview++;
+    } else if (postalSet.length > 1 && !nameOverlap) {
+      color = '#f4cccc';
+      reasonPrefix = '🔴 SAME_BASE_CP_AND_NAME_DIFF';
+      reason = 'Même adresse base + ville, mais CP différent et nom pas clairement compatible: ' + postalSet.join(', ');
+      statsConflict++;
+    } else if (postalSet.length <= 1 && nameOverlap) {
+      color = '#d9ead3';
+      reasonPrefix = '🟢 SAME_ADDRESS_STRONG';
+      reason = 'Même adresse base + ville + CP + nom compatible.';
+      statsStrong++;
+    } else {
+      color = '#fff2cc';
+      reasonPrefix = '🟡 SAME_ADDRESS_NAME_REVIEW';
+      reason = 'Même adresse base + ville + CP, mais nom pas clairement compatible.';
+      statsReview++;
+    }
+
+    if (platformSet.length > 1) {
+      reason += ' | Plateformes: ' + platformSet.join(', ');
+    }
+
+    group.forEach(function(r) {
+      markOut[r.idx] = [groupCode];
+      reasonOut[r.idx] = [reasonPrefix + ' | ' + reason + ' | Base: ' + r.addressBaseDisplay];
+      bgMark[r.idx] = [color];
+      bgReason[r.idx] = [color];
+      r.marked = true;
+    });
+  }
+
+  var nameGroupCounter = 1;
+
+  for (var token in groupsByNameToken) {
+    var nameGroup = groupsByNameToken[token].filter(function(r) {
+      return !r.marked && r.addressGroupKey;
+    });
+
+    if (nameGroup.length < 2) continue;
+
+    var distinctAddresses = companyUniqueNonBlank_(nameGroup.map(function(r) { return r.addressGroupKey; }));
+    if (distinctAddresses.length < 2) continue;
+
+    var nameCode = 'NAME-' + companyPad4_(nameGroupCounter++);
+    var colorOrange = '#fce5cd';
+
+    nameGroup.forEach(function(r) {
+      if (r.marked) return;
+
+      markOut[r.idx] = [nameCode];
+      reasonOut[r.idx] = ['🟠 SIMILAR_NAME_DIFF_ADDRESS | Nom compatible par mot fort "' + token + '", mais adresse différente. Vérifier avant merge.'];
+      bgMark[r.idx] = [colorOrange];
+      bgReason[r.idx] = [colorOrange];
+      r.marked = true;
+    });
+
+    statsOrange++;
+  }
+
+  records.forEach(function(r) {
+    if (!r.marked && r.companyName && !r.addressGroupKey) {
+      markOut[r.idx] = [''];
+      reasonOut[r.idx] = [''];
+      bgMark[r.idx] = [null];
+      bgReason[r.idx] = [null];
+    }
+  });
+
+  sheet.getRange(2, cMark, n, 1).setValues(markOut);
+  sheet.getRange(2, cReas, n, 1).setValues(reasonOut);
+
+  sheet.getRange(2, cMark, n, 1).setBackgrounds(bgMark);
+  sheet.getRange(2, cReas, n, 1).setBackgrounds(bgReason);
+
+  return 'Companies Checker terminé. ' +
+         'Verts: ' + statsStrong +
+         ' | Jaunes: ' + statsReview +
+         ' | Oranges: ' + statsOrange +
+         ' | Rouges: ' + statsConflict +
+         ' | Merge Key Manual non modifié.';
+}
+
+function companyParseAdresseNormalisee_(addrNorm) {
+  var raw = (addrNorm || '').toString().trim();
+
+  if (!raw) {
+    return {
+      streetPart: '',
+      postal: '',
+      city: '',
+      province: '',
+      country: '',
+      addressBaseKey: '',
+      addressGroupKey: '',
+      addressBaseDisplay: ''
+    };
+  }
+
+  var parts = raw.split('|').map(function(p) { return (p || '').toString().trim(); });
+
+  var streetPart = parts[0] || raw;
+  var postal = parts[1] || '';
+  var city = parts[2] || '';
+  var province = parts[3] || '';
+  var country = parts[4] || '';
+
+  var base = companyExtractAddressBase_(streetPart);
+  var cityKey = companyNormalizeText_(city);
+
+  var addressGroupKey = '';
+  if (base.key && cityKey) {
+    addressGroupKey = base.key + '|' + cityKey;
+  } else if (base.key) {
+    addressGroupKey = base.key;
+  }
+
+  return {
+    streetPart: streetPart,
+    postal: postal,
+    city: city,
+    province: province,
+    country: country,
+    addressBaseKey: base.key,
+    addressGroupKey: addressGroupKey,
+    addressBaseDisplay: base.display
+  };
+}
+
+function companyExtractAddressBase_(street) {
+  var text = companyNormalizeText_(street);
+
+  if (!text) {
+    return { key: '', display: '' };
+  }
+
+  text = text
+    .replace(/\b(canada|quebec|qc|ontario|on)\b/g, ' ')
+    .replace(/\b(suite|bureau|bur|local|unit|unite|apt|app|appartement|porte|floor|etage|niveau)\b.*$/g, ' ')
+    .replace(/[,;].*$/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  text = text
+    .replace(/\bboul\.?\b/g, 'boulevard')
+    .replace(/\bblvd\.?\b/g, 'boulevard')
+    .replace(/\bav\.?\b/g, 'avenue')
+    .replace(/\bave\.?\b/g, 'avenue')
+    .replace(/\brd\.?\b/g, 'road')
+    .replace(/\brte\.?\b/g, 'route')
+    .replace(/\bch\.?\b/g, 'chemin')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  var tokens = text.split(/\s+/).filter(Boolean);
+
+  if (!tokens.length) {
+    return { key: '', display: '' };
+  }
+
+  var civicIndex = -1;
+
+  if (tokens.length >= 2 && companyIsNumber_(tokens[0]) && companyIsNumber_(tokens[1])) {
+    civicIndex = 1;
+  } else {
+    for (var i = 0; i < tokens.length; i++) {
+      if (companyIsNumber_(tokens[i])) {
+        civicIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (civicIndex === -1) {
+    return {
+      key: tokens.join(' '),
+      display: companyTitleCase_(tokens.join(' '))
+    };
+  }
+
+  var civic = tokens[civicIndex];
+  var streetTokens = tokens.slice(civicIndex + 1);
+
+  var streetTypeWords = {
+    'rue': true,
+    'boulevard': true,
+    'avenue': true,
+    'road': true,
+    'chemin': true,
+    'route': true,
+    'drive': true,
+    'dr': true,
+    'place': true,
+    'pl': true,
+    'court': true,
+    'ct': true,
+    'crescent': true,
+    'terrace': true,
+    'terrasse': true
+  };
+
+  streetTokens = streetTokens.filter(function(tok) {
+    return !streetTypeWords[tok];
+  });
+
+  var streetName = streetTokens.join(' ').trim();
+
+  if (!streetName) {
+    return {
+      key: civic,
+      display: civic
+    };
+  }
+
+  return {
+    key: civic + '|' + streetName,
+    display: civic + ' ' + companyTitleCase_(streetName)
+  };
+}
+
+function companyStrongNameTokens_(name, city) {
+  var stop = {
+    'eglise': true,
+    'church': true,
+    'paroisse': true,
+    'parish': true,
+    'baptist': true,
+    'baptiste': true,
+    'evangelique': true,
+    'evangelical': true,
+    'fellowship': true,
+    'ministere': true,
+    'ministry': true,
+    'ministries': true,
+    'centre': true,
+    'center': true,
+    'communaute': true,
+    'community': true,
+    'association': true,
+    'organisation': true,
+    'organization': true,
+    'corporation': true,
+    'compagnie': true,
+    'company': true,
+    'inc': true,
+    'ltee': true,
+    'ltd': true,
+    'corp': true,
+    'fondation': true,
+    'foundation': true,
+    'projet': true,
+    'mission': true,
+    'maison': true,
+    'de': true,
+    'du': true,
+    'des': true,
+    'la': true,
+    'le': true,
+    'les': true,
+    'l': true,
+    'd': true,
+    'the': true,
+    'and': true,
+    'et': true,
+    'saint': true,
+    'sainte': true,
+    'st': true,
+    'ste': true
+  };
+
+  companyNormalizeText_(city).split(/\s+/).forEach(function(t) {
+    if (t) stop[t] = true;
+  });
+
+  var tokens = companyNormalizeText_(name)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map(function(t) { return t.trim(); })
+    .filter(function(t) {
+      return t.length >= 4 && !stop[t];
+    });
+
+  var unique = {};
+  var out = [];
+
+  tokens.forEach(function(t) {
+    if (!unique[t]) {
+      unique[t] = true;
+      out.push(t);
+    }
+  });
+
+  return out;
+}
+
+function companyGroupHasNameOverlap_(group) {
+  var countByToken = {};
+
+  group.forEach(function(r) {
+    var seen = {};
+    r.nameTokens.forEach(function(t) {
+      if (seen[t]) return;
+      seen[t] = true;
+      countByToken[t] = (countByToken[t] || 0) + 1;
+    });
+  });
+
+  for (var t in countByToken) {
+    if (countByToken[t] >= 2) return true;
+  }
+
+  return false;
+}
+
+function companyHasSameSourceDifferentIds_(group) {
+  var idsByPlatform = {};
+
+  group.forEach(function(r) {
+    var platform = companyNormalizeText_(r.platform);
+    var rawId = (r.rawId || '').toString().trim();
+
+    if (!platform || !rawId) return;
+
+    if (!idsByPlatform[platform]) idsByPlatform[platform] = {};
+    idsByPlatform[platform][rawId] = true;
+  });
+
+  for (var p in idsByPlatform) {
+    if (Object.keys(idsByPlatform[p]).length > 1) return true;
+  }
+
+  return false;
+}
+
+function companyUniqueNonBlank_(arr) {
+  var map = {};
+  var out = [];
+
+  arr.forEach(function(v) {
+    var val = (v || '').toString().trim();
+    if (!val) return;
+    if (!map[val]) {
+      map[val] = true;
+      out.push(val);
+    }
+  });
+
+  return out.sort();
+}
+
+function companyNormalizeText_(value) {
+  return (value || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’']/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function companyNormalizePostal_(value) {
+  return (value || '')
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
+}
+
+function companyIsNumber_(value) {
+  return /^\d+$/.test((value || '').toString());
+}
+
+function companyPad4_(num) {
+  return String(num).padStart(4, '0');
+}
+
+function companyTitleCase_(text) {
+  return (text || '')
+    .toString()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(function(w) {
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
+    .join(' ');
+}
