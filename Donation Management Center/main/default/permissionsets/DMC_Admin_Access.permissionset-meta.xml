@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants admin-level access to the DMC Settings tab (Zeffy API key, webhook secret). Assign to DMC administrators only — in addition to Fundraising_Access.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>DMC Admin Access</label>
+
+    <!-- Custom permission that gates the Settings tab in the LWC -->
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>DMC_Settings_Access</name>
+    </customPermissions>
+
+    <!-- Read/write on the Zeffy_Config__c Custom Setting fields -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Zeffy_Config__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.API_Key__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Webhook_Secret__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Is_Active__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Language__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Auto_Task_Enabled__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Due_Days__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Owner_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Owner_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Alert_Enabled__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Days__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Owner_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Owner_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Schedule_Day__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Schedule_Frequency__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Manual_Assignee_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Manual_Assignee_Name__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Apex class access -->
+    <classAccesses>
+        <apexClass>DmcConfigService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DmcLapsedDonorBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+</PermissionSet>

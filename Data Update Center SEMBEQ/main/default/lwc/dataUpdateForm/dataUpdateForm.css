@@ -1,0 +1,305 @@
+.tuf-container {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    /* --duc-* = the form's Appearance (dataUpdateAppearance), set inline on this container. */
+    font-family: var(--duc-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif);
+}
+
+.tuf-lang-switch {
+    text-align: right;
+    margin-bottom: 0.75rem;
+}
+
+.tuf-lang-btn {
+    background: none;
+    border: none;
+    color: #706e6b;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 0.25rem;
+}
+
+.tuf-lang-btn_active {
+    color: var(--duc-accent, #0176d3);
+    font-weight: 700;
+}
+
+.tuf-lang-sep {
+    color: #c9c7c5;
+    margin: 0 0.25rem;
+}
+
+.tuf-card {
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tuf-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #181818;
+    margin: 0 0 0.5rem;
+}
+
+.tuf-subtitle {
+    font-size: 0.9375rem;
+    color: #514f4d;
+    margin: 0 0 1.5rem;
+    line-height: 1.4;
+}
+
+.tuf-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--duc-section, #181818);
+    margin: 1.5rem 0 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.tuf-section-title:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.tuf-field {
+    margin-bottom: 1rem;
+}
+
+.tuf-table-row {
+    margin-bottom: 1.25rem;
+}
+
+.tuf-field-row_paired {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.tuf-field-row_paired > .tuf-field {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+@media (max-width: 420px) {
+    .tuf-field-row_paired {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+.tuf-label {
+    display: block;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--duc-question, #3e3e3c);
+    margin-bottom: 0.25rem;
+}
+
+.tuf-label_sub {
+    margin-top: 0.5rem;
+    font-weight: 400;
+}
+
+.tuf-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.625rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    font-family: inherit;
+}
+
+.tuf-input:focus {
+    outline: none;
+    border-color: var(--duc-accent, #0176d3);
+    box-shadow: 0 0 0 1px var(--duc-accent, #0176d3);
+}
+
+.tuf-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    color: var(--duc-question, #3e3e3c);
+    cursor: pointer;
+}
+
+.tuf-checkbox {
+    accent-color: var(--duc-accent, #0176d3);
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.tuf-help {
+    font-size: 0.8125rem;
+    color: #5c5a58;
+    margin: 0.25rem 0 0;
+}
+
+.tuf-error {
+    font-size: 0.875rem;
+    color: #ba0517;
+    margin: 0.25rem 0 1rem;
+}
+
+.tuf-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.tuf-btn-primary {
+    flex: 1;
+    background: var(--duc-accent, #0176d3);
+    font-family: inherit;
+    color: #ffffff;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tuf-btn-primary:disabled {
+    background: #c9c7c5;
+    cursor: not-allowed;
+}
+
+.tuf-btn-secondary {
+    flex: 0 0 auto;
+    background: #ffffff;
+    color: var(--duc-accent, #0176d3);
+    border: 1px solid var(--duc-accent, #0176d3);
+    font-family: inherit;
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tuf-btn-secondary:disabled {
+    color: #c9c7c5;
+    border-color: #c9c7c5;
+    cursor: not-allowed;
+}
+
+.tuf-recaptcha {
+    position: relative;
+    width: 304px;
+    max-width: 100%;
+    height: 78px;
+    overflow: hidden;
+    margin: 0.5rem 0 1rem;
+    border-radius: 0.25rem;
+}
+/* shown behind the transparent iframe while Google's widget (re)loads, e.g. after a language switch */
+.tuf-recaptcha-loading {
+    position: absolute;
+    left: 12px;
+    top: 28px;
+    font-size: 0.85rem;
+    color: #706e6b;
+}
+
+/*
+ * The iframe's actual pixel size never changes — Google's challenge popup
+ * lays itself out based on the size of this frame's own viewport at the
+ * moment it's created, and won't reflow if we resize the frame afterward.
+ * So it's always rendered at full 400x580 and normally just clipped down to
+ * the small checkbox by the .tuf-recaptcha wrapper's overflow:hidden above;
+ * when the challenge is shown, _expanded breaks it out of that wrapper via
+ * position:fixed instead of resizing it, revealing the whole 400x580 as a
+ * centered overlay.
+ */
+/* positioned above the absolute "loading" text: Google's opaque widget then covers it once loaded */
+.tuf-recaptcha-iframe {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 400px;
+    height: 580px;
+    border: none;
+}
+
+.tuf-recaptcha-iframe_expanded {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 2rem);
+    max-height: 90vh;
+    z-index: 9001;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    border-radius: 0.25rem;
+    background: #ffffff;
+}
+
+.tuf-recaptcha-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9000;
+}
+
+/* "Only see" questions: current value shown, never sent for review */
+.tuf-input_readonly {
+    background: #f3f5f8;
+    color: #4b5563;
+    border-style: dashed;
+    cursor: default;
+}
+.tuf-readonly {
+    opacity: 0.75;
+    cursor: default;
+}
+
+/* Design blocks from the builder Tools tab (banner, image, text…). */
+c-data-update-block { display: block; }
+
+/* Required marker after a question label. */
+.tuf-req {
+    color: #ba0517;
+    text-decoration: none;
+    border: 0;
+}
+
+/* Invalid field: red border next to its message. */
+.tuf-input[aria-invalid="true"] {
+    border-color: #ba0517;
+    box-shadow: 0 0 0 1px #ba0517;
+}
+
+/* What is still missing while "Continue" is disabled. */
+.tuf-hint {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* "* = required" legend under the subtitle (only when the form has a required question). */
+.tuf-legend {
+    font-size: 0.8125rem;
+    color: #5c5a58;
+    margin: -0.75rem 0 1.25rem;
+}
+
+/* Phones: the reCAPTCHA checkbox is a fixed 304px — give the card enough inner width for it. */
+@media (max-width: 420px) {
+    .tuf-container { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .tuf-card { padding: 1.25rem 1rem; }
+}
+@media (max-width: 360px) {
+    .tuf-recaptcha { transform: scale(0.9); transform-origin: 0 0; height: 70px; }
+}

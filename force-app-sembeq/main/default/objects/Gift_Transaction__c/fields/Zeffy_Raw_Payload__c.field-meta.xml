@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Raw_Payload__c</fullName>
+    <description>Full JSON received from the Zeffy webhook for this transaction, kept for auditing/debugging the field mapping. Only populated for donations that arrived via the robot.</description>
+    <label>Zeffy Raw Payload</label>
+    <length>32000</length>
+    <visibleLines>6</visibleLines>
+    <type>LongTextArea</type>
+</CustomField>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Document_Type__c</fullName>
+    <label>Document Type</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Transcript</fullName>
+                <default>false</default>
+                <label>Transcript</label>
+            </value>
+            <value>
+                <fullName>Letter of Recommendation</fullName>
+                <default>false</default>
+                <label>Letter of Recommendation</label>
+            </value>
+            <value>
+                <fullName>CV / Resume</fullName>
+                <default>false</default>
+                <label>CV / Resume</label>
+            </value>
+            <value>
+                <fullName>Personal Statement</fullName>
+                <default>false</default>
+                <label>Personal Statement</label>
+            </value>
+            <value>
+                <fullName>Test Score</fullName>
+                <default>false</default>
+                <label>Test Score</label>
+            </value>
+            <value>
+                <fullName>Pastoral Reference</fullName>
+                <default>false</default>
+                <label>Pastoral Reference</label>
+            </value>
+            <value>
+                <fullName>Church Membership Certificate</fullName>
+                <default>false</default>
+                <label>Church Membership Certificate</label>
+            </value>
+            <value>
+                <fullName>ID / Passport</fullName>
+                <default>false</default>
+                <label>ID / Passport</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

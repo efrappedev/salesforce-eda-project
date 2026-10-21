@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Defines one public data-update form (which SObject it targets, its public identity fields, and which Queue reviews the submissions). Add a record to create a new form — no Apex/LWC changes needed. Consumed by DataUpdateFormConfigService. Shared across AEBEQ and SEMBEQ (same schema, records per org).</description>
+    <label>Data Update Form</label>
+    <pluralLabel>Data Update Forms</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

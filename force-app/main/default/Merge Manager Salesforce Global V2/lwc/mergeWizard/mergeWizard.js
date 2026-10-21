@@ -87,6 +87,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     @track masterId          = null;
     @track selectedLoserIds  = [];
     @track fieldDecisions    = {};
+    @track emailRescues      = [];
     @track mergeNotes        = '';
     @track isLoading         = false;
     @track isExecuting       = false;
@@ -894,10 +895,23 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             const idx = this._matrix.recordIds.indexOf(sourceId);
             if (row && idx >= 0) {
                 result.push({
+                    key:        'fd_' + fieldName,
                     fieldLabel: row.fieldLabel,
                     sourceName: this._matrix.recordNames[idx]
                 });
             }
+        }
+        // Email rescues: duplicate's email saved into an empty email field of the master
+        for (const r of (this.emailRescues || [])) {
+            const srcRow = this._matrix.rows?.find(x => x.fieldApiName === r.sourceField);
+            const tgtRow = this._matrix.rows?.find(x => x.fieldApiName === r.targetField);
+            if (!srcRow || !tgtRow) continue;
+            const value = srcRow.valuesByRecordId?.[r.sourceRecordId] || '';
+            result.push({
+                key:        'er_' + r.sourceField + '_' + r.targetField,
+                fieldLabel: tgtRow.fieldLabel,
+                sourceName: `${value} (${this.i18n.rescuePending || 'Rescued from duplicate'})`
+            });
         }
         return result;
     }
@@ -1000,6 +1014,16 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
     handleFieldDecisionChange(event) {
         const { fieldName, recordId } = event.detail;
         this.fieldDecisions = { ...this.fieldDecisions, [fieldName]: recordId };
+        // If the user just picked the loser's value for this email field, the rescue is no longer needed
+        this.emailRescues = this.emailRescues.filter(r => r.sourceField !== fieldName);
+    }
+
+    handleEmailRescueChange(event) {
+        const { sourceField, targetField, sourceRecordId } = event.detail;
+        const others = this.emailRescues.filter(r => r.sourceField !== sourceField);
+        this.emailRescues = targetField
+            ? [...others, { sourceField, targetField, sourceRecordId }]
+            : others; // empty targetField = "do not save" selected → remove entry
     }
 
     handleNotesChange(event) { this.mergeNotes = event.detail.value; }
@@ -1044,13 +1068,21 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             const relatedDeletesJson = Object.keys(deletesByObj).length > 0
                 ? JSON.stringify(deletesByObj) : null;
 
+            // Filter out any rescues where the sourceRecordId is no longer a loser
+            const validRescues = (this.emailRescues || []).filter(
+                r => r.sourceRecordId && String(r.sourceRecordId) !== masterIdStr
+            );
+            const emailRescuesJson = validRescues.length > 0
+                ? JSON.stringify(validRescues) : null;
+
             const result = await executeMergeApex({
                 ticketId: ticketIdStr,
                 masterId: masterIdStr,
                 losingIds,
                 fieldDecisions,
                 notes:              this.mergeNotes || '',
-                relatedDeletesJson: relatedDeletesJson
+                relatedDeletesJson: relatedDeletesJson,
+                emailRescuesJson:   emailRescuesJson
             });
 
             if (result.success) {
@@ -1406,6 +1438,7 @@ export default class MergeWizard extends NavigationMixin(LightningElement) {
             }
         }
         this.fieldDecisions = reset;
+        this.emailRescues   = []; // reset rescues when master changes
     }
 
     _initMasterFromEDA(matrix) {

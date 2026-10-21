@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Fund__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Zeffy Connect fund this gift belongs to (from the Campaign mapping or the ticket).</description>
+    <label>Zeffy Fund</label>
+    <referenceTo>Zeffy_Fund__c</referenceTo>
+    <relationshipLabel>Gift Transactions</relationshipLabel>
+    <relationshipName>Gift_Transactions</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

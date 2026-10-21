@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Core_Form__c</fullName>
+    <description>True for the original/base form of each Experience Cloud site (one per site — the form the site was built around). Core forms can never be deleted from Settings, only forms created afterward as subforms. Checked server-side in enqueueDeleteForm — never trust the UI alone.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Is Core Form</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

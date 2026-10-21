@@ -32,26 +32,35 @@
 
                     <template if:true={isValuesMode}>
 
-                    <!-- Visual path indicator -->
-                    <div class="slds-path slds-m-bottom_medium">
-                        <div class="slds-grid slds-path__track">
-                            <ul class="slds-path__nav" role="listbox">
-                                <template for:each={pathSteps} for:item="step">
-                                    <li
-                                        key={step.key}
-                                        class={step.className}
-                                        role="presentation"
-                                        data-key={step.key}
-                                        onclick={handlePathStepClick}
-                                    >
-                                        <span class="slds-path__link">
-                                            <span class="slds-path__title">{step.label}</span>
-                                        </span>
-                                    </li>
+                    <!-- Visual path indicator: hand-built (not slds-path) so
+                         completed/current/future states are fully our own
+                         colors — the native SLDS chevron paints part of its
+                         shape on the <li> itself via ::before/::after, which
+                         kept showing through no matter how the inner link
+                         was overridden. See feedback_slds_path_no_force_color. -->
+                    <ul class="step-path slds-m-bottom_medium" role="listbox">
+                        <template for:each={pathSteps} for:item="step">
+                            <li key={step.key} class="step-path__item" role="presentation">
+                                <button
+                                    type="button"
+                                    class={step.chipClass}
+                                    data-key={step.key}
+                                    title={step.label}
+                                    onclick={handlePathStepClick}
+                                >
+                                    <template if:true={step.isComplete}>
+                                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse" alternative-text="Complete"></lightning-icon>
+                                    </template>
+                                    <template if:false={step.isComplete}>
+                                        <span class="step-chip__label">{step.label}</span>
+                                    </template>
+                                </button>
+                                <template if:false={step.isLast}>
+                                    <lightning-icon icon-name="utility:chevronright" size="xx-small" class="step-path__connector"></lightning-icon>
                                 </template>
-                            </ul>
-                        </div>
-                    </div>
+                            </li>
+                        </template>
+                    </ul>
 
                     <div class={wizardContainerClass}>
 
@@ -304,6 +313,18 @@
 
                     </template>
 
+                </lightning-tab>
+
+                <lightning-tab label="Paste Update" value="pasteupdate" icon-name="utility:paste">
+                    <c-bulk-paste-update onrundone={handlePasteUpdateRunDone}></c-bulk-paste-update>
+                </lightning-tab>
+
+                <lightning-tab label="Regenerate ID" value="regenerateid" icon-name="utility:refresh">
+                    <c-bulk-regenerate-id onrundone={handleRegenerateIdRunDone}></c-bulk-regenerate-id>
+                </lightning-tab>
+
+                <lightning-tab label="Clean Field" value="cleanfield" icon-name="utility:clear">
+                    <c-bulk-clean-field onrundone={handleCleanFieldRunDone}></c-bulk-clean-field>
                 </lightning-tab>
 
                 <lightning-tab label="History" value="history" icon-name="utility:history">

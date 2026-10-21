@@ -1,0 +1,1505 @@
+<template>
+    <div class="dmc-root">
+
+        <!-- ══════════════════════════════════════════════════════════════
+             LEFT PANEL — ticket list (always visible)
+        ══════════════════════════════════════════════════════════════ -->
+        <div class="left-panel">
+
+            <div class="left-panel__header">
+                <div class="left-panel__title">Donation Management Center</div>
+                <button class="icon-btn" onclick={handleRefresh} title="Refresh">
+                    <lightning-icon icon-name="utility:refresh" size="x-small"></lightning-icon>
+                </button>
+                <button class={headerSettingsClass} onclick={handleOpenSettings} title="Settings">
+                    <lightning-icon icon-name="utility:settings" size="x-small"></lightning-icon>
+                </button>
+            </div>
+
+            <div class="left-panel__search">
+                <input type="search"
+                       class="search-input"
+                       placeholder="Search name, email, ticket #..."
+                       value={searchText}
+                       onkeyup={handleSearch} />
+            </div>
+
+            <div class="left-panel__filter">
+                <lightning-combobox
+                    label=""
+                    variant="label-hidden"
+                    value={statusFilter}
+                    options={statusOptions}
+                    onchange={handleStatusChange}>
+                </lightning-combobox>
+            </div>
+
+            <div class="left-panel__count">{ticketCount} tickets</div>
+
+            <template if:true={isLoading}>
+                <div class="loading-container">
+                    <lightning-spinner size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <template if:false={isLoading}>
+                <div class="ticket-list">
+                    <template if:true={hasFilteredTickets}>
+                        <template for:each={filteredTickets} for:item="t">
+                            <div key={t.Id} class={t.cardClass} data-id={t.Id} onclick={handleSelectTicket}>
+                                <div class="ticket-card__num">{t.Name}</div>
+                                <div class="ticket-card__name">{t.donorName}</div>
+                                <div class="ticket-card__meta">
+                                    <span class="ticket-card__amount">{t.amountDisplay}</span>
+                                    <span class="ticket-card__date">{t.Gift_Date__c}</span>
+                                </div>
+                                <div class="ticket-card__footer">
+                                    <span class={t.statusBadgeClass}>{t.Status__c}</span>
+                                    <template if:true={t.Manual_Assignee_Name__c}>
+                                        <span class="assignee-badge">
+                                            <lightning-icon icon-name="utility:user" size="xx-small" class="assignee-badge__icon"></lightning-icon>
+                                            {t.Manual_Assignee_Name__c}
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                    <template if:false={hasFilteredTickets}>
+                        <div class="empty-list">No tickets found.</div>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             RIGHT PANEL — workspace tabs (Dashboard + Audit Log + ticket cejas)
+        ══════════════════════════════════════════════════════════════ -->
+        <div class="right-panel">
+
+            <!-- ── TAB BAR ────────────────────────────────────────────────── -->
+            <div class="rp-tab-bar">
+                <!-- Permanent tabs -->
+                <button class={rpDashboardClass} data-tab="dashboard" onclick={handleRightTabChange}>
+                    Dashboard
+                </button>
+                <button class={rpHistoryClass} data-tab="history" onclick={handleRightTabChange}>
+                    Donation History
+                </button>
+                <button class={rpAuditClass} data-tab="audit" onclick={handleRightTabChange}>
+                    Audit Log
+                </button>
+                <!-- Separator (only shown when ticket tabs exist) -->
+                <template if:true={hasOpenTabs}>
+                    <div class="rp-tab-separator"></div>
+                </template>
+
+                <!-- Dynamic ticket tabs (one per open ticket, like DUC) -->
+                <template for:each={openTabsList} for:item="tab">
+                    <div key={tab.id} class={tab.tabClass} data-id={tab.id} onclick={handleActivateTab} role="button">
+                        <span class="rp-tab-ticket-name">{tab.donorName}</span>
+                        <button class="rp-tab-close-btn" data-id={tab.id} onclick={handleCloseTab} title="Close">×</button>
+                    </div>
+                </template>
+            </div>
+
+            <!-- ── DASHBOARD TAB ───────────────────────────────────────────── -->
+            <template if:true={isRightTabDashboard}>
+                <div class="rp-content dashboard">
+
+                    <div class="dashboard__header">
+                        <div class="dashboard__heading">Donation Management Center</div>
+                        <span class="dashboard__eyebrow">Dashboard</span>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card stat-card--blue">
+                            <div class="stat-card__num">{totalCount}</div>
+                            <div class="stat-card__label">Total Tickets</div>
+                        </div>
+                        <div class="stat-card stat-card--amber">
+                            <div class="stat-card__num">{pendingCount}</div>
+                            <div class="stat-card__label">Pending Review</div>
+                        </div>
+                        <div class="stat-card stat-card--green">
+                            <div class="stat-card__num">{resolvedCount}</div>
+                            <div class="stat-card__label">Resolved</div>
+                        </div>
+                        <div class="stat-card stat-card--red">
+                            <div class="stat-card__num">{errorCount}</div>
+                            <div class="stat-card__label">Errors</div>
+                        </div>
+                        <div class="stat-card stat-card--gray">
+                            <div class="stat-card__num">{skippedCount}</div>
+                            <div class="stat-card__label">Skipped</div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-card__title">Recent Resolutions</div>
+                        <template if:true={hasRecentResolutions}>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Donor</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Resolved On</th>
+                                        <th>Resolved By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={recentResolutionsList} for:item="r">
+                                        <tr key={r.Id}>
+                                            <td>{r.donorDisplayName}</td>
+                                            <td>{r.amountDisplay}</td>
+                                            <td><span class={r.statusBadgeClass}>{r.Status__c}</span></td>
+                                            <td>{r.resolvedAtDisplay}</td>
+                                            <td>{r.resolvedByName}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={hasRecentResolutions}>
+                            <div class="empty-list">No recent resolutions.</div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ── DONATION HISTORY TAB ──────────────────────────────────── -->
+            <template if:true={isRightTabHistory}>
+                <div class="rp-content audit-panel">
+
+                    <div class="audit-header">
+                        <div>
+                            <div class="audit-header__title">Donation History</div>
+                            <div class="audit-header__sub">All donations processed by the robot — auto and manual</div>
+                        </div>
+                        <button class="icon-btn" onclick={handleRefreshHistory} title="Refresh">
+                            <lightning-icon icon-name="utility:refresh" size="x-small"></lightning-icon>
+                        </button>
+                    </div>
+
+                    <template if:true={isLoadingHistory}>
+                        <div class="loading-container">
+                            <lightning-spinner size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingHistory}>
+                        <template if:true={hasHistory}>
+                            <div class="audit-table-wrapper">
+                                <table class="data-table audit-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Gift #</th>
+                                            <th>Donor</th>
+                                            <th>Amount</th>
+                                            <th>Date</th>
+                                            <th>Payment</th>
+                                            <th>Source</th>
+                                            <th>Zeffy TX ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={historyList} for:item="row">
+                                            <tr key={row.Id}>
+                                                <td class="audit-td--mono">{row.Name}</td>
+                                                <td><strong>{row.DonorName}</strong></td>
+                                                <td class="history-td--amount">{row.amountDisplay}</td>
+                                                <td class="audit-td--date">{row.TransactionDate}</td>
+                                                <td>{row.PaymentMethod}</td>
+                                                <td><span class={row.sourceClass}>{row.sourceLabel}</span></td>
+                                                <td class="audit-td--mono audit-td--notes">{row.ZeffyTransactionId}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="audit-count">{historyCount} donations (most recent first, max 200)</div>
+                        </template>
+                        <template if:false={hasHistory}>
+                            <div class="empty-list">No donations recorded yet by the robot.</div>
+                        </template>
+                    </template>
+
+                </div>
+            </template>
+
+            <!-- ── TICKET TABS (workspace cejas) ─────────────────────────── -->
+            <template if:true={isRightTabTicket}>
+                <div class="rp-content detail-panel">
+
+                    <template if:true={isLoadingDetail}>
+                        <div class="loading-container">
+                            <lightning-spinner size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingDetail}>
+                        <template if:true={ticket}>
+
+                            <!-- ═══════════════════════════════════════════════
+                                 PENDING REVIEW — donor profile + 3 action buttons + modals
+                            ═══════════════════════════════════════════════ -->
+                            <template if:true={isPending}>
+
+                                <!-- ── Static header: ticket ID + date ───── -->
+                                <div class="tkt-static-header">
+                                    <div class="tkt-static-header__row">
+                                        <div class="tkt-static-header__left">
+                                            <span class="tkt-ticket-num">{ticket.Name}</span>
+                                            <span class={ticketStatusBadgeClass}>{ticket.Status__c}</span>
+                                            <template if:true={ticket.Manual_Assignee_Name__c}>
+                                                <span class="assignee-badge">
+                                                    <lightning-icon icon-name="utility:user" size="xx-small"></lightning-icon>
+                                                    {ticket.Manual_Assignee_Name__c}
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <span class="tkt-gift-date">{ticket.Gift_Date__c}</span>
+                                    </div>
+                                    <template if:true={ticket.Error_Message__c}>
+                                        <div class="error-banner">{ticket.Error_Message__c}</div>
+                                    </template>
+                                </div>
+
+                                <!-- ── Scrollable body: donor profile ─────── -->
+                                <div class="tkt-body-scroll">
+
+                                    <!-- Donor profile card -->
+                                    <div class="donor-profile-card">
+                                        <div class="donor-profile-card__name">{ticketDonorName}</div>
+                                        <div class="donor-profile-card__amount">{ticketAmountDisplay}</div>
+                                        <div class="donor-profile-card__rows">
+                                            <template if:true={ticket.Email__c}>
+                                                <div class="dpr">
+                                                    <span class="dpr__icon">✉</span>
+                                                    <span class="dpr__val">{ticket.Email__c}</span>
+                                                </div>
+                                            </template>
+                                            <template if:true={ticket.Phone__c}>
+                                                <div class="dpr">
+                                                    <span class="dpr__icon">☎</span>
+                                                    <span class="dpr__val">{ticket.Phone__c}</span>
+                                                </div>
+                                            </template>
+                                            <template if:true={hasZeffyAddress}>
+                                                <div class="dpr">
+                                                    <span class="dpr__icon">📍</span>
+                                                    <span class="dpr__val">{zeffyAddressDisplay}</span>
+                                                </div>
+                                            </template>
+                                            <template if:true={ticket.Language__c}>
+                                                <div class="dpr">
+                                                    <span class="dpr__icon">🌐</span>
+                                                    <span class="dpr__val">{ticket.Language__c}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- Full donor info grid -->
+                                    <div class="info-section">
+                                        <div class="info-section__title">Donor Details</div>
+                                        <div class="info-grid">
+                                            <div class="info-cell">
+                                                <span class="info-label">First Name</span>
+                                                <span class="info-value">{ticket.First_Name__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Last Name</span>
+                                                <span class="info-value">{ticket.Last_Name__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Company / Church</span>
+                                                <span class="info-value">{ticket.Company_Name__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Email</span>
+                                                <span class="info-value">{ticket.Email__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Phone</span>
+                                                <span class="info-value">{ticket.Phone__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Language</span>
+                                                <span class="info-value">{ticket.Language__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Address</span>
+                                                <span class="info-value">{ticket.Address__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">City</span>
+                                                <span class="info-value">{ticket.City__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Province</span>
+                                                <span class="info-value">{ticket.Province__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Postal Code</span>
+                                                <span class="info-value">{ticket.Postal_Code__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Country</span>
+                                                <span class="info-value">{ticket.Country__c}</span>
+                                            </div>
+                                            <div class="info-cell info-cell--full">
+                                                <span class="info-label">Zeffy Contact ID</span>
+                                                <span class="info-value info-value--mono">{ticket.Zeffy_Contact_Id__c}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Gift details -->
+                                    <div class="info-section">
+                                        <div class="info-section__title">Gift Details</div>
+                                        <div class="info-grid">
+                                            <div class="info-cell">
+                                                <span class="info-label">Amount</span>
+                                                <span class="info-value">{ticketAmountDisplay}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Eligible Amount</span>
+                                                <span class="info-value">{ticket.Eligible_Amount__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Payment Method</span>
+                                                <span class="info-value">{ticket.Payment_Method__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Gift Date</span>
+                                                <span class="info-value">{ticket.Gift_Date__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Form Name</span>
+                                                <span class="info-value">{ticket.Form_Name__c}</span>
+                                            </div>
+                                            <div class="info-cell">
+                                                <span class="info-label">Is Recurring</span>
+                                                <span class="info-value">{isRecurringLabel}</span>
+                                            </div>
+                                            <div class="info-cell info-cell--full">
+                                                <span class="info-label">Transaction ID</span>
+                                                <span class="info-value info-value--mono">{ticket.Zeffy_Transaction_Id__c}</span>
+                                            </div>
+                                            <template if:true={ticket.Receipt_URL__c}>
+                                                <div class="info-cell info-cell--full">
+                                                    <span class="info-label">Zeffy Receipt</span>
+                                                    <a href={ticket.Receipt_URL__c} target="_blank" rel="noopener noreferrer"
+                                                       class="info-value info-link">
+                                                        View receipt ↗
+                                                    </a>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- Zeffy Notes -->
+                                    <template if:true={hasNoteOrAnnotation}>
+                                        <div class="info-section">
+                                            <div class="info-section__title">Zeffy Notes</div>
+                                            <div class="info-grid">
+                                                <template if:true={ticket.Note__c}>
+                                                    <div class="info-cell info-cell--full">
+                                                        <span class="info-label">Note</span>
+                                                        <span class="info-value">{ticket.Note__c}</span>
+                                                    </div>
+                                                </template>
+                                                <template if:true={ticket.Annotation__c}>
+                                                    <div class="info-cell info-cell--full">
+                                                        <span class="info-label">Annotation</span>
+                                                        <span class="info-value">{ticket.Annotation__c}</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                </div><!-- end tkt-body-scroll -->
+
+                                <!-- ── Static footer: 3 action buttons ────── -->
+                                <div class="tkt-static-footer">
+                                    <button class="act-btn act-btn--exception" onclick={handleOpenExceptionModal}>
+                                        <lightning-icon icon-name="utility:warning" size="x-small"></lightning-icon>
+                                        Exception
+                                    </button>
+                                    <button class="act-btn act-btn--assign" onclick={handleOpenAssignModal}>
+                                        <lightning-icon icon-name="utility:adduser" size="x-small"></lightning-icon>
+                                        {followupLabel}
+                                    </button>
+                                    <button class="act-btn act-btn--matches" onclick={handleOpenMatchesModal}>
+                                        View Matches
+                                        <lightning-icon icon-name="utility:forward" size="x-small"></lightning-icon>
+                                    </button>
+                                </div>
+
+                                <!-- ══ MODAL: VIEW MATCHES WIZARD ══════════════════════ -->
+                                <template if:true={showMatchesModal}>
+                                    <div class="modal-overlay">
+                                        <div class="wiz-dialog">
+
+                                            <!-- Wizard header -->
+                                            <div class="wiz-header">
+                                                <span class="wiz-header__title">Review &amp; Match Donor</span>
+                                                <button class="sm-close-btn" onclick={handleCloseMatchesModal} title="Close">
+                                                    <lightning-icon icon-name="utility:close" size="x-small"></lightning-icon>
+                                                </button>
+                                            </div>
+
+                                            <!-- Step indicator -->
+                                            <div class="wiz-steps">
+                                                <div class={wizardStep1Class}>
+                                                    <span class="wiz-step__num">1</span>
+                                                    <span class="wiz-step__label">Select Account</span>
+                                                </div>
+                                                <div class="wiz-step-line"></div>
+                                                <div class={wizardStep2Class}>
+                                                    <span class="wiz-step__num">2</span>
+                                                    <span class="wiz-step__label">Review &amp; Confirm</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- ── Step 1: candidates + create ─── -->
+                                            <template if:true={isWizardStep1}>
+                                                <div class="wiz-body">
+                                                    <p class="wiz-body__hint">Select an existing account that matches this donor, or choose to create a new one.</p>
+
+                                                    <div class="candidates-section__header">
+                                                        <span class="candidates-section__title">Possible Matches</span>
+                                                        <template if:true={isLoadingMatches}>
+                                                            <lightning-spinner size="x-small"></lightning-spinner>
+                                                        </template>
+                                                    </div>
+
+                                                    <template if:true={hasMatchCandidates}>
+                                                        <div class="candidates-scroll-list">
+                                                            <template for:each={candidateList} for:item="c">
+                                                                <div key={c.id} class={c.cardClass} data-id={c.id} data-name={c.name} onclick={handleSelectCandidate}>
+                                                                    <div class="candidate-card__top">
+                                                                        <span class="candidate-card__name">{c.name}</span>
+                                                                        <span class={c.badgeClass}>{c.scoreLabel}</span>
+                                                                    </div>
+                                                                    <div class="candidate-card__meta">
+                                                                        <template if:true={c.email}>
+                                                                            <span class="candidate-card__chip">{c.email}</span>
+                                                                        </template>
+                                                                        <template if:true={c.phone}>
+                                                                            <span class="candidate-card__chip">{c.phone}</span>
+                                                                        </template>
+                                                                        <template if:true={c.city}>
+                                                                            <span class="candidate-card__chip">{c.city}</span>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={hasMatchCandidates}>
+                                                        <template if:false={isLoadingMatches}>
+                                                            <div class="no-candidates">No automatic matches found.</div>
+                                                        </template>
+                                                    </template>
+
+                                                    <!-- Manual search (name or email) -->
+                                                    <div class="manual-search-row">
+                                                        <lightning-record-picker
+                                                            label="Search Salesforce Account"
+                                                            placeholder="Name or email..."
+                                                            object-api-name="Account"
+                                                            value={selectedAccountId}
+                                                            matching-info={accountMatchingInfo}
+                                                            onchange={handleAccountSelected}>
+                                                        </lightning-record-picker>
+                                                    </div>
+
+                                                    <!-- Divider -->
+                                                    <div class="wiz-divider">
+                                                        <span class="wiz-divider__text">or create a new account</span>
+                                                    </div>
+
+                                                    <!-- Create new type picker -->
+                                                    <div class="create-type-row">
+                                                        <button class={createBtnClassIndividual} data-type="individual" onclick={handleSelectCreateMode}>
+                                                            <lightning-icon icon-name="utility:user" size="small"></lightning-icon>
+                                                            Individual
+                                                        </button>
+                                                        <button class={createBtnClassEglise} data-type="eglise" onclick={handleSelectCreateMode}>
+                                                            <lightning-icon icon-name="utility:groups" size="small"></lightning-icon>
+                                                            Church (&#xC9;glise)
+                                                        </button>
+                                                        <button class={createBtnClassOrg} data-type="org" onclick={handleSelectCreateMode}>
+                                                            <lightning-icon icon-name="utility:company" size="small"></lightning-icon>
+                                                            Organization
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="wiz-footer">
+                                                    <button class="wiz-btn wiz-btn--cancel" onclick={handleCloseMatchesModal}>Cancel</button>
+                                                    <button class="wiz-btn wiz-btn--next" onclick={handleWizardNext}>
+                                                        Continue
+                                                        <lightning-icon icon-name="utility:forward" size="xx-small"></lightning-icon>
+                                                    </button>
+                                                </div>
+                                            </template>
+
+                                            <!-- ── Step 2a: comparison (link mode) ── -->
+                                            <template if:true={isWizardStep2}>
+                                                <template if:true={isWizardLinkMode}>
+                                                    <div class="wiz-body">
+                                                        <template if:true={isLoadingPreview}>
+                                                            <div class="loading-container">
+                                                                <lightning-spinner size="medium" label="Loading comparison..."></lightning-spinner>
+                                                            </div>
+                                                        </template>
+
+                                                        <template if:true={preview}>
+                                                            <!-- Account identity bar -->
+                                                            <div class="cmp-account-header">
+                                                                <div class="cmp-account-header__avatar">
+                                                                    <lightning-icon icon-name="standard:account" size="small"></lightning-icon>
+                                                                </div>
+                                                                <div class="cmp-account-header__info">
+                                                                    <span class="cmp-account-header__name">{preview.accountName}</span>
+                                                                    <div class="zeffy-ids">
+                                                                        <template if:true={hasExistingIds}>
+                                                                            <template for:each={preview.existingZeffyIds} for:item="zid">
+                                                                                <span key={zid} class="zeffy-chip">{zid}</span>
+                                                                            </template>
+                                                                        </template>
+                                                                        <template if:false={hasExistingIds}>
+                                                                            <span class="badge-new">No Zeffy ID yet — this will be the first</span>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Column headers (4-col: label | Zeffy | SF | update) -->
+                                                            <div class="cmp-col-headers">
+                                                                <div class="cmp-col-label"></div>
+                                                                <div class="cmp-col-header cmp-col-header--zeffy">
+                                                                    <lightning-icon icon-name="utility:download" size="xx-small"></lightning-icon>
+                                                                    Zeffy (incoming)
+                                                                </div>
+                                                                <div class="cmp-col-header cmp-col-header--sf">
+                                                                    <lightning-icon icon-name="utility:salesforce1" size="xx-small"></lightning-icon>
+                                                                    Salesforce (current)
+                                                                </div>
+                                                                <div class="cmp-col-header cmp-col-header--action">Update</div>
+                                                            </div>
+
+                                                            <!-- First Name row (only if different) -->
+                                                            <template if:true={preview.firstNamesDiffer}>
+                                                                <div class="cmp-row">
+                                                                    <div class="cmp-row__label">First Name</div>
+                                                                    <div class="cmp-row__zeffy">{preview.ticketFirstName}</div>
+                                                                    <div class="cmp-row__sf">{preview.accountFirstName}</div>
+                                                                    <div class="cmp-row__action">
+                                                                        <input type="checkbox" id="upd-fn"
+                                                                               checked={updateFirstNameEnabled} onchange={handleToggleFirstName} />
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+
+                                                            <!-- Last Name row (only if different) -->
+                                                            <template if:true={preview.lastNamesDiffer}>
+                                                                <div class="cmp-row">
+                                                                    <div class="cmp-row__label">Last Name</div>
+                                                                    <div class="cmp-row__zeffy">{preview.ticketLastName}</div>
+                                                                    <div class="cmp-row__sf">{preview.accountLastName}</div>
+                                                                    <div class="cmp-row__action">
+                                                                        <input type="checkbox" id="upd-ln"
+                                                                               checked={updateLastNameEnabled} onchange={handleToggleLastName} />
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+
+                                                            <!-- Email row (always shown) -->
+                                                            <div class="cmp-row">
+                                                                <div class="cmp-row__label">
+                                                                    <lightning-icon icon-name="utility:email" size="xx-small"></lightning-icon>
+                                                                    Email
+                                                                </div>
+                                                                <div class="cmp-row__zeffy">{preview.ticketEmail}</div>
+                                                                <div class="cmp-row__sf">{preview.accountEmail}</div>
+                                                                <div class="cmp-row__action">
+                                                                    <input type="checkbox" id="upd-email"
+                                                                           checked={updateEmailEnabled} onchange={handleToggleEmail} />
+                                                                </div>
+                                                            </div>
+                                                            <template if:true={updateEmailEnabled}>
+                                                                <div class="cmp-row-sub">
+                                                                    <lightning-combobox
+                                                                        label="Target field"
+                                                                        placeholder="— Select field —"
+                                                                        options={emailFieldComboOptions}
+                                                                        value={emailTargetField}
+                                                                        onchange={handleEmailFieldChange}>
+                                                                    </lightning-combobox>
+                                                                    <template if:false={hasEmailFieldOptions}>
+                                                                        <div class="diff-alert">No email-type fields found on Account.</div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+
+                                                            <!-- Address row (only if different) -->
+                                                            <template if:true={preview.addressesDiffer}>
+                                                                <div class="cmp-row">
+                                                                    <div class="cmp-row__label">
+                                                                        <lightning-icon icon-name="utility:location" size="xx-small"></lightning-icon>
+                                                                        Address
+                                                                    </div>
+                                                                    <div class="cmp-row__zeffy">{preview.ticketAddress}</div>
+                                                                    <div class="cmp-row__sf">{preview.accountAddress}</div>
+                                                                    <div class="cmp-row__action">
+                                                                        <input type="checkbox" id="upd-addr"
+                                                                               checked={updateAddressEnabled} onchange={handleToggleAddress} />
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+
+                                                            <lightning-textarea
+                                                                label="Resolution Notes (optional)"
+                                                                value={resolutionNotes}
+                                                                onchange={handleNotesChange}
+                                                                class="slds-m-top_small">
+                                                            </lightning-textarea>
+                                                        </template>
+                                                    </div>
+
+                                                    <div class="wiz-footer">
+                                                        <button class="wiz-btn wiz-btn--back" onclick={handleWizardBack}>
+                                                            <lightning-icon icon-name="utility:back" size="xx-small"></lightning-icon>
+                                                            Back
+                                                        </button>
+                                                        <button class="wiz-btn wiz-btn--cancel" onclick={handleCloseMatchesModal}>Cancel</button>
+                                                        <button class="wiz-btn wiz-btn--confirm" disabled={isLinkDisabled} onclick={handleConfirmLink}>
+                                                            Link &amp; Record Donation
+                                                        </button>
+                                                    </div>
+                                                </template>
+
+                                                <!-- ── Step 2b: create new (create mode) ── -->
+                                                <template if:true={isWizardCreateMode}>
+                                                    <div class="wiz-body">
+                                                        <div class="create-confirm-card">
+                                                            <div class="create-confirm-card__type">{createTypeBtnLabel}</div>
+                                                            <p class="create-confirm-card__desc">
+                                                                A new Salesforce Account will be created using the Zeffy donor information below, and the donation will be recorded.
+                                                            </p>
+
+                                                            <!-- Donor info -->
+                                                            <div class="create-confirm-section-label">Donor</div>
+                                                            <div class="info-grid">
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Name</span>
+                                                                    <span class="info-value">{ticketDonorName}</span>
+                                                                </div>
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Email</span>
+                                                                    <span class="info-value">{ticket.Email__c}</span>
+                                                                </div>
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Phone</span>
+                                                                    <span class="info-value">{ticket.Phone__c}</span>
+                                                                </div>
+                                                                <template if:true={hasZeffyAddress}>
+                                                                    <div class="info-cell info-cell--full">
+                                                                        <span class="info-label">Address</span>
+                                                                        <span class="info-value">{zeffyAddressDisplay}</span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+
+                                                            <!-- Donation (Zeffy gift) info -->
+                                                            <div class="create-confirm-section-label">Zeffy Donation</div>
+                                                            <div class="info-grid">
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Amount</span>
+                                                                    <span class="info-value create-confirm-amount">{ticketAmountDisplay}</span>
+                                                                </div>
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Date</span>
+                                                                    <span class="info-value">{ticketGiftDateDisplay}</span>
+                                                                </div>
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Payment</span>
+                                                                    <span class="info-value">{ticket.Payment_Type__c}</span>
+                                                                </div>
+                                                                <div class="info-cell">
+                                                                    <span class="info-label">Recurring</span>
+                                                                    <span class="info-value">{isRecurringLabel}</span>
+                                                                </div>
+                                                                <template if:true={ticket.Form_Name__c}>
+                                                                    <div class="info-cell info-cell--full">
+                                                                        <span class="info-label">Form</span>
+                                                                        <span class="info-value">{ticket.Form_Name__c}</span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                        <lightning-textarea
+                                                            label="Resolution Notes (optional)"
+                                                            value={resolutionNotes}
+                                                            onchange={handleNotesChange}
+                                                            class="slds-m-top_small">
+                                                        </lightning-textarea>
+                                                    </div>
+
+                                                    <div class="wiz-footer">
+                                                        <button class="wiz-btn wiz-btn--back" onclick={handleWizardBack}>
+                                                            <lightning-icon icon-name="utility:back" size="xx-small"></lightning-icon>
+                                                            Back
+                                                        </button>
+                                                        <button class="wiz-btn wiz-btn--cancel" onclick={handleCloseMatchesModal}>Cancel</button>
+                                                        <button class="wiz-btn wiz-btn--confirm" onclick={handleConfirmCreate}>
+                                                            Create &amp; Record Donation
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                            </template>
+
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ══ MODAL: EXCEPTION ════════════════════════════════ -->
+                                <template if:true={showExceptionModal}>
+                                    <div class="modal-overlay">
+                                        <div class="exc-dialog">
+                                            <div class="exc-dialog__title">Exception</div>
+                                            <p class="exc-dialog__sub">How do you want to handle this ticket?</p>
+
+                                            <div class="exc-cards">
+                                                <button class={excCardSkipClass} data-type="skip" onclick={handleExceptionTypeChange}>
+                                                    <div class="exc-card__icon exc-card__icon--skip">
+                                                        <lightning-icon icon-name="utility:skip" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="exc-card__title">Skip</div>
+                                                    <div class="exc-card__desc">Ticket stays in the list — can be found and reopened later.</div>
+                                                </button>
+                                                <button class={excCardCloseClass} data-type="close" onclick={handleExceptionTypeChange}>
+                                                    <div class="exc-card__icon exc-card__icon--close">
+                                                        <lightning-icon icon-name="utility:lock" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="exc-card__title">Close</div>
+                                                    <div class="exc-card__desc">Ticket is closed — donation will not be processed.</div>
+                                                </button>
+                                                <button class={excCardPendingClass} data-type="pending" onclick={handleExceptionTypeChange}>
+                                                    <div class="exc-card__icon exc-card__icon--pending">
+                                                        <lightning-icon icon-name="utility:clock" size="small"></lightning-icon>
+                                                    </div>
+                                                    <div class="exc-card__title">Keep Pending</div>
+                                                    <div class="exc-card__desc">Leave as Pending Review — add a note for the next reviewer.</div>
+                                                </button>
+                                            </div>
+
+                                            <div class="exc-dialog__note">
+                                                <lightning-textarea
+                                                    label="Note / Reason (optional)"
+                                                    value={resolutionNotes}
+                                                    onchange={handleNotesChange}>
+                                                </lightning-textarea>
+                                            </div>
+
+                                            <div class="exc-dialog__footer">
+                                                <lightning-button label="Cancel" variant="neutral" onclick={handleCloseExceptionModal}>
+                                                </lightning-button>
+                                                <lightning-button label={exceptionConfirmLabel} variant="destructive" onclick={handleConfirmException}>
+                                                </lightning-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ══ MODAL: FOLLOW-UP ASSIGNMENT ═════════════════════ -->
+                                <template if:true={showAssignModal}>
+                                    <div class="modal-overlay">
+                                        <div class="modal-dialog">
+                                            <div class="modal-dialog__title">Follow-up Assignment</div>
+                                            <p class="modal-dialog__body">Assign this ticket to a specific person for follow-up. This overrides the global auto-task.</p>
+
+                                            <template if:true={assignOwnerName}>
+                                                <div class="owner-chip">
+                                                    <span>{assignOwnerName}</span>
+                                                    <button class="owner-chip__clear" onclick={handleClearAssignOwner}>&#x2715;</button>
+                                                </div>
+                                            </template>
+                                            <template if:false={assignOwnerName}>
+                                                <div class="owner-search-wrap">
+                                                    <lightning-icon icon-name="utility:search" size="xx-small" class="owner-search-icon"></lightning-icon>
+                                                    <input type="text" class="owner-search-input" placeholder="Search user or queue..."
+                                                           value={assignOwnerSearch} onfocus={handleAssignOwnerFocus} onkeyup={handleAssignOwnerSearch} />
+                                                </div>
+                                                <template if:true={hasAssignOwnerResults}>
+                                                    <ul class="owner-dropdown">
+                                                        <template for:each={assignOwnerResults} for:item="r">
+                                                            <li key={r.id} class="owner-dropdown__item" data-id={r.id} data-name={r.name} onclick={handleSelectAssignOwner}>
+                                                                <span class="owner-type-badge">{r.type}</span>{r.name}
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </template>
+                                            </template>
+
+                                            <template if:true={assignOwnerName}>
+                                                <div class="assign-section__row">
+                                                    <lightning-input type="number" label="Due in (days)" value={assignDueDays} min="1" max="90"
+                                                                     onchange={handleAssignDueDaysChange} class="assign-days-input">
+                                                    </lightning-input>
+                                                    <lightning-textarea label="Note (optional)" value={assignNote} onchange={handleAssignNoteChange}
+                                                                        class="assign-note-input">
+                                                    </lightning-textarea>
+                                                </div>
+                                            </template>
+
+                                            <div class="modal-dialog__footer">
+                                                <lightning-button label="Cancel" variant="neutral" onclick={handleCloseAssignModal} class="slds-m-right_small">
+                                                </lightning-button>
+                                                <lightning-button label={assignBtnLabel} variant="brand" disabled={isAssignDisabled} onclick={handleCreateAssignment}>
+                                                </lightning-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                            </template><!-- end isPending -->
+
+                            <!-- ═══════════════════════════════════════════════
+                                 ALREADY RESOLVED — normal scrollable layout
+                            ═══════════════════════════════════════════════ -->
+                            <template if:false={isPending}>
+                            <div class="tkt-resolved-content">
+
+                                <div class="ticket-header">
+                                    <div>
+                                        <div class="ticket-header__name">{ticketDonorName}</div>
+                                        <div class="ticket-header__sub">
+                                            <span class="ticket-header__ticket-num">{ticket.Name}</span>
+                                            <span class="ticket-header__amount">{ticketAmountDisplay}</span>
+                                            <span class={ticketStatusBadgeClass}>{ticket.Status__c}</span>
+                                        </div>
+                                    </div>
+                                    <div class="ticket-header__date">{ticket.Gift_Date__c}</div>
+                                </div>
+
+                                <template if:true={ticket.Error_Message__c}>
+                                    <div class="error-banner">{ticket.Error_Message__c}</div>
+                                </template>
+
+                                <div class="resolved-banner">
+                                    <div class="resolved-banner__row">
+                                        <span class="resolved-banner__label">Status</span>
+                                        <span class={ticketStatusBadgeClass}>{ticket.Status__c}</span>
+                                    </div>
+                                    <template if:true={ticket.Resolved_Account__r}>
+                                        <div class="resolved-banner__row">
+                                            <span class="resolved-banner__label">Linked Account</span>
+                                            <span>{ticket.Resolved_Account__r.Name}</span>
+                                        </div>
+                                    </template>
+                                    <template if:true={ticket.Resolved_At__c}>
+                                        <div class="resolved-banner__row">
+                                            <span class="resolved-banner__label">Resolved On</span>
+                                            <span>{ticket.Resolved_At__c}</span>
+                                        </div>
+                                    </template>
+                                    <template if:true={ticket.Resolved_By__r}>
+                                        <div class="resolved-banner__row">
+                                            <span class="resolved-banner__label">Resolved By</span>
+                                            <span>{ticket.Resolved_By__r.Name}</span>
+                                        </div>
+                                    </template>
+                                    <template if:true={canUndo}>
+                                        <div class="resolved-banner__undo">
+                                            <lightning-button label="Undo Resolution" icon-name="utility:undo" variant="neutral" onclick={handleUndo}>
+                                            </lightning-button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <template if:true={showUndoConfirm}>
+                                    <div class="modal-overlay">
+                                        <div class="modal-dialog">
+                                            <div class="modal-dialog__title">Undo Resolution</div>
+                                            <p class="modal-dialog__body">
+                                                This will delete the GiftTransaction and reopen the ticket to
+                                                <strong>Pending Review</strong>. The linked Account will
+                                                <strong>NOT</strong> be deleted. This action is logged in the Audit Log.
+                                                Continue?
+                                            </p>
+                                            <div class="modal-dialog__footer">
+                                                <lightning-button label="Cancel" variant="neutral" onclick={handleCancelUndo} class="slds-m-right_small">
+                                                </lightning-button>
+                                                <lightning-button label="Yes, Undo" variant="destructive" onclick={handleConfirmUndo}>
+                                                </lightning-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Donor Information -->
+                                <div class="info-section">
+                                    <div class="info-section__title">Donor Information</div>
+                                    <div class="info-grid">
+                                        <div class="info-cell">
+                                            <span class="info-label">First Name</span>
+                                            <span class="info-value">{ticket.First_Name__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Last Name</span>
+                                            <span class="info-value">{ticket.Last_Name__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Company / Church</span>
+                                            <span class="info-value">{ticket.Company_Name__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Email</span>
+                                            <span class="info-value">{ticket.Email__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Phone</span>
+                                            <span class="info-value">{ticket.Phone__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Language</span>
+                                            <span class="info-value">{ticket.Language__c}</span>
+                                        </div>
+                                        <div class="info-cell info-cell--full">
+                                            <span class="info-label">Zeffy Contact ID</span>
+                                            <span class="info-value info-value--mono">{ticket.Zeffy_Contact_Id__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Address</span>
+                                            <span class="info-value">{ticket.Address__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">City</span>
+                                            <span class="info-value">{ticket.City__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Province</span>
+                                            <span class="info-value">{ticket.Province__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Postal Code</span>
+                                            <span class="info-value">{ticket.Postal_Code__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Country</span>
+                                            <span class="info-value">{ticket.Country__c}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Gift Details -->
+                                <div class="info-section">
+                                    <div class="info-section__title">Gift Details</div>
+                                    <div class="info-grid">
+                                        <div class="info-cell">
+                                            <span class="info-label">Amount</span>
+                                            <span class="info-value">{ticketAmountDisplay}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Eligible Amount</span>
+                                            <span class="info-value">{ticket.Eligible_Amount__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Currency</span>
+                                            <span class="info-value">{ticket.Currency__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Payment Method</span>
+                                            <span class="info-value">{ticket.Payment_Method__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Payment Type</span>
+                                            <span class="info-value">{ticket.Payment_Type__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Gift Date</span>
+                                            <span class="info-value">{ticket.Gift_Date__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Form Name</span>
+                                            <span class="info-value">{ticket.Form_Name__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Is Recurring</span>
+                                            <span class="info-value">{isRecurringLabel}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Subscription Frequency</span>
+                                            <span class="info-value">{ticket.Subscription_Frequency__c}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-label">Receipt Number</span>
+                                            <span class="info-value">{ticket.Receipt_Number__c}</span>
+                                        </div>
+                                        <div class="info-cell info-cell--full">
+                                            <span class="info-label">Transaction ID</span>
+                                            <span class="info-value info-value--mono">{ticket.Zeffy_Transaction_Id__c}</span>
+                                        </div>
+                                        <template if:true={ticket.Receipt_URL__c}>
+                                            <div class="info-cell info-cell--full">
+                                                <span class="info-label">Zeffy Receipt</span>
+                                                <a href={ticket.Receipt_URL__c} target="_blank" rel="noopener noreferrer"
+                                                   class="info-value info-link">
+                                                    View receipt ↗
+                                                </a>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Zeffy Notes -->
+                                <template if:true={hasNoteOrAnnotation}>
+                                    <div class="info-section">
+                                        <div class="info-section__title">Zeffy Notes</div>
+                                        <div class="info-grid">
+                                            <template if:true={ticket.Note__c}>
+                                                <div class="info-cell info-cell--full">
+                                                    <span class="info-label">Note</span>
+                                                    <span class="info-value">{ticket.Note__c}</span>
+                                                </div>
+                                            </template>
+                                            <template if:true={ticket.Annotation__c}>
+                                                <div class="info-cell info-cell--full">
+                                                    <span class="info-label">Annotation</span>
+                                                    <span class="info-value">{ticket.Annotation__c}</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                            </div><!-- end tkt-resolved-content -->
+                            </template><!-- end !isPending -->
+
+                        </template>
+                    </template>
+                </div>
+            </template>
+
+            <!-- ── AUDIT LOG TAB ──────────────────────────────────────────── -->
+            <template if:true={isRightTabAudit}>
+                <div class="rp-content audit-panel">
+
+                    <div class="audit-header">
+                        <div>
+                            <div class="audit-header__title">Audit Log</div>
+                            <div class="audit-header__sub">Full history of resolutions, creations, and rollbacks</div>
+                        </div>
+                        <button class="icon-btn" onclick={handleRefreshAudit} title="Refresh audit log">
+                            <lightning-icon icon-name="utility:refresh" size="x-small"></lightning-icon>
+                        </button>
+                    </div>
+
+                    <template if:true={isLoadingAudit}>
+                        <div class="loading-container">
+                            <lightning-spinner size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingAudit}>
+                        <template if:true={hasAuditLog}>
+                            <div class="audit-table-wrapper">
+                                <table class="data-table audit-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Log #</th>
+                                            <th>Ticket</th>
+                                            <th>Action</th>
+                                            <th>Account</th>
+                                            <th>Performed By</th>
+                                            <th>Date &amp; Time</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={auditLogList} for:item="log">
+                                            <tr key={log.Id}>
+                                                <td class="audit-td--mono">{log.Name}</td>
+                                                <td class="audit-td--mono">{log.ticketName}</td>
+                                                <td><span class={log.actionClass}>{log.Action__c}</span></td>
+                                                <td>{log.accountName}</td>
+                                                <td>{log.performedByName}</td>
+                                                <td class="audit-td--date">{log.performedAtDisplay}</td>
+                                                <td class="audit-td--notes">{log.Notes__c}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="audit-count">{auditLogCount} entries (most recent first, max 200)</div>
+                        </template>
+                        <template if:false={hasAuditLog}>
+                            <div class="empty-list">No audit log entries yet. Entries are created automatically when tickets are resolved, created, or rolled back.</div>
+                        </template>
+                    </template>
+
+                </div>
+            </template>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             SETTINGS MODAL OVERLAY
+        ══════════════════════════════════════════════════════════════ -->
+        <template if:true={showSettings}>
+            <div class="sm-backdrop" onclick={handleCloseSettings}>
+                <div class="sm-dialog" onclick={handleDialogClick}>
+
+                    <!-- Modal header -->
+                    <div class="sm-header">
+                        <span class="sm-header__title">{lbl.settingsTitle}</span>
+                        <button class="sm-close-btn" onclick={handleCloseSettings} title="Close">
+                            <lightning-icon icon-name="utility:close" size="x-small"></lightning-icon>
+                        </button>
+                    </div>
+
+                    <!-- Modal body: two columns -->
+                    <div class="sm-body">
+
+                        <!-- Left nav -->
+                        <div class="sm-nav">
+                            <button class={navLangClass} data-section="language" onclick={handleSettingsSectionChange}>
+                                {lbl.langSection}
+                            </button>
+                            <button class={navTasksClass} data-section="tasks" onclick={handleSettingsSectionChange}>
+                                {lbl.taskSection}
+                            </button>
+                            <button class={navLapsedClass} data-section="lapsed" onclick={handleSettingsSectionChange}>
+                                {lbl.lapsedSection}
+                            </button>
+                            <template if:true={hasDmcSettings}>
+                                <button class={navImportClass} data-section="import" onclick={handleSettingsSectionChange}>
+                                    CSV Import
+                                </button>
+                                <button class={navCredsClass} data-section="credentials" onclick={handleSettingsSectionChange}>
+                                    {lbl.credSection}
+                                </button>
+                            </template>
+                        </div>
+
+                        <!-- Right content -->
+                        <div class="sm-content">
+                            <template if:true={isLoadingSettings}>
+                                <div class="sm-content__loading">
+                                    <lightning-spinner size="small"></lightning-spinner>
+                                </div>
+                            </template>
+
+                            <template if:false={isLoadingSettings}>
+
+                                <!-- ── Language ──────────────────────────────── -->
+                                <template if:true={isSettingsLang}>
+                                    <div class="sm-section-title">{lbl.langSection}</div>
+                                    <p class="sm-section-desc">{lbl.langLabel}</p>
+                                    <div class="lang-pill-group">
+                                        <button class={langBtnEnClass} data-lang="en" onclick={handleLangPillClick}>
+                                            EN — English
+                                        </button>
+                                        <button class={langBtnFrClass} data-lang="fr" onclick={handleLangPillClick}>
+                                            FR — Français
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <!-- ── Pending Ticket Tasks ───────────────────── -->
+                                <template if:true={isSettingsTasks}>
+                                    <div class="sm-section-title">{lbl.taskSection}</div>
+                                    <div class="sm-section-body">
+                                        <lightning-input
+                                            type="checkbox"
+                                            label={lbl.taskEnable}
+                                            checked={autoTaskEnabled}
+                                            onchange={handleAutoTaskToggle}>
+                                        </lightning-input>
+                                        <template if:true={autoTaskEnabled}>
+                                            <div class="settings-sub">
+                                                <lightning-input
+                                                    type="number"
+                                                    label={lbl.taskDueDays}
+                                                    value={taskDueDays}
+                                                    min="1"
+                                                    max="90"
+                                                    onchange={handleTaskDueDaysChange}
+                                                    class="settings-number-narrow">
+                                                </lightning-input>
+                                                <div class="settings-owner-picker">
+                                                    <label class="settings-owner-label">{lbl.taskAssignTo}</label>
+                                                    <template if:true={taskOwnerName}>
+                                                        <div class="owner-chip">
+                                                            <span>{taskOwnerName}</span>
+                                                            <button class="owner-chip__clear" onclick={handleClearTaskOwner}>✕</button>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={taskOwnerName}>
+                                                        <div class="owner-search-wrap">
+                                                            <lightning-icon icon-name="utility:search" size="xx-small" class="owner-search-icon"></lightning-icon>
+                                                            <input
+                                                                type="text"
+                                                                class="owner-search-input"
+                                                                placeholder={lbl.taskSearchPlaceholder}
+                                                                value={taskOwnerSearch}
+                                                                onfocus={handleTaskOwnerFocus}
+                                                                onkeyup={handleTaskOwnerSearch} />
+                                                        </div>
+                                                        <template if:true={hasTaskOwnerResults}>
+                                                            <ul class="owner-dropdown">
+                                                                <template for:each={taskOwnerResults} for:item="r">
+                                                                    <li key={r.id}
+                                                                        class="owner-dropdown__item"
+                                                                        data-id={r.id}
+                                                                        data-name={r.name}
+                                                                        onclick={handleSelectTaskOwner}>
+                                                                        <span class="owner-type-badge">{r.type}</span>
+                                                                        {r.name}
+                                                                    </li>
+                                                                </template>
+                                                            </ul>
+                                                        </template>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- ── Lapsed Donor Alerts ────────────────────── -->
+                                <template if:true={isSettingsLapsed}>
+                                    <div class="sm-section-title">{lbl.lapsedSection}</div>
+                                    <div class="sm-section-body">
+                                        <lightning-input
+                                            type="checkbox"
+                                            label={lbl.lapsedEnable}
+                                            checked={lapsedEnabled}
+                                            onchange={handleLapsedToggle}>
+                                        </lightning-input>
+                                        <template if:true={lapsedEnabled}>
+                                            <div class="settings-sub">
+                                                <lightning-input
+                                                    type="number"
+                                                    label={lbl.lapsedDays}
+                                                    value={lapsedDays}
+                                                    min="30"
+                                                    max="3650"
+                                                    onchange={handleLapsedDaysChange}
+                                                    class="settings-number-narrow">
+                                                </lightning-input>
+                                                <lightning-combobox
+                                                    label={lbl.lapsedFrequencyLabel}
+                                                    value={lapsedFrequency}
+                                                    options={frequencyOptions}
+                                                    onchange={handleLapsedFrequencyChange}>
+                                                </lightning-combobox>
+                                                <template if:true={showLapsedDayPicker}>
+                                                    <lightning-combobox
+                                                        label={lbl.lapsedSchedule}
+                                                        value={lapsedScheduleDay}
+                                                        options={scheduleDayOptions}
+                                                        onchange={handleLapsedScheduleChange}>
+                                                    </lightning-combobox>
+                                                </template>
+                                                <div class="settings-owner-picker">
+                                                    <label class="settings-owner-label">{lbl.lapsedAssignTo}</label>
+                                                    <template if:true={lapsedOwnerName}>
+                                                        <div class="owner-chip">
+                                                            <span>{lapsedOwnerName}</span>
+                                                            <button class="owner-chip__clear" onclick={handleClearLapsedOwner}>✕</button>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={lapsedOwnerName}>
+                                                        <div class="owner-search-wrap">
+                                                            <lightning-icon icon-name="utility:search" size="xx-small" class="owner-search-icon"></lightning-icon>
+                                                            <input
+                                                                type="text"
+                                                                class="owner-search-input"
+                                                                placeholder={lbl.taskSearchPlaceholder}
+                                                                value={lapsedOwnerSearch}
+                                                                onfocus={handleLapsedOwnerFocus}
+                                                                onkeyup={handleLapsedOwnerSearch} />
+                                                        </div>
+                                                        <template if:true={hasLapsedOwnerResults}>
+                                                            <ul class="owner-dropdown">
+                                                                <template for:each={lapsedOwnerResults} for:item="r">
+                                                                    <li key={r.id}
+                                                                        class="owner-dropdown__item"
+                                                                        data-id={r.id}
+                                                                        data-name={r.name}
+                                                                        onclick={handleSelectLapsedOwner}>
+                                                                        <span class="owner-type-badge">{r.type}</span>
+                                                                        {r.name}
+                                                                    </li>
+                                                                </template>
+                                                            </ul>
+                                                        </template>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- ── CSV Import (admin only) ───────────────── -->
+                                <template if:true={isSettingsImport}>
+                                    <div class="sm-section-title">CSV Import</div>
+                                    <div class="sm-section-body">
+
+                                        <p class="sm-section-desc">
+                                            Upload a CSV file to bulk-create Pending Review tickets from historical Zeffy donations.
+                                            Up to 500 rows per batch — large files are split automatically.
+                                            Duplicate transaction IDs are skipped.
+                                        </p>
+
+                                        <!-- Template download -->
+                                        <div class="import-template-row">
+                                            <button class="import-template-btn" onclick={handleDownloadTemplate}>
+                                                <lightning-icon icon-name="utility:download" size="xx-small"></lightning-icon>
+                                                Download CSV Template
+                                            </button>
+                                        </div>
+
+                                        <!-- File picker -->
+                                        <template if:false={importHasRows}>
+                                            <label class="import-drop-zone">
+                                                <lightning-icon icon-name="utility:upload" size="small" class="import-drop-zone__icon"></lightning-icon>
+                                                <span class="import-drop-zone__text">Click to select a CSV file</span>
+                                                <input type="file" accept=".csv" class="import-file-input" onchange={handleImportFileChange} />
+                                            </label>
+                                        </template>
+
+                                        <!-- File loaded — ready to import -->
+                                        <template if:true={importHasRows}>
+                                            <div class="import-file-ready">
+                                                <lightning-icon icon-name="utility:file" size="x-small"></lightning-icon>
+                                                <span class="import-file-ready__name">{importFileName}</span>
+                                                <span class="import-file-ready__count">{importRows.length} rows</span>
+                                                <button class="import-file-clear" onclick={handleClearImport} title="Remove">✕</button>
+                                            </div>
+
+                                            <!-- Progress bar (while importing) -->
+                                            <template if:true={isImporting}>
+                                                <div class="import-progress-wrap">
+                                                    <div class="import-progress-bar">
+                                                        <div class="import-progress-fill" style={importProgressStyle}></div>
+                                                    </div>
+                                                    <span class="import-progress-label">{importDone} / {importTotal} imported…</span>
+                                                </div>
+                                            </template>
+
+                                            <!-- Results (after import) -->
+                                            <template if:true={importComplete}>
+                                                <div class="import-results">
+                                                    <div class="import-results__row import-results__row--ok">
+                                                        <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
+                                                        {importDone} tickets created
+                                                    </div>
+                                                    <template if:true={importSkipped}>
+                                                        <div class="import-results__row import-results__row--skip">
+                                                            <lightning-icon icon-name="utility:skip" size="xx-small"></lightning-icon>
+                                                            {importSkipped} duplicates skipped
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={importHasErrors}>
+                                                        <div class="import-results__row import-results__row--err">
+                                                            <lightning-icon icon-name="utility:error" size="xx-small"></lightning-icon>
+                                                            {importErrors.length} errors
+                                                        </div>
+                                                        <template for:each={importErrors} for:item="err">
+                                                            <div key={err} class="import-error-item">{err}</div>
+                                                        </template>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <!-- Import button -->
+                                            <template if:false={importComplete}>
+                                                <button class="import-start-btn" disabled={isImporting} onclick={handleStartImport}>
+                                                    <lightning-icon icon-name="utility:upload" size="xx-small"></lightning-icon>
+                                                    Import {importRows.length} Tickets
+                                                </button>
+                                            </template>
+                                            <template if:true={importComplete}>
+                                                <button class="import-template-btn" onclick={handleClearImport}>
+                                                    Import another file
+                                                </button>
+                                            </template>
+                                        </template>
+
+                                    </div>
+                                </template>
+
+                                <!-- ── Zeffy Credentials (admin only) ─────────── -->
+                                <template if:true={isSettingsCreds}>
+                                    <div class="sm-section-title">{lbl.credSection}</div>
+                                    <div class="sm-section-body">
+                                        <lightning-input
+                                            type="checkbox"
+                                            label={lbl.credActive}
+                                            checked={settingsIsActive}
+                                            onchange={handleSettingsActiveChange}>
+                                        </lightning-input>
+                                        <div class="settings-hint">
+                                            Current values are masked. Type a new value to replace — leave blank to keep existing.
+                                        </div>
+                                        <lightning-input
+                                            type="password"
+                                            label={lbl.credApiKey}
+                                            placeholder={settingsApiKey}
+                                            value={settingsApiKey}
+                                            onchange={handleSettingsApiKeyChange}>
+                                        </lightning-input>
+                                        <lightning-input
+                                            type="password"
+                                            label={lbl.credSecret}
+                                            placeholder={settingsSecret}
+                                            value={settingsSecret}
+                                            onchange={handleSettingsSecretChange}>
+                                        </lightning-input>
+                                        <div class="settings-section--info">
+                                            <div class="settings-section__title">{lbl.credInfo}</div>
+                                            <ul class="settings-list">
+                                                <li>{lbl.credInfoLine1}</li>
+                                                <li>{lbl.credInfoLine2}</li>
+                                                <li>Webhook URL: <code>/dmc/webhook/receive</code></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </template>
+
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Modal footer -->
+                    <div class="sm-footer">
+                        <lightning-button
+                            label="Close"
+                            variant="neutral"
+                            onclick={handleCloseSettings}>
+                        </lightning-button>
+                        <template if:true={showModalSaveBtn}>
+                            <lightning-button
+                                label={saveAppBtnLabel}
+                                variant="brand"
+                                disabled={isSavingAppSettings}
+                                onclick={handleModalSave}>
+                            </lightning-button>
+                        </template>
+                    </div>
+
+                </div>
+            </div>
+        </template>
+
+    </div>
+</template>

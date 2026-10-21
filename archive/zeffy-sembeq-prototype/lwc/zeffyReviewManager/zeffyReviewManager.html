@@ -1,0 +1,262 @@
+<template>
+<div class="zrm-wrap">
+
+    <!-- ── LEFT PANEL: ticket list ─────────────────────────────────── -->
+    <div class="zrm-list-panel">
+        <div class="zrm-list-header">
+            <h2 class="zrm-panel-title">Zeffy Review</h2>
+            <div class="zrm-filters">
+                <select class="zrm-select" onchange={handleFilterChange}>
+                    <option value="All">Todos</option>
+                    <option value="Pending Review">Pendiente</option>
+                    <option value="Resolved - New Contact">Nuevo registro</option>
+                    <option value="Resolved - Linked">Vinculado</option>
+                    <option value="Skipped">Omitido</option>
+                    <option value="Error">Error</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="zrm-list-body">
+            <template if:true={isLoading}>
+                <div class="zrm-loading">Cargando tickets…</div>
+            </template>
+            <template if:false={isLoading}>
+                <template if:true={tickets.length}>
+                    <template for:each={tickets} for:item="t">
+                        <div key={t.Id}
+                             class={t._rowClass}
+                             data-id={t.Id}
+                             onclick={handleSelectTicket}>
+                            <div class="zrm-row-name">{t._fullName}</div>
+                            <div class="zrm-row-meta">
+                                <span>{t._amountStr}</span>
+                                <span class={t._badgeClass}>{t.Status__c}</span>
+                            </div>
+                            <div class="zrm-row-date">{t._dateStr}</div>
+                        </div>
+                    </template>
+                </template>
+                <template if:false={tickets.length}>
+                    <div class="zrm-empty">No hay tickets{filterLabel}</div>
+                </template>
+            </template>
+        </div>
+    </div>
+
+    <!-- ── RIGHT PANEL: ticket detail ─────────────────────────────── -->
+    <div class="zrm-detail-panel">
+        <template if:true={selectedTicket}>
+            <div class="zrm-detail">
+                <!-- Header -->
+                <div class="zrm-detail-header">
+                    <div>
+                        <h2 class="zrm-donor-name">{selectedTicket.First_Name__c} {selectedTicket.Last_Name__c}</h2>
+                        <span class="zrm-ticket-num">{selectedTicket.Name}</span>
+                    </div>
+                    <span class={selectedTicket._badgeClass}>{selectedTicket.Status__c}</span>
+                </div>
+
+                <!-- Error banner -->
+                <template if:true={selectedTicket.Error_Message__c}>
+                    <div class="zrm-error-banner">⚠ {selectedTicket.Error_Message__c}</div>
+                </template>
+
+                <!-- Donor info -->
+                <div class="zrm-section">
+                    <div class="zrm-section-title">Información del donante</div>
+                    <div class="zrm-grid">
+                        <div class="zrm-field"><span class="zrm-lbl">Email</span><span>{selectedTicket.Email__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Teléfono</span><span>{selectedTicket.Phone__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Empresa</span><span>{selectedTicket.Company_Name__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Idioma</span><span>{selectedTicket.Language__c}</span></div>
+                        <div class="zrm-field zrm-field--wide"><span class="zrm-lbl">Dirección</span><span>{selectedTicket._addressStr}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Zeffy ID</span><code class="zrm-code">{selectedTicket.Zeffy_Contact_Id__c}</code></div>
+                    </div>
+                </div>
+
+                <!-- Payment info -->
+                <div class="zrm-section">
+                    <div class="zrm-section-title">Pago</div>
+                    <div class="zrm-grid">
+                        <div class="zrm-field"><span class="zrm-lbl">Monto</span><span class="zrm-amount">{selectedTicket._amountStr}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Elegible fiscal</span><span>{selectedTicket._eligibleStr}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Neto</span><span>{selectedTicket._netStr}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Método</span><span>{selectedTicket.Payment_Method__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Tipo</span><span>{selectedTicket.Payment_Type__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Fecha</span><span>{selectedTicket._dateStr}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Campaña</span><span>{selectedTicket.Form_Name__c}</span></div>
+                        <div class="zrm-field"><span class="zrm-lbl">Recurrente</span><span>{selectedTicket._recurringLabel}</span></div>
+                        <template if:true={selectedTicket.Is_Recurring__c}>
+                            <div class="zrm-field"><span class="zrm-lbl">Frecuencia</span><span>{selectedTicket.Subscription_Frequency__c}</span></div>
+                        </template>
+                        <template if:true={selectedTicket.Rate_Title__c}>
+                            <div class="zrm-field"><span class="zrm-lbl">Rate / Tier</span><span>{selectedTicket.Rate_Title__c}</span></div>
+                        </template>
+                        <template if:true={selectedTicket.Note__c}>
+                            <div class="zrm-field zrm-field--wide"><span class="zrm-lbl">Nota del donante</span><span>{selectedTicket.Note__c}</span></div>
+                        </template>
+                        <template if:true={selectedTicket.Receipt_URL__c}>
+                            <div class="zrm-field"><span class="zrm-lbl">Recibo Zeffy</span>
+                                <a href={selectedTicket.Receipt_URL__c} target="_blank" class="zrm-link">Ver recibo ↗</a>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Actions (only if pending) -->
+                <template if:true={isPending}>
+                    <div class="zrm-section zrm-section--actions">
+                        <div class="zrm-section-title">Acción requerida</div>
+                        <p class="zrm-action-desc">Este donante no existe en Salesforce. Elige cómo proceder:</p>
+
+                        <!-- Main action buttons (shown when no action is in progress) -->
+                        <template if:true={showMainButtons}>
+                            <div class="zrm-action-btns">
+                                <button class="zrm-btn zrm-btn--create" onclick={handleCreateNew}>
+                                    <span class="zrm-btn-icon">✚</span>
+                                    Crear nuevo registro
+                                </button>
+                                <button class="zrm-btn zrm-btn--link" onclick={handleShowSearch}>
+                                    <span class="zrm-btn-icon">🔗</span>
+                                    Vincular a registro existente
+                                </button>
+                                <button class="zrm-btn zrm-btn--skip" onclick={handleSkip}>
+                                    Omitir
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- Step 1: Choose donor type -->
+                        <template if:true={showDonorTypeSelect}>
+                            <div class="zrm-step-panel">
+                                <div class="zrm-step-title">Paso 1 de 2 — Tipo de donante</div>
+                                <div class="zrm-radio-group">
+                                    <label class="zrm-radio-option">
+                                        <input type="radio" name="donorType" value="individual"
+                                               checked onchange={handleDonorTypeChange} />
+                                        <span class="zrm-radio-icon">👤</span>
+                                        <span>
+                                            <strong>Persona individual</strong>
+                                            <span class="zrm-radio-sub">Contacto con cuenta personal (EDA Household)</span>
+                                        </span>
+                                    </label>
+                                    <label class="zrm-radio-option">
+                                        <input type="radio" name="donorType" value="eglise"
+                                               onchange={handleDonorTypeChange} />
+                                        <span class="zrm-radio-icon">⛪</span>
+                                        <span>
+                                            <strong>Iglesia</strong>
+                                            <span class="zrm-radio-sub">Cuenta tipo Église (sin contacto asociado)</span>
+                                        </span>
+                                    </label>
+                                    <label class="zrm-radio-option">
+                                        <input type="radio" name="donorType" value="org"
+                                               onchange={handleDonorTypeChange} />
+                                        <span class="zrm-radio-icon">🏢</span>
+                                        <span>
+                                            <strong>Organización</strong>
+                                            <span class="zrm-radio-sub">ONG, empresa u otro organismo</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="zrm-search-actions">
+                                    <button class="zrm-btn zrm-btn--primary" onclick={handleConfirmDonorType}>
+                                        Siguiente →
+                                    </button>
+                                    <button class="zrm-btn zrm-btn--ghost" onclick={handleCancelAction}>Cancelar</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Step 2: Confirm creation with notes -->
+                        <template if:true={showNotesInput}>
+                            <div class="zrm-step-panel">
+                                <div class="zrm-step-title">Paso 2 de 2 — Confirmar creación</div>
+                                <div class="zrm-confirm-summary">
+                                    Crear <strong>{donorTypeLabel}</strong>: {selectedTicket._fullName}
+                                </div>
+                                <label class="zrm-lbl" style="margin-top:.75rem;display:block">Notas de resolución (opcional)</label>
+                                <textarea class="zrm-textarea"
+                                          placeholder="Ej: Donante conocido bajo un nombre diferente en SF"
+                                          oninput={handleNotesInput}></textarea>
+                                <div class="zrm-search-actions">
+                                    <button class="zrm-btn zrm-btn--primary" onclick={handleConfirmCreate} disabled={isResolving}>
+                                        {confirmCreateLabel}
+                                    </button>
+                                    <button class="zrm-btn zrm-btn--ghost" onclick={handleBackToDonorType}>← Tipo</button>
+                                    <button class="zrm-btn zrm-btn--ghost" onclick={handleCancelAction}>Cancelar</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Contact / Account search panel -->
+                        <template if:true={showSearch}>
+                            <div class="zrm-search-panel">
+                                <p class="zrm-search-hint">Busca el contacto al que vincular esta donación:</p>
+                                <lightning-record-picker
+                                    label="Buscar contacto"
+                                    placeholder="Nombre, apellido o email…"
+                                    object-api-name="Contact"
+                                    value={selectedRecordId}
+                                    onchange={handleRecordPick}>
+                                </lightning-record-picker>
+                                <div class="zrm-search-actions">
+                                    <button class="zrm-btn zrm-btn--primary"
+                                            onclick={handleConfirmLink}
+                                            disabled={isLinkDisabled}>
+                                        Confirmar vinculación
+                                    </button>
+                                    <button class="zrm-btn zrm-btn--ghost" onclick={handleCancelSearch}>Cancelar</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template if:true={actionError}>
+                            <div class="zrm-error-banner">{actionError}</div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Resolution info (if already resolved) -->
+                <template if:true={isResolved}>
+                    <div class="zrm-section zrm-section--resolved">
+                        <div class="zrm-section-title">Resolución</div>
+                        <div class="zrm-grid">
+                            <template if:true={selectedTicket.Resolved_Contact__r}>
+                                <div class="zrm-field"><span class="zrm-lbl">Contacto</span>
+                                    <span>{selectedTicket.Resolved_Contact__r.Name}</span>
+                                </div>
+                            </template>
+                            <template if:true={selectedTicket.Resolved_Gift__r}>
+                                <div class="zrm-field"><span class="zrm-lbl">Gift creado</span>
+                                    <span>{selectedTicket.Resolved_Gift__r.Name}</span>
+                                </div>
+                            </template>
+                            <template if:true={selectedTicket.Resolved_By__r}>
+                                <div class="zrm-field"><span class="zrm-lbl">Resuelto por</span>
+                                    <span>{selectedTicket.Resolved_By__r.Name}</span>
+                                </div>
+                            </template>
+                            <template if:true={selectedTicket.Resolution_Notes__c}>
+                                <div class="zrm-field zrm-field--wide"><span class="zrm-lbl">Notas</span>
+                                    <span>{selectedTicket.Resolution_Notes__c}</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+
+        <template if:false={selectedTicket}>
+            <div class="zrm-empty-detail">
+                <div class="zrm-empty-icon">📋</div>
+                <p>Selecciona un ticket de la lista para revisarlo</p>
+            </div>
+        </template>
+    </div>
+
+</div>
+</template>

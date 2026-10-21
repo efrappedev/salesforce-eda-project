@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Losing_Records_Summary__c</fullName>
+    <description>Readable summary of key field values for every record that was deleted in this merge. Use this to retrieve contact info after the Salesforce record no longer exists.</description>
+    <label>Losing Records — Key Fields</label>
+    <length>32768</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants permission to permanently delete Data Update Center forms (irreversible hard delete via Metadata API). Assign ONLY to trusted System Administrators, always in addition to Data Update Center Access — never as a substitute for it.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Data Update Center Delete Access</label>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Data_Update_Delete_Forms</name>
+    </customPermissions>
+    <classAccesses>
+        <apexClass>DataUpdateFormDeleteVfController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <pageAccesses>
+        <apexPage>DataUpdateFormDelete</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
+</PermissionSet>

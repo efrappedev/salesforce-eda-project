@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Current_Year_Total__c</fullName>
+    <description>Current calendar-year total. Maintained by Flow (Phase 2) - native declarative Roll-Up requires a Master-Detail relationship, which was ruled out here because cascade-delete on financial records is an unacceptable risk.</description>
+    <label>Current Year Total</label>
+    <precision>16</precision>
+    <scale>2</scale>
+    <required>false</required>
+    <type>Currency</type>
+</CustomField>

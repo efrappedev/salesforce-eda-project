@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <version>64.0</version>
+
+    <!-- ── App ─────────────────────────────────────────────────────── -->
+    <types>
+        <members>Zeffy_Connect</members>
+        <name>CustomApplication</name>
+    </types>
+
+    <!-- ── Custom Setting (Zeffy_Config__c) ────────────────────────── -->
+    <types>
+        <members>Zeffy_Config__c</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <members>Zeffy_Config__c.API_Key__c</members>
+        <members>Zeffy_Config__c.Is_Active__c</members>
+        <members>Zeffy_Config__c.Webhook_Secret__c</members>
+        <name>CustomField</name>
+    </types>
+
+    <!-- ── Review Ticket Object ─────────────────────────────────────── -->
+    <types>
+        <members>Zeffy_Review_Ticket__c</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <members>Zeffy_Review_Ticket__c.Address__c</members>
+        <members>Zeffy_Review_Ticket__c.Amount__c</members>
+        <members>Zeffy_Review_Ticket__c.Annotation__c</members>
+        <members>Zeffy_Review_Ticket__c.City__c</members>
+        <members>Zeffy_Review_Ticket__c.Company_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Country__c</members>
+        <members>Zeffy_Review_Ticket__c.Currency__c</members>
+        <members>Zeffy_Review_Ticket__c.Eligible_Amount__c</members>
+        <members>Zeffy_Review_Ticket__c.Email__c</members>
+        <members>Zeffy_Review_Ticket__c.Error_Message__c</members>
+        <members>Zeffy_Review_Ticket__c.First_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Form_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Form_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Gift_Date__c</members>
+        <members>Zeffy_Review_Ticket__c.Is_Recurring__c</members>
+        <members>Zeffy_Review_Ticket__c.Language__c</members>
+        <members>Zeffy_Review_Ticket__c.Last_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Note__c</members>
+        <members>Zeffy_Review_Ticket__c.Payment_Method__c</members>
+        <members>Zeffy_Review_Ticket__c.Payment_Type__c</members>
+        <members>Zeffy_Review_Ticket__c.Phone__c</members>
+        <members>Zeffy_Review_Ticket__c.Postal_Code__c</members>
+        <members>Zeffy_Review_Ticket__c.Province__c</members>
+        <members>Zeffy_Review_Ticket__c.Rate_Title__c</members>
+        <members>Zeffy_Review_Ticket__c.Raw_Payload__c</members>
+        <members>Zeffy_Review_Ticket__c.Receipt_Number__c</members>
+        <members>Zeffy_Review_Ticket__c.Receipt_URL__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolution_Notes__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_At__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_By__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_Contact__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_Gift__c</members>
+        <members>Zeffy_Review_Ticket__c.Status__c</members>
+        <members>Zeffy_Review_Ticket__c.Subscription_Frequency__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Contact_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Subscription_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Transaction_Id__c</members>
+        <name>CustomField</name>
+    </types>
+
+    <!-- ── Fields on existing objects ──────────────────────────────── -->
+    <types>
+        <!-- Contact: External ID for Zeffy donor matching -->
+        <members>Contact.Zeffy_Contact_Id__c</members>
+        <!-- Campaign: Zeffy form identifier -->
+        <members>Campaign.Zeffy_Form_Id__c</members>
+        <!-- Gift_Transaction__c: 7 new Zeffy fields -->
+        <members>Gift_Transaction__c.Annotation__c</members>
+        <members>Gift_Transaction__c.Eligible_Amount__c</members>
+        <members>Gift_Transaction__c.Language__c</members>
+        <members>Gift_Transaction__c.Note__c</members>
+        <members>Gift_Transaction__c.Payment_Type__c</members>
+        <members>Gift_Transaction__c.Rate_Title__c</members>
+        <members>Gift_Transaction__c.Receipt_URL__c</members>
+        <members>Gift_Transaction__c.Zeffy_Raw_Payload__c</members>
+        <members>Gift_Transaction__c.Zeffy_Transaction_Id__c</members>
+        <!-- Gift_Commitment__c: Zeffy subscription ID -->
+        <members>Gift_Commitment__c.Zeffy_Subscription_Id__c</members>
+        <name>CustomField</name>
+    </types>
+
+    <!-- ── Tab ──────────────────────────────────────────────────────── -->
+    <types>
+        <members>Zeffy_Review_Ticket__c</members>
+        <name>CustomTab</name>
+    </types>
+
+    <!-- ── Apex Classes ─────────────────────────────────────────────── -->
+    <types>
+        <members>ZeffyConfigService</members>
+        <members>ZeffyDonationService</members>
+        <members>ZeffyWebhookReceiver</members>
+        <members>ZeffyWebhookReceiverTest</members>
+        <name>ApexClass</name>
+    </types>
+
+    <!-- ── LWC ──────────────────────────────────────────────────────── -->
+    <types>
+        <members>zeffyConnect</members>
+        <members>zeffyReviewManager</members>
+        <name>LightningComponentBundle</name>
+    </types>
+
+</Package>

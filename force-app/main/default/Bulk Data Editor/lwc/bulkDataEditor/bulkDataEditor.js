@@ -93,25 +93,32 @@ export default class BulkDataEditor extends LightningElement {
 
     get pathSteps() {
         const currentIndex = STEP_ORDER.indexOf(this.activeWizardStep);
-        return [
-            { key: 'object', label: '1. Object', className: this.stepClass(0, currentIndex) },
-            { key: 'field', label: '2. Field', className: this.stepClass(1, currentIndex) },
-            { key: 'value', label: '3. Value to replace', className: this.stepClass(2, currentIndex) },
-            { key: 'newvalue', label: '4. New value & confirm', className: this.stepClass(3, currentIndex) },
-            { key: 'run', label: '5. Apply', className: this.stepClass(4, currentIndex) }
+        const steps = [
+            { key: 'object', label: '1. Object', stepIndex: 0 },
+            { key: 'field', label: '2. Field', stepIndex: 1 },
+            { key: 'value', label: '3. Value to replace', stepIndex: 2 },
+            { key: 'newvalue', label: '4. New value & confirm', stepIndex: 3 },
+            { key: 'run', label: '5. Apply', stepIndex: 4 }
         ];
-    }
-
-    stepClass(stepIndex, currentIndex) {
-        let cls = 'slds-path__item';
-        if (stepIndex < currentIndex) {
-            cls += ' slds-is-complete wizard-step-clickable';
-        } else if (stepIndex === currentIndex) {
-            cls += ' slds-is-current slds-is-active';
-        } else {
-            cls += ' slds-is-incomplete';
-        }
-        return cls;
+        return steps.map((step, i) => {
+            const isComplete =
+                step.stepIndex < currentIndex || (step.stepIndex === currentIndex && Boolean(this.runSummary));
+            const isCurrent = step.stepIndex === currentIndex;
+            let chipClass = 'step-chip';
+            if (isComplete) {
+                chipClass += ' step-chip_complete';
+            } else if (isCurrent) {
+                chipClass += ' step-chip_current';
+            } else {
+                chipClass += ' step-chip_incomplete';
+            }
+            return {
+                ...step,
+                isComplete,
+                isLast: i === steps.length - 1,
+                chipClass
+            };
+        });
     }
 
     get isValuesMode() {
@@ -528,6 +535,18 @@ export default class BulkDataEditor extends LightningElement {
     }
 
     handleRecordTypeRunDone() {
+        this.refreshHistory();
+    }
+
+    handlePasteUpdateRunDone() {
+        this.refreshHistory();
+    }
+
+    handleRegenerateIdRunDone() {
+        this.refreshHistory();
+    }
+
+    handleCleanFieldRunDone() {
         this.refreshHistory();
     }
 

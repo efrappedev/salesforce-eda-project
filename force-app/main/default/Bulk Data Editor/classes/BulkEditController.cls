@@ -13,6 +13,12 @@ public with sharing class BulkEditController {
     // it in a finally.
     @TestVisible private static Boolean TEST_FORCE_NO_CREATE_ACCESS = false;
     @TestVisible private static Boolean TEST_FORCE_HISTORY_ERROR = false;
+    // A genuinely 'Aborted' AsyncApexJob can't be produced inside a test
+    // transaction (System.abortJob on a job that never got a chance to run
+    // leaves AsyncApexJob.Status as 'Queued', not 'Aborted') — this lets
+    // testGetJobStatus_abortedJob_reportsFailedInsteadOfSpinningForever
+    // exercise that branch directly.
+    @TestVisible private static Boolean TEST_FORCE_JOB_ABORTED = false;
 
     // AuraHandledException does not reliably deliver the message passed to its
     // constructor to the client — Salesforce requires an explicit setMessage()
@@ -210,7 +216,49 @@ public with sharing class BulkEditController {
                     result.totalRecords = job.TotalJobItems;
                     result.processedRecords = job.JobItemsProcessed;
                     result.numberOfErrors = job.NumberOfErrors;
-                    result.isDone = (job.Status == 'Completed' || job.Status == 'Failed' || job.Status == 'Aborted');
+
+                    Boolean jobIsAborted = (job.Status == 'Aborted' || TEST_FORCE_JOB_ABORTED);
+                    Boolean jobIsTerminal = (job.Status == 'Completed' || job.Status == 'Failed' || jobIsAborted);
+                    if (jobIsTerminal) {
+                        // job.Status can flip to 'Completed' the instant the
+                        // last execute() chunk finishes, but our own
+                        // Status__c update only happens inside finish() —
+                        // invoked right after, in its own DML. On a small/
+                        // fast job (e.g. a single batch) the log SELECT above
+                        // can land before that DML commits while this
+                        // AsyncApexJob SELECT lands after, so a terminal job
+                        // status can pair with a stale 'In Progress' log
+                        // snapshot. Since isDone stops polling for good, that
+                        // stale label would otherwise freeze on screen
+                        // forever. Re-reading the log once, now that the job
+                        // is known terminal, closes the race with a fresh,
+                        // guaranteed-post-finish() read.
+                        List<Bulk_Edit_Log__c> freshLogs = [
+                            SELECT Status__c, Records_Affected__c, Error_Message__c
+                            FROM Bulk_Edit_Log__c
+                            WHERE Id = :logId
+                            WITH SECURITY_ENFORCED
+                            LIMIT 1
+                        ];
+                        if (!freshLogs.isEmpty()) {
+                            logRec = freshLogs[0];
+                            result.status = logRec.Status__c;
+                            result.recordsAffected = logRec.Records_Affected__c != null ? logRec.Records_Affected__c.intValue() : 0;
+                            result.errorMessage = logRec.Error_Message__c;
+                            result.canUndo = (logRec.Status__c == 'Completed' || logRec.Status__c == 'Completed with Errors');
+                        }
+
+                        // Aborted jobs skip finish() entirely (Salesforce
+                        // doesn't call it after System.abortJob), so
+                        // Status__c never reaches a terminal value on its
+                        // own — without this the UI would poll/spin forever.
+                        if (jobIsAborted) {
+                            result.status = 'Failed';
+                            result.errorMessage = String.isBlank(result.errorMessage) ? 'The batch job was aborted before it could finish.' : result.errorMessage;
+                        }
+                    }
+
+                    result.isDone = jobIsTerminal;
                 }
             }
 

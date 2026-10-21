@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Text_Styles__c</fullName>
+    <description>JSON written by the form builder text palette: per portal text (lookupTitle, lookupSubtitle, idHelp, formTitle, formSubtitle) a whole-text style (bold, italic, underline, color, highlight, size, align) and styled word ranges per language. Blank = standard look.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Portal Text Styles</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

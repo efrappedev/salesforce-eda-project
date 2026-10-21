@@ -1,0 +1,484 @@
+<template>
+    <div class="duc-rp">
+        <div class="duc-d-head">
+            <div class="duc-d-title">
+                <div class="duc-d-main">
+                    <div class="duc-d-namerow">
+                        <div class="duc-d-name" title={titleText}>{titleText}</div>
+                        <template lwc:if={isFormDeleted}>
+                            <span class="duc-warn-ic" tabindex="0" role="img" aria-label={i18n.formDeletedNotice}>
+                                <c-data-update-icon name="warn" size="18"></c-data-update-icon>
+                                <span class="duc-warn-tip" aria-hidden="true">{i18n.formDeletedNotice}</span>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="duc-d-sub">
+                        <template lwc:if={hasTno}>
+                            <span class="duc-tno" title={tno.full}>#{tno.full}</span>
+                        </template>
+                        <template lwc:if={formLabelDisplay}><span>{formLabelDisplay}</span></template>
+                        <template lwc:if={submittedByText}><span>{submittedByText}</span></template>
+                        <template lwc:if={submittedDate}><span>{submittedDate}</span></template>
+                    </div>
+                </div>
+                <span class="duc-pill" style={statusPillStyle}>{statusText}</span>
+            </div>
+
+            <template lwc:if={hasViewers}>
+                <div class="duc-peerbar" role="status">
+                    <span class="duc-peer-static">{viewerInitials}</span>
+                    <span>{viewingText}</span>
+                </div>
+            </template>
+
+            <template lwc:if={isLocked}>
+                <div class="duc-lockbar">
+                    <c-data-update-icon name="lock" size="14"></c-data-update-icon>
+                    <span>{i18n.rdLockedMsg}</span>
+                    <button class="duc-btn duc-btn_sm duc-lockbar-btn" disabled={unlockDisabled} title={unlockTitle}
+                            onclick={handleUnlock}>
+                        <c-data-update-icon name="unlock" size="13"></c-data-update-icon>{i18n.rdUnlock}
+                    </button>
+                    <template lwc:if={showUnlockHint}>
+                        <span class="duc-lockbar-hint">{unlockHintText}</span>
+                    </template>
+                </div>
+            </template>
+
+            <template lwc:if={showGroupBanner}>
+                <div class="duc-grpbar" role="status">
+                    <c-data-update-icon name="list" size="15"></c-data-update-icon>
+                    <span class="duc-grpbar-txt">{groupBannerText}</span>
+                    <button class="duc-btn duc-btn_sm duc-btn_primary" onclick={handleMultiTicketReview}>{groupBannerBtn}</button>
+                </div>
+            </template>
+
+            <div class="duc-stabs" role="tablist">
+                <button class={updateTabClass} role="tab" aria-selected={updateTabSelected} data-tab="update" onclick={handleSubTab}>
+                    {i18n.rdUpdate}<span class="duc-count"><span class="duc-sr"> (</span>{changedCount}<span class="duc-sr">)</span></span>
+                </button>
+                <button class={historyTabClass} role="tab" aria-selected={historyTabSelected} data-tab="history" onclick={handleSubTab}>
+                    {i18n.rdHistory}<span class="duc-count"><span class="duc-sr"> (</span>{historyCount}<span class="duc-sr">)</span></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="duc-d-body">
+            <template lwc:if={isLoading}>
+                <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+            </template>
+            <template lwc:if={hasError}>
+                <div class="duc-notice duc-notice_error" role="alert">{errorMessage}</div>
+            </template>
+
+            <template lwc:if={hasData}>
+                <!-- ── Update tab ─────────────────────────────────────────── -->
+                <template lwc:if={isUpdateTab}>
+
+                    <template lwc:if={showRbNotice}>
+                        <div class={rbNoticeClass}>
+                            <template lwc:if={rbAsk}>
+                                <div class="duc-rb-main">
+                                    <b>{i18n.rdRbTitle}</b>
+                                    <div class="duc-rb-rows">
+                                        <template for:each={rbRows} for:item="r">
+                                            <div key={r.key} class="duc-r">
+                                                <span class="duc-k">{r.label}</span>
+                                                <span class={r.afterClass}>{r.after}</span>
+                                                <span class="duc-arrow">→</span>
+                                                <span class={r.beforeClass}>{r.before}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="duc-rb-after">{i18n.rdRbAfter}</div>
+                                </div>
+                                <span class="duc-rb-btns">
+                                    <button class="duc-btn" onclick={handleRbCancel} disabled={isRollingBack}>{i18n.rdNo}</button>
+                                    <button class="duc-btn duc-btn_primary" onclick={handleRbConfirm} disabled={isRollingBack}>
+                                        <c-data-update-icon name="rewind" size="14"></c-data-update-icon>{i18n.rdRbGo}
+                                    </button>
+                                </span>
+                            </template>
+                            <template lwc:else>
+                                <div class="duc-rb-main">
+                                    <b>{appliedNoteText}</b>
+                                    <div>{i18n.rdRbExplain}</div>
+                                </div>
+                                <button class="duc-btn" onclick={handleRbAsk}>
+                                    <c-data-update-icon name="rewind" size="14"></c-data-update-icon>{i18n.rdRbBtn}
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template lwc:if={showReopenNotice}>
+                        <div class="duc-notice duc-closed-note">
+                            <span>{i18n.rdClosedNote}</span>
+                            <button class="duc-btn duc-btn_sm" onclick={handleReopen} disabled={isReopening}>
+                                <c-data-update-icon name="undo" size="13"></c-data-update-icon>{i18n.rdReopen}
+                            </button>
+                        </div>
+                    </template>
+
+                    <template lwc:if={hasFields}>
+                        <template for:each={changeGroups} for:item="g">
+                        <div key={g.key} class="duc-chg-group">
+                        <div class="duc-sec-title">{g.title}</div>
+                        <div class="duc-changes">
+                            <template lwc:if={g.showHead}>
+                                <div class="duc-chg-head" aria-hidden="true">
+                                    <span></span><span>{i18n.colField}</span><span>{i18n.rdColCur}</span><span>{i18n.rdColNew}</span>
+                                </div>
+                            </template>
+                            <template for:each={g.rows} for:item="f">
+                                <div key={f.key} class={f.rowClass}>
+                                    <input type="checkbox" class="duc-chk" data-field={f.fieldApiName} checked={f.checked}
+                                           disabled={selectionLocked} aria-label={f.label} onchange={handleFieldToggle} />
+                                    <div class="duc-chg-lbl">
+                                        <div class="duc-lbl">{f.label}</div>
+                                        <div class="duc-badges">
+                                            <template lwc:if={f.isHistoryOnly}>
+                                                <span class="duc-badge" title={i18n.historyOnlyReviewHint}>{i18n.rdHistOnly}</span>
+                                            </template>
+                                            <template lwc:if={f.previouslyRolledBack}>
+                                                <span class="duc-badge duc-badge_warn">{i18n.rdRbPrev}</span>
+                                            </template>
+                                            <template lwc:if={f.isCorrected}>
+                                                <span class="duc-badge duc-badge_review">{i18n.rdActCorrected}</span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="duc-cell duc-cell_new">
+                                        <template lwc:if={f.isEditing}>
+                                            <div class="duc-edit-row">
+                                                <input type="text" class="duc-edit-input" value={editDraftValue} disabled={isSavingEdit}
+                                                       aria-label={f.label} oninput={handleEditDraftChange} onkeydown={handleEditKey} />
+                                                <button class="duc-pen duc-pen_ok" title={i18n.btnSaveEdit} aria-label={i18n.btnSaveEdit}
+                                                        disabled={isSavingEdit} onclick={handleEditSave}>
+                                                    <c-data-update-icon name="check" size="15"></c-data-update-icon>
+                                                </button>
+                                                <button class="duc-pen" title={i18n.rdCancel} aria-label={i18n.rdCancel}
+                                                        disabled={isSavingEdit} onclick={handleEditCancel}>
+                                                    <c-data-update-icon name="x" size="15"></c-data-update-icon>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template lwc:else>
+                                            <span class={f.subClass}>{f.subText}</span>
+                                            <template lwc:if={f.showPen}>
+                                                <button class="duc-pen" data-field={f.fieldApiName} disabled={f.penDisabled}
+                                                        title={i18n.btnEditField} aria-label={i18n.btnEditField} onclick={handleEditFieldClick}>
+                                                    <c-data-update-icon name="pen" size="14"></c-data-update-icon>
+                                                </button>
+                                            </template>
+                                        </template>
+                                    </div>
+                                    <template lwc:if={f.hasSaveLine}>
+                                        <div class="duc-save" onkeydown={handleNoteKeydown}>
+                                            <template lwc:if={f.hasPlaces}>
+                                                <select class={f.placeClass} data-field={f.fieldApiName} disabled={selectionLocked}
+                                                        aria-label={i18n.rdSaveWhere} onchange={handlePlaceChange}>
+                                                    <template for:each={f.placeOptions} for:item="o">
+                                                        <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                    </template>
+                                                </select>
+                                            </template>
+                                            <template lwc:if={f.canPrefer}>
+                                                <button type="button" class={f.prefClass} data-field={f.fieldApiName} disabled={f.prefDisabled}
+                                                        aria-pressed={f.prefPressed} title={f.prefTitle} onclick={handlePreferredClick}>
+                                                    <span class="duc-pref-s" aria-hidden="true">{f.prefStar}</span>{i18n.rdPreferred}
+                                                </button>
+                                            </template>
+                                            <template lwc:if={f.edaIsWarn}>
+                                                <button type="button" class="duc-eda-btn" data-field={f.fieldApiName}
+                                                        aria-expanded={f.edaExpanded} aria-haspopup="dialog" onclick={handleNoteToggle}>
+                                                    <c-data-update-icon name="warn" size="13"></c-data-update-icon>{i18n.rdNoteCheck}
+                                                </button>
+                                                <template lwc:if={f.edaOpen}>
+                                                    <div class="duc-eda-pop" role="dialog" aria-label={i18n.rdNoteCheck}>
+                                                        <div class="duc-eda-pop-head">
+                                                            <c-data-update-icon name="warn" size="14"></c-data-update-icon>
+                                                            <span>{i18n.rdNoteCheck}</span>
+                                                            <button type="button" class="duc-eda-pop-x" aria-label={i18n.rdClose} title={i18n.rdClose}
+                                                                    onclick={handleNoteClose}>
+                                                                <c-data-update-icon name="x" size="12"></c-data-update-icon>
+                                                            </button>
+                                                        </div>
+                                                        <p class="duc-eda-pop-body">{f.edaNote}</p>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div class="duc-cell duc-cell_cur">
+                                        <span class={f.curClass}>{f.curText}</span>
+                                    </div>
+                                    <template lwc:if={f.hasEdaNote}>
+                                        <div class={f.edaNoteClass}>
+                                            <c-data-update-icon name="info" size="13"></c-data-update-icon>
+                                            <span>{f.edaNote}</span>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={f.isHistorize}>
+                                        <div class="duc-hl">
+                                            <div class="duc-hl-head">
+                                                <span>{i18n.rdHistAddedTo} <b>{f.histObject}</b></span>
+                                                <template lwc:if={f.histTrend}>
+                                                    <span class="duc-hl-trend">{f.histTrend}</span>
+                                                </template>
+                                            </div>
+                                            <ul class="duc-hl-list">
+                                                <li class={f.histNewRowClass}>
+                                                    <span class="duc-hl-dot"></span>
+                                                    <span class="duc-hl-date">{f.histNewDate}</span>
+                                                    <span class="duc-hl-val"><span class="duc-hl-num">{f.histNewValue}</span> <span class="duc-hl-new">{f.histNewTag}</span></span>
+                                                </li>
+                                                <template lwc:if={f.histHasLast}>
+                                                    <li class="duc-hl-row duc-hl-row_old">
+                                                        <span class="duc-hl-dot"></span>
+                                                        <span class="duc-hl-date">{f.histLastDate}</span>
+                                                        <span class="duc-hl-val">{f.histLastValue}</span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                        </div>
+                        </template>
+                    </template>
+
+                    <template lwc:if={hasTables}>
+                        <template for:each={tableViews} for:item="t">
+                            <div key={t.key} class="duc-chg-group duc-tbl">
+                                <div class="duc-tbl-head">
+                                    <span class="duc-sec-title">{t.title}</span>
+                                    <span class="duc-tbl-count">{t.countText} ·
+                                        <button class="duc-link" data-table={t.key} data-mode="all" onclick={handleTableSelect} disabled={selectionLocked}>{i18n.rdAll}</button>|<button
+                                            class="duc-link" data-table={t.key} data-mode="none" onclick={handleTableSelect} disabled={selectionLocked}>{i18n.rdNone}</button><template lwc:if={t.hasDuplicates}>|<button
+                                            class="duc-link" data-table={t.key} data-mode="new" onclick={handleTableSelect} disabled={selectionLocked}>{i18n.rdTblOnlyNew}</button></template>
+                                    </span>
+                                </div>
+                                <template lwc:if={t.hasDuplicates}>
+                                    <div class="duc-notice duc-tbl-note">{t.dupText}</div>
+                                </template>
+                                <template lwc:if={t.previouslyRolledBack}>
+                                    <div class="duc-notice duc-tbl-note">{i18n.rdTblRolledBack}</div>
+                                </template>
+                                <div class="duc-tbl-scroll">
+                                    <div class="duc-tbl-grid" style={t.gridStyle} role="table" aria-label={t.title}>
+                                        <div class="duc-trow duc-trow_head" role="row">
+                                            <span role="columnheader"></span>
+                                            <template for:each={t.headers} for:item="h">
+                                                <span key={h.key} role="columnheader">{h.label}</span>
+                                            </template>
+                                            <span role="columnheader"></span>
+                                        </div>
+                                        <template for:each={t.rows} for:item="r">
+                                            <div key={r.key} class={r.rowClass} role="row">
+                                                <span><input type="checkbox" class="duc-chk" data-table={t.key} data-index={r.index} checked={r.checked}
+                                                    disabled={selectionLocked} aria-label={r.ariaLabel} onchange={handleTableRowToggle} /></span>
+                                                <template for:each={r.cells} for:item="c">
+                                                    <span key={c.key} class="duc-tcell">{c.value}</span>
+                                                </template>
+                                                <span><span class={r.actionClass}>{r.action}</span></span>
+                                                <template lwc:if={r.isDuplicate}>
+                                                    <span class="duc-tex-label">{i18n.rdTblExisting}</span>
+                                                    <template for:each={r.existing} for:item="c">
+                                                        <span key={c.key} class="duc-tcell duc-tcell_ex">{c.value}</span>
+                                                    </template>
+                                                    <span><template lwc:if={r.same}><span class="duc-tchip duc-tchip_same">{i18n.rdTblSame}</span></template></span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                    <template lwc:if={showNoFields}>
+                        <div class="duc-notice">{i18n.rdNoFields}</div>
+                    </template>
+
+                    <template lwc:if={hasUnchanged}>
+                        <button class="duc-same-toggle" onclick={handleToggleSame} aria-expanded={sameExpanded}>
+                            <span class={sameChevClass}><c-data-update-icon name="chev" size="14"></c-data-update-icon></span>
+                            <span>{sameToggleText}</span>
+                        </button>
+                        <template lwc:if={showSame}>
+                            <div class="duc-same">
+                                <template for:each={unchangedList} for:item="s">
+                                    <div key={s.key} class="duc-same-item"><small>{s.label}</small>{s.value}</div>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+                </template>
+
+                <!-- ── History tab ────────────────────────────────────────── -->
+                <template lwc:if={isHistoryTab}>
+                    <template lwc:if={hasAuditEntries}>
+                        <div class="duc-timeline">
+                            <template for:each={timeline} for:item="h">
+                                <div key={h.key} class={h.tlClass}>
+                                    <span class="duc-dot" style={h.dotStyle}>
+                                        <c-data-update-icon name={h.icon} size="13"></c-data-update-icon>
+                                    </span>
+                                    <div class="duc-tl-card">
+                                        <div class="duc-who">
+                                            <b>{h.who}</b><span>{h.action}</span><span>{h.when}</span>
+                                            <template lwc:if={h.showEntryRollback}>
+                                                <button class="duc-btn duc-btn_sm duc-who-btn" data-key={h.entryKey}
+                                                        disabled={isRollingBack} onclick={handleRollbackClick}>
+                                                    <c-data-update-icon name="undo" size="13"></c-data-update-icon>{i18n.rdRollback}
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <template lwc:if={h.hasChanges}>
+                                            <div class="duc-rows">
+                                                <template for:each={h.changes} for:item="c">
+                                                    <div key={c.key} class="duc-r">
+                                                        <span class="duc-k">{c.label}</span>
+                                                        <span class={c.beforeClass}>{c.before}</span>
+                                                        <span class="duc-arrow">→</span>
+                                                        <span class={c.afterClass}>{c.after}</span>
+                                                        <template lwc:if={h.showFieldRewind}>
+                                                            <template lwc:if={c.canRollback}>
+                                                                <button class="duc-pen" data-key={c.confirmKey} disabled={isRollingBack}
+                                                                        title={c.rollbackAria} aria-label={c.rollbackAria} onclick={handleRollbackClick}>
+                                                                    <c-data-update-icon name="rewind" size="13"></c-data-update-icon>
+                                                                </button>
+                                                            </template>
+                                                        </template>
+                                                        <template lwc:if={c.isConfirming}>
+                                                            <div class="duc-confirm">
+                                                                {i18n.rdRbConfirm}
+                                                                <span class="duc-confirm-btns">
+                                                                    <button class="duc-btn duc-btn_sm" disabled={isRollingBack} onclick={handleRollbackCancel}>{i18n.rdNo}</button>
+                                                                    <button class="duc-btn duc-btn_sm duc-btn_primary" data-key={c.confirmKey}
+                                                                            disabled={isRollingBack} onclick={handleRollbackConfirm}>{i18n.rdYes}</button>
+                                                                </span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={h.hasStatusDetails}>
+                                            <div class="duc-rows">
+                                                <template for:each={h.statusDetails} for:item="d">
+                                                    <div key={d.key} class="duc-r duc-r_status">
+                                                        <span class="duc-k">{d.label}</span>
+                                                        <span class="duc-v duc-v_note">{d.value}</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={h.hasPreferredChanges}>
+                                            <div class="duc-rows">
+                                                <template for:each={h.preferredChanges} for:item="p">
+                                                    <div key={p.key} class="duc-r">
+                                                        <span class="duc-k">★ {p.label}</span>
+                                                        <span class={p.beforeClass}>{p.before}</span>
+                                                        <span class="duc-arrow">→</span>
+                                                        <span class="duc-v duc-v_new">{p.after}</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={h.hasGroup}>
+                                            <div class="duc-tl-grp">
+                                                <c-data-update-icon name="list" size="13"></c-data-update-icon>{h.groupText}
+                                            </div>
+                                        </template>
+                                        <template lwc:if={h.hasNotApplied}>
+                                            <div class="duc-tl-na">
+                                                <div class="duc-tl-na-title">{i18n.grpNotAppliedTitle}</div>
+                                                <template for:each={h.notApplied} for:item="n">
+                                                    <div key={n.key} class="duc-tl-na-row">
+                                                        <span class="duc-k">{n.label}</span>
+                                                        <span class="duc-tl-na-v">{n.value}</span>
+                                                        <span class="duc-tl-na-r">— {n.reason}</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={h.isConfirmingEntry}>
+                                            <div class="duc-confirm">
+                                                {h.rbConfirmText}
+                                                <span class="duc-confirm-btns">
+                                                    <button class="duc-btn duc-btn_sm" disabled={isRollingBack} onclick={handleRollbackCancel}>{i18n.rdNo}</button>
+                                                    <button class="duc-btn duc-btn_sm duc-btn_primary" data-key={h.entryKey}
+                                                            disabled={isRollingBack} onclick={handleRollbackConfirm}>{i18n.rdYes}</button>
+                                                </span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template lwc:else>
+                        <div class="duc-empty">{i18n.rdNoHist}</div>
+                    </template>
+                </template>
+            </template>
+        </div>
+
+        <template lwc:if={showActions}>
+            <div class="duc-actions">
+                <span class="duc-sel">
+                    {selectedText} ·
+                    <button class="duc-link" onclick={handleSelectAll} disabled={selectionLocked}>{i18n.rdAll}</button>|<button
+                        class="duc-link" onclick={handleSelectNone} disabled={selectionLocked}>{i18n.rdNone}</button>
+                </span>
+                <div class="duc-pop-wrap">
+                    <button class="duc-btn" onclick={handleTogglePop} aria-expanded={popExpanded} aria-haspopup="dialog">
+                        {i18n.rdStatus}<span class={popChevClass}><c-data-update-icon name="chev" size="14"></c-data-update-icon></span>
+                    </button>
+                    <template lwc:if={isPopOpen}>
+                        <div class="duc-pop" role="dialog" aria-label={i18n.rdStatus} onkeydown={handlePopKey}>
+                            <template for:each={popModes} for:item="o">
+                                <button key={o.mode} class="duc-opt" style={o.style} data-mode={o.mode}
+                                        aria-pressed={o.pressed} onclick={handleModeChange}>
+                                    <span class="duc-opt-ic"><c-data-update-icon name={o.icon} size="15"></c-data-update-icon></span>
+                                    <b>{o.title}</b>
+                                    <small>{o.desc}</small>
+                                </button>
+                            </template>
+                            <template lwc:if={isIgnoreMode}>
+                                <div class="duc-reason-box">
+                                    <b class="duc-reason-title">{i18n.rdReasonReq} *</b>
+                                    <div class="duc-reasons">
+                                        <template for:each={reasonChips} for:item="r">
+                                            <button key={r.value} class={r.cls} data-value={r.value} aria-pressed={r.pressed}
+                                                    onclick={handleReasonPick}>{r.label}</button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:if={showNoteBox}>
+                                <textarea class="duc-pop-note" rows="3" maxlength="1000" value={exceptionReason}
+                                          placeholder={notePlaceholder} aria-label={notePlaceholder}
+                                          aria-required={isNoteRequired} oninput={handleExceptionReasonChange}></textarea>
+                            </template>
+                            <div class="duc-pop-row">
+                                <button class="duc-btn duc-btn_ghost" onclick={handlePopCancel}>{i18n.rdCancel}</button>
+                                <template lwc:if={showNoteBox}>
+                                    <button class="duc-btn duc-btn_primary" disabled={isExceptionConfirmDisabled}
+                                            onclick={confirmException}>{i18n.rdConfirm}</button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <button class="duc-btn duc-btn_primary" disabled={isApplyDisabled} onclick={handleApply}>
+                    <c-data-update-icon name="check" size="15"></c-data-update-icon>{applyLabel}
+                </button>
+            </div>
+        </template>
+    </div>
+</template>

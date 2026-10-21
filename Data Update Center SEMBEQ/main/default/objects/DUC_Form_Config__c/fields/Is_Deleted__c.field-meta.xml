@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Deleted__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Deleted from the Form Builder: hides the record (and the Custom Metadata record of the same name) everywhere.</description>
+    <externalId>false</externalId>
+    <label>Deleted</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

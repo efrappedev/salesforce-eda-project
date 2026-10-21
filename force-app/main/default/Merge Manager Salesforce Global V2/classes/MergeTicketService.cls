@@ -46,6 +46,8 @@ public without sharing class MergeTicketService {
             },
             'Account' => new List<String>{
                 'Name', 'Common_Name__c',
+                'PersonEmail',
+                'Alternative_Email_1__c', 'Alternative_Email_2__c', 'Alternative_Email_3__c',
                 'Phone', 'Fax',
                 'hed__Credentialing_Email__c',
                 'AccountNumber',

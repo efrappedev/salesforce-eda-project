@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Performed_By__c</fullName>
+    <label>Performed By</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>DMC Audit Logs</relationshipLabel>
+    <relationshipName>Audit_Logs_Performed</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

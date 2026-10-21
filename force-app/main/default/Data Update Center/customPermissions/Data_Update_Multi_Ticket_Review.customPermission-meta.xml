@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Review all open tickets of one church together (list grouped by church, "Review N together"). Without it, tickets are reviewed one by one.</description>
+    <isLicensed>false</isLicensed>
+    <label>Data Update Multi-Ticket Review</label>
+</CustomPermission>

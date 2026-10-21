@@ -1,0 +1,134 @@
+/* Shared styles for the Data Update Center redesign. Imported by each component with
+   @import 'c/dataUpdateUiStyles'; — tokens (--duc-*) are defined on the dataUpdateCenter root. */
+
+:host {
+    font: 14px/1.45 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--duc-text);
+    -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; margin: 0; }
+input, select, textarea { font: inherit; color: var(--duc-text); margin: 0; }
+.duc-hide { display: none !important; }
+
+/* buttons */
+.duc-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--duc-line); background: var(--duc-surface); color: var(--duc-text);
+    border-radius: 9px; padding: 7px 12px; font-weight: 600; font-size: 13px; line-height: 1.3;
+    transition: background .15s, border-color .15s; white-space: nowrap;
+}
+.duc-btn:hover { border-color: var(--duc-faint); }
+.duc-btn:disabled { opacity: .45; cursor: not-allowed; }
+.duc-btn_primary { background: var(--duc-brand); border-color: var(--duc-brand); color: #fff; }
+.duc-btn_primary:hover { filter: brightness(1.07); border-color: var(--duc-brand); }
+.duc-btn_primary:disabled { filter: none; }
+.duc-btn_ghost { border-color: transparent; background: none; }
+.duc-btn_ghost:hover { background: var(--duc-surface-2); border-color: transparent; }
+.duc-btn_sm { padding: 4px 10px; font-size: 12px; }
+.duc-pen {
+    border: 0; background: none; width: 26px; height: 26px; border-radius: 6px;
+    display: grid; place-items: center; color: var(--duc-faint); padding: 0; flex: none;
+}
+.duc-pen:hover { background: var(--duc-surface-2); color: var(--duc-text); }
+.duc-pen:disabled { opacity: .4; cursor: not-allowed; }
+.duc-link {
+    border: 0; background: none; padding: 0 4px; color: var(--duc-brand);
+    font-weight: 600; font-size: 12px;
+}
+.duc-link:hover { text-decoration: underline; }
+
+/* status pill + ticket number */
+.duc-pill {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 1px 8px;
+    font-size: 11px; font-weight: 600; background: var(--sbg); color: var(--sc);
+    white-space: nowrap; flex: none; line-height: 1.6;
+}
+.duc-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.duc-tno {
+    font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .95em; letter-spacing: .01em; color: var(--duc-text); white-space: nowrap;
+}
+.duc-z { color: var(--duc-faint); opacity: .6; }
+
+/* inputs */
+.duc-select {
+    width: 100%; border: 1px solid var(--duc-line); border-radius: 9px; padding: 7px 30px 7px 10px;
+    background: var(--duc-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a97a8' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    appearance: none; -webkit-appearance: none; font-weight: 500; cursor: pointer; font-size: 14px; line-height: 1.45;
+}
+.duc-search {
+    display: flex; align-items: center; gap: 8px; background: var(--duc-surface-2);
+    border: 1px solid var(--duc-line); border-radius: 9px; padding: 0 10px; color: var(--duc-faint);
+}
+.duc-search input { border: 0; background: none; outline: 0; padding: 8px 0; width: 100%; font-size: 14px; box-shadow: none; }
+.duc-select:focus, .duc-search:focus-within {
+    outline: 0; border-color: var(--duc-brand); box-shadow: 0 0 0 3px var(--duc-brand-soft);
+}
+.duc-textarea {
+    width: 100%; box-sizing: border-box; border: 1px solid var(--duc-line); border-radius: 9px;
+    padding: 8px 10px; background: var(--duc-surface-2); resize: vertical; font-size: 13px;
+}
+.duc-textarea:focus { outline: 0; border-color: var(--duc-brand); box-shadow: 0 0 0 3px var(--duc-brand-soft); }
+
+/* text blocks */
+.duc-empty { padding: 40px 20px; text-align: center; color: var(--duc-muted); }
+.duc-hint { font-size: 12px; color: var(--duc-faint); }
+.duc-notice {
+    border-radius: 9px; padding: 9px 12px; font-size: 13px; background: var(--duc-surface-2);
+    border: 1px solid var(--duc-line); color: var(--duc-muted);
+}
+.duc-sec-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--duc-faint); display: flex; align-items: center; gap: 8px;
+}
+.duc-sec-title::after { content: ""; flex: 1; height: 1px; background: var(--duc-line-2); }
+.duc-badge {
+    font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 6px; background: var(--duc-surface-2);
+    color: var(--duc-muted); border: 1px solid var(--duc-line); white-space: nowrap;
+}
+.duc-badge_warn { background: var(--duc-reopen-bg); color: var(--duc-reopen); border-color: transparent; }
+
+/* values (diff) */
+.duc-v { border-radius: 6px; padding: 2px 8px; max-width: 100%; overflow-wrap: anywhere; font-size: 13px; }
+.duc-v_old { background: var(--duc-del); color: var(--duc-del-ink); text-decoration: line-through; text-decoration-thickness: 1px; }
+.duc-v_new { background: var(--duc-add); color: var(--duc-add-ink); font-weight: 600; }
+.duc-v_empty { font-style: italic; opacity: .75; }
+.duc-arrow { color: var(--duc-faint); }
+
+/* pager */
+.duc-pager { display: inline-flex; align-items: center; gap: 2px; }
+.duc-pager-label {
+    font-size: 12px; color: var(--duc-muted); min-width: 34px; text-align: center; cursor: pointer;
+    font-variant-numeric: tabular-nums; border-radius: 5px; padding: 1px 4px;
+}
+.duc-pager-label:hover { background: var(--duc-surface-2); }
+.duc-pager-input { width: 46px; font-size: 12px; padding: 1px 4px; border: 1px solid var(--duc-brand); border-radius: 5px; }
+
+/* small centered dialog */
+.duc-mback { position: fixed; inset: 0; background: rgba(16, 24, 40, .28); z-index: 9000; animation: duc-fade .12s ease-out; }
+.duc-mini-modal {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9001;
+    width: min(380px, calc(100vw - 32px)); background: var(--duc-surface); border: 1px solid var(--duc-line);
+    border-radius: 14px; box-shadow: var(--duc-pop); padding: 16px; display: grid; gap: 12px;
+    animation: duc-mpop .16s ease-out; box-sizing: border-box;
+}
+.duc-mm-head { display: flex; gap: 12px; align-items: flex-start; }
+.duc-mm-ic {
+    width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--sbg); color: var(--sc); flex: none;
+}
+.duc-mm-title { font-size: 15px; font-weight: 700; }
+.duc-mm-sub { font-size: 12.5px; color: var(--duc-muted); margin-top: 2px; }
+.duc-mm-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+.duc-spin { position: relative; min-height: 90px; }
+
+@keyframes duc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes duc-mpop { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes duc-pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Keyboard focus: a solid ring, visible on any background (the soft brand halo was too faint). */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--duc-brand); outline-offset: 2px;
+}

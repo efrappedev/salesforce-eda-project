@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Gift_Designation__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Which of the organization's Gift Designations this campaign's donations feed into. Should be set for every campaign used with Zeffy - governed by a campaign-creation process, not yet a hard validation rule.</description>
+    <label>Gift Designation</label>
+    <referenceTo>Gift_Designation__c</referenceTo>
+    <relationshipLabel>Campaigns</relationshipLabel>
+    <relationshipName>Campaigns</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

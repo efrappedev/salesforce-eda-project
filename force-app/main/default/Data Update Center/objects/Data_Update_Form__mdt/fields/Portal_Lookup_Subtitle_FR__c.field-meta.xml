@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Lookup_Subtitle_FR__c</fullName>
+    <description>Optional French override for the welcome message of the access (identification) screen of the public form (set from the form builder). Blank = standard text.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Portal Lookup Subtitle FR</label>
+    <required>false</required>
+    <type>TextArea</type>
+    <unique>false</unique>
+</CustomField>

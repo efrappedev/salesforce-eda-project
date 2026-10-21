@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Eligible_Amount__c</fullName>
+    <description>Tax-eligible portion of the gift. Zeffy reports this separately from the total amount when the payment includes a non-deductible tip.</description>
+    <label>Eligible Amount</label>
+    <precision>16</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <type>Currency</type>
+</CustomField>

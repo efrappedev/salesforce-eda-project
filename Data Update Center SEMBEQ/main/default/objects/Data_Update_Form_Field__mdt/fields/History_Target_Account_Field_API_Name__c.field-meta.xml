@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>History_Target_Account_Field_API_Name__c</fullName>
+    <description>Optional. API name of a lookup field on History_Target_Object_API_Name__c pointing back to the source record (e.g. Account__c). Must be a Reference field whose getReferenceTo() includes the form's target object — re-validated live against Schema.describe() at runtime.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>History Target Account Field API Name</label>
+    <length>80</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

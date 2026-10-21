@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Resolved_By__c</fullName>
+    <label>Resolved By</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>Zeffy Review Tickets Resolved</relationshipLabel>
+    <relationshipName>Zeffy_Review_Tickets_Resolved</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

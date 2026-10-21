@@ -1,0 +1,545 @@
+{
+ "Data_Update_Form__mdt": [
+  {
+   "attributes": {
+    "type": "Data_Update_Form__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update",
+   "MasterLabel": "Contact Update",
+   "Allow_Duplicate_Open_Requests__c": false,
+   "Identity_Field_1_API_Name__c": "ID_Contact__c",
+   "Identity_Field_1_Comparison__c": "Exact",
+   "Identity_Field_2_API_Name__c": "LastName",
+   "Identity_Field_2_Comparison__c": "Normalized_Text",
+   "Is_Active__c": true,
+   "Is_Core_Form__c": true,
+   "Lock_Date_Field_API_Name__c": "Data_Update_Locked_Date__c",
+   "Lock_Field_API_Name__c": "Data_Update_Locked__c",
+   "Network_Name__c": "Mise à jour de compte SEMBEQ",
+   "Owner_Queue_DeveloperName__c": "Data_Update_Requests",
+   "Record_Name_Field_API_Name__c": "Name",
+   "Subject_Template__c": "{RecordName}",
+   "Target_Base_Filter_Field__c": null,
+   "Target_Base_Filter_Value__c": null,
+   "Target_Object_API_Name__c": "Contact"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Eglise_Update",
+   "MasterLabel": "Église Update",
+   "Allow_Duplicate_Open_Requests__c": true,
+   "Identity_Field_1_API_Name__c": "ID_Account__c",
+   "Identity_Field_1_Comparison__c": "Exact",
+   "Identity_Field_2_API_Name__c": "Enregistrement_provincial_etatique__c",
+   "Identity_Field_2_Comparison__c": "Normalized_Text",
+   "Is_Active__c": true,
+   "Is_Core_Form__c": true,
+   "Lock_Date_Field_API_Name__c": null,
+   "Lock_Field_API_Name__c": null,
+   "Network_Name__c": "Mise à jour de compte Églises SEMBEQ",
+   "Owner_Queue_DeveloperName__c": "Data_Update_Requests",
+   "Record_Name_Field_API_Name__c": "Name",
+   "Subject_Template__c": "{RecordName}",
+   "Target_Base_Filter_Field__c": "RecordType.DeveloperName",
+   "Target_Base_Filter_Value__c": "Eglise",
+   "Target_Object_API_Name__c": "Account"
+  }
+ ],
+ "Data_Update_Form_Field__mdt": [
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_Alt_Email_1",
+   "MasterLabel": "AEBEQ_Account_Update - Alternative_Email",
+   "Display_Order__c": 40.0,
+   "Field_API_Name__c": "Alternative_Email_1__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Alternative Email 1",
+   "Label_ES__c": "Alternative Email 1",
+   "Label_FR__c": "Alternative Email 1",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_Email",
+   "MasterLabel": "AEBEQ Account Update - Email",
+   "Display_Order__c": 10.0,
+   "Field_API_Name__c": "Email",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email",
+   "Label_ES__c": "Correo electrónico",
+   "Label_FR__c": "Courriel",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_Excl",
+   "MasterLabel": "AEBEQ_Account_Update - Excl__c",
+   "Display_Order__c": 120.0,
+   "Field_API_Name__c": "Excl__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Checkbox",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Excl.?",
+   "Label_ES__c": "Excl.?",
+   "Label_FR__c": "Excl.?",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_Excl_reason",
+   "MasterLabel": "AEBEQ_Account_Update - Excl_raison__c",
+   "Display_Order__c": 130.0,
+   "Field_API_Name__c": "Excl_reason__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Picklist",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Excl. (raison)",
+   "Label_ES__c": "Excl. (raison)",
+   "Label_FR__c": "Excl. (raison)",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_FirstName",
+   "MasterLabel": "AEBEQ Account Update - First Name",
+   "Display_Order__c": 1.0,
+   "Field_API_Name__c": "FirstName",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "First Name",
+   "Label_ES__c": "Nombre",
+   "Label_FR__c": "Prénom",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Identity",
+   "Section_Label_ES__c": "Identidad",
+   "Section_Label_FR__c": "Identité"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_HomePhone",
+   "MasterLabel": "AEBEQ Account Update - Home Phone",
+   "Display_Order__c": 30.0,
+   "Field_API_Name__c": "HomePhone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Home Phone",
+   "Label_ES__c": "Teléfono residencial",
+   "Label_FR__c": "Téléphone résidentiel",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_LastName",
+   "MasterLabel": "AEBEQ Account Update - Last Name",
+   "Display_Order__c": 2.0,
+   "Field_API_Name__c": "LastName",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Last Name",
+   "Label_ES__c": "Apellido",
+   "Label_FR__c": "Nom de famille",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Identity",
+   "Section_Label_ES__c": "Identidad",
+   "Section_Label_FR__c": "Identité"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_Mail_Opt_Out",
+   "MasterLabel": "AEBEQ_Account_Update - MQ__c",
+   "Display_Order__c": 140.0,
+   "Field_API_Name__c": "Mail_Opt_Out__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Checkbox",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "MQ",
+   "Label_ES__c": "MQ",
+   "Label_FR__c": "MQ",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MailingCity",
+   "MasterLabel": "AEBEQ Account Update - Mailing City",
+   "Display_Order__c": 50.0,
+   "Field_API_Name__c": "MailingCity",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "City",
+   "Label_ES__c": "Ciudad",
+   "Label_FR__c": "Ville",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MailingCountry",
+   "MasterLabel": "AEBEQ Account Update - Mailing Country",
+   "Display_Order__c": 80.0,
+   "Field_API_Name__c": "MailingCountry",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Country",
+   "Label_ES__c": "País",
+   "Label_FR__c": "Pays",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MailingPostalCode",
+   "MasterLabel": "AEBEQ Account Update - Postal Code",
+   "Display_Order__c": 70.0,
+   "Field_API_Name__c": "MailingPostalCode",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Postal Code",
+   "Label_ES__c": "Código postal",
+   "Label_FR__c": "Code postal",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MailingState",
+   "MasterLabel": "AEBEQ Account Update - Mailing State",
+   "Display_Order__c": 60.0,
+   "Field_API_Name__c": "MailingState",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "State/Province",
+   "Label_ES__c": "Provincia/Estado",
+   "Label_FR__c": "Province",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MailingStreet",
+   "MasterLabel": "AEBEQ Account Update - Mailing Street",
+   "Display_Order__c": 40.0,
+   "Field_API_Name__c": "MailingStreet",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Street",
+   "Label_ES__c": "Calle",
+   "Label_FR__c": "Rue",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Contact_Update_MobilePhone",
+   "MasterLabel": "AEBEQ Account Update - Mobile Phone",
+   "Display_Order__c": 20.0,
+   "Field_API_Name__c": "MobilePhone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Contact_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Mobile Phone",
+   "Label_ES__c": "Teléfono móvil",
+   "Label_FR__c": "Téléphone mobile",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Eglise_Update_Alt_Email_1",
+   "MasterLabel": "AEBEQ Eglise Update - Email 1",
+   "Display_Order__c": 3.0,
+   "Field_API_Name__c": "Email_Address__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email 1",
+   "Label_ES__c": "Correo 1",
+   "Label_FR__c": "Courriel 1",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Eglise_Update_Alt_Email_2",
+   "MasterLabel": "AEBEQ Eglise Update - Email 2",
+   "Display_Order__c": 4.0,
+   "Field_API_Name__c": "Email_Personal__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email 2",
+   "Label_ES__c": "Correo 2",
+   "Label_FR__c": "Courriel 2",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Eglise_Update_Phone",
+   "MasterLabel": "AEBEQ Eglise Update - Phone",
+   "Display_Order__c": 1.0,
+   "Field_API_Name__c": "Phone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Phone",
+   "Label_ES__c": "Teléfono",
+   "Label_FR__c": "Téléphone",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "SEMBEQ_Eglise_Update_Work_Phone",
+   "MasterLabel": "AEBEQ Eglise Update - Work phone",
+   "Display_Order__c": 2.0,
+   "Field_API_Name__c": "Alternative_Phone__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "SEMBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Work phone",
+   "Label_ES__c": "Teléfono trabajo",
+   "Label_FR__c": "Téléphone (bureau)",
+   "Same_Row_As_Previous__c": true,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  }
+ ],
+ "Data_Update_Appearance_Template__mdt": []
+}

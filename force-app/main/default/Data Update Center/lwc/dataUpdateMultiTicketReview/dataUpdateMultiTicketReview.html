@@ -1,0 +1,270 @@
+<template>
+    <div class="duc-rp">
+        <div class="duc-d-head">
+            <div class="duc-d-title">
+                <div class="grp-ic"><c-data-update-icon name="list" size="18"></c-data-update-icon></div>
+                <div class="duc-d-main">
+                    <div class="duc-d-name" title={recordName}>{recordName}</div>
+                    <template lwc:if={hasTickets}>
+                        <div class="duc-d-sub"><span>{headerSub}</span></div>
+                    </template>
+                </div>
+            </div>
+            <div class="grp-head-line"></div>
+        </div>
+
+        <div class="duc-d-body">
+            <template lwc:if={isLoading}>
+                <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+            </template>
+
+            <template lwc:if={hasError}>
+                <div class="duc-notice duc-notice_error">{errorText}</div>
+            </template>
+
+            <!-- After Apply / Ignore: the closed tickets, each one opens on its own tab -->
+            <template lwc:if={isDone}>
+                <div class="grp-done">
+                    <div class="grp-done-ic"><c-data-update-icon name="check" size="20"></c-data-update-icon></div>
+                    <b>{i18n.grpDoneTitle}</b>
+                    <span class="duc-hint">{i18n.grpDoneHint}</span>
+                </div>
+            </template>
+            <template lwc:if={hasClosedTickets}>
+                <div class="grp-box">
+                    <template for:each={closedTickets} for:item="c">
+                        <div key={c.id} class="grp-closed">
+                            <span class="duc-tno">#{c.no}</span>
+                            <span class="grp-closed-form">{c.formLabel}</span>
+                            <span class="duc-pill" style={c.statusStyle}>{c.statusText}</span>
+                            <button class="duc-btn duc-btn_sm" data-id={c.id} data-label={recordName} data-no={c.no} data-status={c.status}
+                                    onclick={handleOpenTicket}>{i18n.grpOpenTicket}</button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template lwc:if={hasTickets}>
+                <!-- Account fields -->
+                <template lwc:if={hasFields}>
+                    <div class="grp-box">
+                        <div class="grp-boxh">
+                            <span>{i18n.grpFieldsTitle} <small>{i18n.grpFieldsHint}</small></span>
+                            <span class="grp-selc">{fieldSelText} ·
+                                <button class="duc-link" data-val="all" onclick={handleFieldsAll} disabled={isWorking}>{i18n.grpAll}</button>|<button
+                                    class="duc-link" data-val="none" onclick={handleFieldsAll} disabled={isWorking}>{i18n.grpNone}</button>
+                            </span>
+                        </div>
+                        <div class="grp-scroll">
+                            <table class="grp-tbl grp-tbl_fields">
+                                <thead>
+                                    <tr>
+                                        <th class="grp-cb"><span class="grp-sr">{i18n.grpColApply}</span></th>
+                                        <th>{i18n.grpColField}</th>
+                                        <th>{i18n.grpColSent}</th>
+                                        <th>{i18n.grpColSaveTo}</th>
+                                        <th>{i18n.grpColTicket}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={fieldRows} for:item="f">
+                                        <tr key={f.id} class={f.rowClass}>
+                                            <td class="grp-cb">
+                                                <input type="checkbox" checked={f.checked} disabled={f.same} data-id={f.id}
+                                                       onchange={handleFieldToggle} aria-label={f.cbLabel}>
+                                            </td>
+                                            <td class={f.labelClass}>
+                                                {f.label}
+                                                <template lwc:if={f.isCorrected}>
+                                                    <div class="grp-badges"><span class="duc-badge duc-badge_review">{i18n.rdActCorrected}</span></div>
+                                                </template>
+                                            </td>
+                                            <td>
+                                                <template lwc:if={f.editing}>
+                                                    <div class="grp-vcell">
+                                                        <input class="grp-vin" value={draft} oninput={handleDraftChange}
+                                                               onkeydown={handleEditKey} disabled={isSavingEdit} aria-label={i18n.grpEdit}>
+                                                        <button class="duc-pen" onclick={handleEditSave} disabled={isSavingEdit}
+                                                                title={i18n.grpDone} aria-label={i18n.grpDone}>
+                                                            <c-data-update-icon name="check" size="14"></c-data-update-icon>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <template lwc:else>
+                                                    <div class="grp-vcell">
+                                                        <span class={f.valueClass}>{f.value}</span>
+                                                        <button class="duc-pen" data-id={f.id} onclick={handleEditStart}
+                                                                disabled={isWorking} title={i18n.grpEdit} aria-label={i18n.grpEdit}>
+                                                            <c-data-update-icon name="pen" size="13"></c-data-update-icon>
+                                                        </button>
+                                                        <template lwc:if={f.edited}>
+                                                            <button class="grp-rvt" data-id={f.id} onclick={handleEditRevert}
+                                                                    disabled={isSavingEdit} title={i18n.grpUndoEdit} aria-label={i18n.grpUndoEdit}>↺</button>
+                                                        </template>
+                                                    </div>
+                                                    <template lwc:if={f.hasVtag}>
+                                                        <div class="grp-vtag-row"><span class={f.vtagClass}>{f.vtag}</span></div>
+                                                    </template>
+                                                </template>
+                                            </td>
+                                            <td>
+                                                <div class="grp-scell">
+                                                    <template lwc:if={f.showSel}>
+                                                        <select class="grp-vsel" data-id={f.id} onchange={handleSlotPick}
+                                                                disabled={isWorking} aria-label={i18n.grpColSaveTo}>
+                                                            <template for:each={f.slotOptions} for:item="o">
+                                                                <option key={o.key} value={o.key} selected={o.selected}>{o.text}</option>
+                                                            </template>
+                                                        </select>
+                                                    </template>
+                                                    <template lwc:if={f.showText}><span class="grp-now">{f.slotText}</span></template>
+                                                    <template lwc:if={f.showSameTag}><span class="grp-tag grp-tag_same">{i18n.grpSame}</span></template>
+                                                    <template lwc:if={f.isNew}><span class="grp-tag grp-tag_new">{i18n.grpNew}</span></template>
+                                                </div>
+                                                <template lwc:if={f.hasOld}>
+                                                    <div class="grp-old"><span class="duc-arrow">→</span><span class="duc-v duc-v_old">{f.oldValue}</span></div>
+                                                </template>
+                                                <template lwc:if={f.hasNote}><div class={f.noteClass}>{f.note}</div></template>
+                                            </td>
+                                            <td class="grp-ftk">
+                                                {f.ticketText}
+                                                <template lwc:if={f.multiTk}><div class="grp-nt">{f.tkNote}</div></template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- History rows: one block per table, tickets inside, Excel pastes collapsed -->
+                <template lwc:if={hasHist}>
+                    <div class="grp-box">
+                        <div class="grp-boxh">
+                            <span>{i18n.grpHistTitle} <small>{i18n.grpHistHint}</small></span>
+                            <span class="grp-selc">{histSelText} ·
+                                <button class="duc-link" data-scope="all" data-val="all" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpAll}</button>|<button
+                                    class="duc-link" data-scope="all" data-val="none" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpNone}</button>
+                            </span>
+                        </div>
+                        <template for:each={histTabs} for:item="h">
+                            <div key={h.key} class="grp-htab">
+                                <div class="grp-htabh">
+                                    <span>{h.title}</span>
+                                    <span class="grp-selc">{h.sel} ·
+                                        <button class="duc-link" data-scope="tab" data-key={h.key} data-val="all" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpAll}</button>|<button
+                                            class="duc-link" data-scope="tab" data-key={h.key} data-val="none" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpNone}</button>
+                                    </span>
+                                </div>
+                                <template for:each={h.tickets} for:item="k">
+                                    <div key={k.key} class="grp-tkb">
+                                        <template lwc:if={k.one}>
+                                            <div class={k.headClass}>
+                                                <input type="checkbox" checked={k.r0.checked} disabled={k.r0.locked} data-key={k.r0.key}
+                                                       onchange={handleRowToggle} aria-label={k.r0.cbLabel}>
+                                                <span class="grp-tkn">#{k.no}</span>
+                                                <span class="grp-tkt">{k.r0.date}</span>
+                                                <span class="grp-num">→ {k.r0.value}</span>
+                                                <template lwc:if={k.r0.hasNote}><span class={k.r0.noteClass}>{k.r0.note}</span></template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={k.many}>
+                                            <div class="grp-tkh">
+                                                <button class="grp-chev" data-key={k.key} onclick={handleTicketOpen}
+                                                        aria-expanded={k.openTxt} aria-label={i18n.grpShowRows}>{k.chev}</button>
+                                                <span class="grp-tkn">#{k.no}</span>
+                                                <span class="grp-tkt">{k.pastedText}</span>
+                                                <span class="grp-tkm">{k.range}</span>
+                                                <template for:each={k.chips} for:item="c">
+                                                    <span key={c.key} class={c.cls}>{c.txt}</span>
+                                                </template>
+                                                <span class="grp-selc">{k.sel} ·
+                                                    <button class="duc-link" data-scope="tk" data-key={k.key} data-val="all" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpAll}</button>|<button
+                                                        class="duc-link" data-scope="tk" data-key={k.key} data-val="none" onclick={handleRowsAll} disabled={isWorking}>{i18n.grpNone}</button>
+                                                </span>
+                                            </div>
+                                            <template lwc:if={k.open}>
+                                                <div class="grp-inner">
+                                                    <table class="grp-tbl">
+                                                        <tbody>
+                                                            <template for:each={k.rows} for:item="r">
+                                                                <tr key={r.key} class={r.rowClass}>
+                                                                    <td class="grp-cb grp-cb_in">
+                                                                        <input type="checkbox" checked={r.checked} disabled={r.locked} data-key={r.key}
+                                                                               onchange={handleRowToggle} aria-label={r.cbLabel}>
+                                                                    </td>
+                                                                    <td class="grp-nowrap">{r.date}</td>
+                                                                    <td><span class="grp-num">{r.value}</span></td>
+                                                                    <td><template lwc:if={r.hasNote}><span class={r.noteClass}>{r.note}</span></template></td>
+                                                                </tr>
+                                                            </template>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template lwc:if={hasEmpty}>
+                    <div class="grp-empt">{emptyText}</div>
+                </template>
+                <template lwc:if={hasClash}>
+                    <div class="duc-notice duc-notice_error">{i18n.grpFixClash}</div>
+                </template>
+            </template>
+        </div>
+
+        <template lwc:if={hasTickets}>
+            <div class="duc-actions">
+                <template lwc:if={hasClash}>
+                    <span class="grp-sum grp-sum_bad" role="status">{i18n.grpApplyBlocked}</span>
+                </template>
+                <template lwc:else>
+                    <span class="grp-sum">{i18n.grpSumUpdate} <b>{sumFields}</b>{i18n.grpSumAdd} <b>{sumRows}</b> {i18n.grpSumClose} <b>{sumTickets}</b>.</span>
+                </template>
+                <!-- buttons stay together and in order (Ignore, then Apply) when the footer wraps -->
+                <div class="grp-btns">
+                    <button class="duc-btn" onclick={handleIgnoreOpen} disabled={isIgnoreDisabled}>
+                        <c-data-update-icon name="x" size="15"></c-data-update-icon>{i18n.grpIgnoreAll}
+                    </button>
+                    <button class="duc-btn duc-btn_primary" onclick={handleApply} disabled={isApplyDisabled}>
+                        <c-data-update-icon name="check" size="15"></c-data-update-icon>{applyLabel}
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <template lwc:if={isIgnoreOpen}>
+            <div class="duc-mback" onclick={handleIgnoreCancel}></div>
+            <div class="duc-mini-modal" role="dialog" aria-modal="true" aria-label={ignoreTitle}>
+                <div class="duc-mm-head">
+                    <div class="duc-mm-ic grp-mm-ic"><c-data-update-icon name="x" size="18"></c-data-update-icon></div>
+                    <div>
+                        <div class="duc-mm-title">{ignoreTitle}</div>
+                        <div class="duc-mm-sub">{i18n.rdReasonReq} *</div>
+                    </div>
+                </div>
+                <div class="grp-reasons">
+                    <template for:each={ignoreReasons} for:item="r">
+                        <button key={r.value} class={r.cls} data-value={r.value} aria-pressed={r.pressed}
+                                onclick={handleIgnoreReason} disabled={isWorking}>{r.label}</button>
+                    </template>
+                </div>
+                <textarea class="duc-textarea" rows="2" placeholder={i18n.rdReasonPh}
+                          oninput={handleIgnoreNote} disabled={isWorking}></textarea>
+                <div class="duc-mm-foot">
+                    <button class="duc-btn duc-btn_ghost" onclick={handleIgnoreCancel} disabled={isWorking}>{i18n.rdCancel}</button>
+                    <button class="duc-btn duc-btn_primary" onclick={handleIgnoreConfirm} disabled={isIgnoreConfirmDisabled}>
+                        {ignoreConfirmLabel}
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

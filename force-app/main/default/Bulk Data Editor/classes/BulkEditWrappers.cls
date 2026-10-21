@@ -97,6 +97,22 @@ public with sharing class BulkEditWrappers {
         }
     }
 
+    public class MatchResult {
+        @AuraEnabled public String searchValue;
+        @AuraEnabled public Id recordId;
+        @AuraEnabled public String recordDisplay;
+        @AuraEnabled public String status;
+        @AuraEnabled public String currentValue;
+
+        public MatchResult(String searchValue, Id recordId, String recordDisplay, String status, String currentValue) {
+            this.searchValue = searchValue;
+            this.recordId = recordId;
+            this.recordDisplay = recordDisplay;
+            this.status = status;
+            this.currentValue = currentValue;
+        }
+    }
+
     public class EditHistoryEntry {
         @AuraEnabled public Id logId;
         @AuraEnabled public String name;
@@ -110,5 +126,35 @@ public with sharing class BulkEditWrappers {
         @AuraEnabled public Boolean canUndo;
         @AuraEnabled public String filterFieldLabel;
         @AuraEnabled public String filterValueDisplay;
+    }
+
+    public class CleanPreviewRow {
+        @AuraEnabled public Id recordId;
+        @AuraEnabled public String recordDisplay;
+        @AuraEnabled public String beforeValue;
+        @AuraEnabled public String afterValue;
+        @AuraEnabled public Boolean willChange;
+
+        public CleanPreviewRow(Id recordId, String recordDisplay, String beforeValue, String afterValue, Boolean willChange) {
+            this.recordId = recordId;
+            this.recordDisplay = recordDisplay;
+            this.beforeValue = beforeValue;
+            this.afterValue = afterValue;
+            this.willChange = willChange;
+        }
+    }
+
+    public class CleanPreviewResult {
+        @AuraEnabled public Integer totalMatching;
+        @AuraEnabled public Integer sampleSize;
+        @AuraEnabled public Integer sampleWouldChange;
+        @AuraEnabled public List<CleanPreviewRow> rows;
+
+        public CleanPreviewResult() {
+            this.totalMatching = 0;
+            this.sampleSize = 0;
+            this.sampleWouldChange = 0;
+            this.rows = new List<CleanPreviewRow>();
+        }
     }
 }

@@ -10,10 +10,10 @@
             </button>
         </template>
 
-        <!-- Visible items (max 4) -->
+        <!-- Visible items (page size adapts to available width) -->
         <div class="carousel-items">
             <template for:each={visibleItems} for:item="rc">
-                <div key={rc.label} class="rc-item">
+                <div key={rc.label} class="rc-item" title={rc.label}>
                     <p class="rc-label">{rc.label}</p>
                     <p class={rc.countClass}>{rc.total}</p>
                 </div>

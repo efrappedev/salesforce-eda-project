@@ -144,6 +144,12 @@ public without sharing class MergeWrappers {
 
     // ─── MERGE REQUEST / RESULT ───────────────────────────────────────────────
 
+    public class EmailRescueDecision {
+        @AuraEnabled public String sourceRecordId; // loser record whose email is rescued
+        @AuraEnabled public String sourceField;    // field API name on the loser (e.g. "Email")
+        @AuraEnabled public String targetField;    // field API name on master to write to (e.g. "Alternative_Email_1__c")
+    }
+
     public class MergeRequest {
         @AuraEnabled public String            ticketId;
         @AuraEnabled public String            masterId;
@@ -151,6 +157,7 @@ public without sharing class MergeWrappers {
         @AuraEnabled public Map<String,String> fieldDecisions; // fieldApiName -> sourceRecordId
         @AuraEnabled public String            notes;
         @AuraEnabled public String            relatedDeletesJson; // JSON: {objectApiName: [recordIds]}
+        @AuraEnabled public List<EmailRescueDecision> emailRescues; // cross-field email rescue decisions
     }
 
     public class MergeResult {

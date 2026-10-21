@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Rate_Title__c</fullName>
+    <description>Name of the rate or tier selected by the buyer (e.g. "General Admission", "Gold Member"). From Zeffy's RateTitle field, applies to tickets and memberships.</description>
+    <label>Rate / Tier</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

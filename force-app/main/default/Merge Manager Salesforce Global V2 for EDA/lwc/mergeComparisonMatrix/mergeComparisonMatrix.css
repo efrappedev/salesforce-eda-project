@@ -293,3 +293,156 @@ input[type="radio"]:checked ~ .matrix-master-radio__faux,
     font-size: 11px;
     color: #3e3e3c;
 }
+
+/* ── Email rescue (inline in the loser's email cell) ─────────────────────── */
+
+.rescue-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Radio dot (same look as matrix-cell-radio__faux) — click = overwrite */
+.rescue-dot {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid #dddbda;
+    background: #fff;
+    cursor: pointer;
+}
+
+.rescue-dot_on {
+    border-color: #0176d3;
+    background: #0176d3;
+    box-shadow: inset 0 0 0 3px #fff;
+}
+
+/* The email itself is the dropdown button */
+.rescue-drop {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 1px 6px;
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    background: #fff;
+    font: inherit;
+    font-size: 12px;
+    line-height: 18px;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.rescue-drop:hover,
+.rescue-drop:focus {
+    border-color: #0176d3;
+    outline: none;
+}
+
+.rescue-drop__text {
+    word-break: break-word;
+}
+
+.rescue-drop_active {
+    border-color: #0176d3;
+    color: #032d60;
+    font-weight: 600;
+}
+
+.rescue-drop__icon {
+    --slds-c-icon-color-foreground-default: #0176d3;
+    --slds-c-icon-color-foreground: #0176d3;
+}
+
+.rescue-drop__chevron {
+    --slds-c-icon-color-foreground-default: #706e6b;
+    --slds-c-icon-color-foreground: #706e6b;
+}
+
+/* "Different" chip (same look as Zeffy Connect diff chip): loser email still needs a decision */
+.rescue-flag {
+    flex-shrink: 0;
+    display: inline-block;
+    background: #FEF3C7;
+    color: #92400E;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+/* Floating menu above the table — does not affect row height */
+.rescue-menu {
+    position: fixed;
+    z-index: 9000;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #dddbda;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.rescue-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    background: #fff;
+    font: inherit;
+    font-size: 12px;
+    color: #181818;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rescue-menu__item:hover,
+.rescue-menu__item:focus {
+    background: #f3f3f3;
+    outline: none;
+}
+
+.rescue-menu__check {
+    width: 14px;
+    display: inline-flex;
+}
+
+.rescue-menu__check-icon {
+    --slds-c-icon-color-foreground-default: #0176d3;
+    --slds-c-icon-color-foreground: #0176d3;
+}
+
+/* Loser cell whose email will be rescued into another field: green instead of amber */
+.matrix-table__value-col_rescued {
+    background-color: #e8f4fd !important;
+    box-shadow: inset 2px 0 0 #0176d3;
+}
+
+/* Pending rescued value shown in the target field's master cell */
+.rescue-pending {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    font-size: 11px;
+    font-style: italic;
+    color: #0176d3;
+    word-break: break-word;
+}
+
+.rescue-pending__icon {
+    --slds-c-icon-color-foreground-default: #0176d3;
+    --slds-c-icon-color-foreground: #0176d3;
+}

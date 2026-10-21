@@ -1,0 +1,35 @@
+<apex:page controller="DataUpdateFormDeleteVfController" action="{!doDelete}" showHeader="false" sidebar="false" standardStylesheets="false" applyHtmlTag="false" applyBodyTag="false" cache="false">
+<html>
+<head>
+    <meta charset="UTF-8"/>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 24px; color: #16325c;">
+    <apex:outputPanel rendered="{!success}">
+        <p>Form deleted.</p>
+    </apex:outputPanel>
+    <apex:outputPanel rendered="{!!success}">
+        <p style="color:#c0392b;">{!resultMessage}</p>
+    </apex:outputPanel>
+    <script type="text/javascript">
+        (function () {
+            var payload = {
+                source: 'DataUpdateFormDelete',
+                success: {!success},
+                message: '{!JSENCODE(resultMessage)}'
+            };
+            var targetOrigin = '*';
+            try {
+                if (document.referrer) {
+                    targetOrigin = new URL(document.referrer).origin;
+                }
+            } catch (e) {
+                targetOrigin = '*';
+            }
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(payload, targetOrigin);
+            }
+        })();
+    </script>
+</body>
+</html>
+</apex:page>

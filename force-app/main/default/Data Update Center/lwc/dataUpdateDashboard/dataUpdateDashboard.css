@@ -1,0 +1,95 @@
+@import 'c/dataUpdateUiStyles';
+
+:host { display: block; }
+
+.duc-dash { padding: 16px 18px; display: grid; gap: 18px; }
+.duc-dash-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.duc-dash-title { margin-right: auto; font-size: 16px; font-weight: 700; }
+
+.duc-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+.duc-chip {
+    border: 1px solid var(--duc-line); background: var(--duc-surface); border-radius: 999px; padding: 4px 10px;
+    font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--duc-muted);
+}
+.duc-chip:hover { border-color: var(--duc-faint); }
+.duc-chip-more {
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 24px; max-width: 160px;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat;
+}
+.duc-chip_on, .duc-chip_on:hover { background: var(--duc-text); color: var(--duc-surface); border-color: var(--duc-text); }
+
+/* tiles */
+.duc-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.duc-kpi {
+    background: var(--duc-surface); border: 1px solid var(--duc-line); border-radius: var(--duc-r); padding: 11px 13px;
+    text-align: left; box-shadow: var(--duc-shadow); transition: transform .12s, border-color .15s;
+    position: relative; overflow: hidden; cursor: pointer; min-width: 0; outline: 0;
+}
+.duc-kpi:hover { transform: translateY(-1px); border-color: var(--duc-faint); }
+.duc-kpi:focus-visible { box-shadow: 0 0 0 3px var(--duc-brand-soft); }
+.duc-kpi b { display: block; font-size: 22px; line-height: 1.1; color: var(--c, var(--duc-text)); }
+.duc-kpi span {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--duc-muted);
+}
+.duc-kpi-of { display: inline; font-size: 13px; color: var(--duc-faint); font-weight: 600; }
+.duc-kpi-bar { height: 4px; background: var(--duc-line-2); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+.duc-kpi-bar i { display: block; height: 100%; background: var(--duc-applied); border-radius: 4px; }
+.duc-kpi-sub {
+    display: block; font-size: 11px; color: var(--duc-faint); margin-top: 3px;
+    overflow-wrap: anywhere; line-height: 1.35;
+}
+
+/* by status */
+.duc-by-status { display: grid; gap: 8px; }
+.duc-bars { display: grid; gap: 2px; }
+.duc-barrow {
+    display: grid; grid-template-columns: 120px minmax(0, 1fr) 30px; gap: 12px; align-items: center; border: 0;
+    background: none; padding: 7px 8px; border-radius: 8px; text-align: left; width: 100%;
+}
+.duc-barrow:hover { background: var(--duc-surface-2); }
+.duc-barrow_on, .duc-barrow_on:hover { background: var(--duc-brand-soft); box-shadow: inset 3px 0 0 var(--sc); }
+.duc-bl { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.duc-bl::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sc); flex: none; }
+
+/* "By status" header with the colors button */
+.duc-sec-head { display: flex; align-items: center; gap: 10px; }
+.duc-sec-head .duc-sec-title { flex: 1; }
+.duc-color-btn {
+    display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--duc-line); background: var(--duc-surface);
+    border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; color: var(--duc-muted); cursor: pointer;
+}
+.duc-color-btn:hover { border-color: var(--duc-faint); color: var(--duc-text); }
+
+/* color panel */
+.duc-cp-backdrop {
+    position: fixed; inset: 0; z-index: 9000; background: rgba(16, 24, 40, .35);
+    display: flex; align-items: flex-start; justify-content: center; padding: 80px 16px 16px;
+}
+.duc-cp {
+    width: 340px; max-width: 100%; background: var(--duc-surface); border-radius: var(--duc-r);
+    box-shadow: var(--duc-pop); overflow: hidden; display: flex; flex-direction: column;
+}
+.duc-cp-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+    border-bottom: 1px solid var(--duc-line); font-weight: 700; font-size: 14px;
+}
+.duc-cp-body { padding: 12px 14px; display: grid; gap: 4px; }
+.duc-cp-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; cursor: pointer; font-size: 13px; }
+.duc-cp-sw { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.duc-cp-label { flex: 1; min-width: 0; }
+.duc-cp-input {
+    width: 30px; height: 24px; padding: 1px; border: 1px solid var(--duc-line); border-radius: 6px;
+    background: var(--duc-surface); cursor: pointer;
+}
+.duc-cp-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--duc-line); }
+.duc-cp-spacer { flex: 1; }
+.duc-track { height: 8px; background: var(--duc-line-2); border-radius: 8px; overflow: hidden; }
+.duc-track i { display: block; height: 100%; background: var(--sc); border-radius: 8px; transition: width .3s; }
+.duc-barrow b { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1100px) { .duc-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 860px) {
+    .duc-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .duc-barrow { grid-template-columns: 100px minmax(0, 1fr) 26px; }
+}

@@ -268,7 +268,8 @@ public with sharing class MergeController {
         List<String>       losingIds,
         Map<String,String> fieldDecisions,
         String             notes,
-        String             relatedDeletesJson
+        String             relatedDeletesJson,
+        String             emailRescuesJson
     ) {
         MergeWrappers.MergeRequest req = new MergeWrappers.MergeRequest();
         req.ticketId          = ticketId;
@@ -277,6 +278,14 @@ public with sharing class MergeController {
         req.fieldDecisions    = fieldDecisions;
         req.notes             = notes;
         req.relatedDeletesJson = relatedDeletesJson;
+        if (!String.isBlank(emailRescuesJson)) {
+            try {
+                req.emailRescues = (List<MergeWrappers.EmailRescueDecision>)
+                    JSON.deserialize(emailRescuesJson, List<MergeWrappers.EmailRescueDecision>.class);
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN, 'executeMerge: emailRescues parse error: ' + e.getMessage());
+            }
+        }
         return MergeExecutionService.executeMerge(req);
     }
 

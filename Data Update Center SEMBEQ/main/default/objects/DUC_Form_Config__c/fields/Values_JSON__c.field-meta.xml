@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Values_JSON__c</fullName>
+    <description>Published field values as a JSON object (field API name =&gt; value). Merged over the Custom Metadata record field by field, the same way a metadata deploy merges values.</description>
+    <externalId>false</externalId>
+    <label>Values JSON</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

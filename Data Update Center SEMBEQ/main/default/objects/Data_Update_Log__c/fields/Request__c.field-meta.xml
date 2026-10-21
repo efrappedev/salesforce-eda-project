@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Request__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Lookup to the originating request. Kept as Lookup (not Master-Detail) so the log is never cascade-deleted if the request is manually removed.</description>
+    <label>Request</label>
+    <referenceTo>Data_Update_Request__c</referenceTo>
+    <relationshipLabel>Data Update Logs</relationshipLabel>
+    <relationshipName>Data_Update_Logs</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

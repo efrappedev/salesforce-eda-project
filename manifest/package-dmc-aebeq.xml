@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Donation_Management_Center</members>
+        <name>CustomApplication</name>
+    </types>
+    <types>
+        <!-- DMC Config custom setting (API name: Zeffy_Config__c) -->
+        <members>Zeffy_Config__c</members>
+        <!-- DMC Review Ticket custom object (API name: Zeffy_Review_Ticket__c) -->
+        <members>Zeffy_Review_Ticket__c</members>
+        <!-- DMC Identity multi-ID history object (API name: Zeffy_Identity__c) -->
+        <members>Zeffy_Identity__c</members>
+        <!-- DMC Audit Log (audit trail for all resolution actions) -->
+        <members>DMC_Audit_Log__c</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <!-- Zeffy_Config__c fields -->
+        <members>Zeffy_Config__c.Webhook_Secret__c</members>
+        <members>Zeffy_Config__c.Is_Active__c</members>
+        <members>Zeffy_Config__c.API_Key__c</members>
+        <!-- Campaign fields -->
+        <members>Campaign.Zeffy_Form_Id__c</members>
+        <!-- Account fields -->
+        <members>Account.Zeffy_Contact_Id__c</members>
+        <!-- Zeffy_Identity__c fields -->
+        <members>Zeffy_Identity__c.Account__c</members>
+        <members>Zeffy_Identity__c.Zeffy_Contact_Id__c</members>
+        <members>Zeffy_Identity__c.Email__c</members>
+        <members>Zeffy_Identity__c.Is_Primary__c</members>
+        <members>Zeffy_Identity__c.First_Seen__c</members>
+        <members>Zeffy_Identity__c.Source__c</members>
+        <!-- GiftTransaction custom fields (NPC standard object) -->
+        <members>GiftTransaction.Zeffy_Transaction_Id__c</members>
+        <members>GiftTransaction.Receipt_URL__c</members>
+        <members>GiftTransaction.Rate_Title__c</members>
+        <members>GiftTransaction.Note__c</members>
+        <members>GiftTransaction.Annotation__c</members>
+        <members>GiftTransaction.Zeffy_Raw_Payload__c</members>
+        <members>GiftTransaction.Language__c</members>
+        <!-- GiftCommitment field -->
+        <members>GiftCommitment.Zeffy_Subscription_Id__c</members>
+        <!-- DMC_Audit_Log__c fields -->
+        <members>DMC_Audit_Log__c.Ticket__c</members>
+        <members>DMC_Audit_Log__c.Action__c</members>
+        <members>DMC_Audit_Log__c.Performed_By__c</members>
+        <members>DMC_Audit_Log__c.Performed_At__c</members>
+        <members>DMC_Audit_Log__c.Account__c</members>
+        <members>DMC_Audit_Log__c.Notes__c</members>
+        <!-- Zeffy_Review_Ticket__c fields -->
+        <members>Zeffy_Review_Ticket__c.Status__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Contact_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Transaction_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.First_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Last_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Email__c</members>
+        <members>Zeffy_Review_Ticket__c.Phone__c</members>
+        <members>Zeffy_Review_Ticket__c.Company_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Language__c</members>
+        <members>Zeffy_Review_Ticket__c.Address__c</members>
+        <members>Zeffy_Review_Ticket__c.City__c</members>
+        <members>Zeffy_Review_Ticket__c.Province__c</members>
+        <members>Zeffy_Review_Ticket__c.Postal_Code__c</members>
+        <members>Zeffy_Review_Ticket__c.Country__c</members>
+        <members>Zeffy_Review_Ticket__c.Amount__c</members>
+        <members>Zeffy_Review_Ticket__c.Eligible_Amount__c</members>
+        <members>Zeffy_Review_Ticket__c.Currency__c</members>
+        <members>Zeffy_Review_Ticket__c.Payment_Method__c</members>
+        <members>Zeffy_Review_Ticket__c.Payment_Type__c</members>
+        <members>Zeffy_Review_Ticket__c.Gift_Date__c</members>
+        <members>Zeffy_Review_Ticket__c.Rate_Title__c</members>
+        <members>Zeffy_Review_Ticket__c.Receipt_Number__c</members>
+        <members>Zeffy_Review_Ticket__c.Receipt_URL__c</members>
+        <members>Zeffy_Review_Ticket__c.Form_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Form_Name__c</members>
+        <members>Zeffy_Review_Ticket__c.Is_Recurring__c</members>
+        <members>Zeffy_Review_Ticket__c.Zeffy_Subscription_Id__c</members>
+        <members>Zeffy_Review_Ticket__c.Subscription_Frequency__c</members>
+        <members>Zeffy_Review_Ticket__c.Note__c</members>
+        <members>Zeffy_Review_Ticket__c.Annotation__c</members>
+        <members>Zeffy_Review_Ticket__c.Raw_Payload__c</members>
+        <members>Zeffy_Review_Ticket__c.Error_Message__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_Account__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_Gift__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_By__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolved_At__c</members>
+        <members>Zeffy_Review_Ticket__c.Resolution_Notes__c</members>
+        <name>CustomField</name>
+    </types>
+    <types>
+        <members>Zeffy_Review_Ticket__c</members>
+        <name>CustomTab</name>
+    </types>
+    <types>
+        <members>DmcConfigService</members>
+        <members>DmcWebhookReceiver</members>
+        <members>DmcDonationService</members>
+        <members>DmcWebhookReceiverTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>dmcConnect</members>
+        <members>dmcReviewManager</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>Dmc_Review_Manager</members>
+        <name>FlexiPage</name>
+    </types>
+    <types>
+        <members>Fundraising_Access</members>
+        <name>PermissionSet</name>
+    </types>
+    <version>64.0</version>
+</Package>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Amount_Reviewed__c</fullName>
+    <description>Zeffy amount that staff already checked with "Mark as reviewed". A later payment.updated with this same amount does not flag the ticket again.</description>
+    <label>Zeffy Amount (Reviewed)</label>
+    <precision>16</precision>
+    <scale>2</scale>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Currency</type>
+</CustomField>

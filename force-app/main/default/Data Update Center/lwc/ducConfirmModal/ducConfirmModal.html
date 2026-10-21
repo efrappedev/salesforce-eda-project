@@ -1,0 +1,10 @@
+<template>
+    <lightning-modal-header lwc:if={showHeader} label={label}></lightning-modal-header>
+    <lightning-modal-body>
+        <p class="slds-text-body_regular">{message}</p>
+    </lightning-modal-body>
+    <lightning-modal-footer>
+        <lightning-button label={cancelLabel} onclick={handleCancel}></lightning-button>
+        <lightning-button class="slds-m-left_x-small" variant={okVariant} label={okLabel} onclick={handleOk}></lightning-button>
+    </lightning-modal-footer>
+</template>

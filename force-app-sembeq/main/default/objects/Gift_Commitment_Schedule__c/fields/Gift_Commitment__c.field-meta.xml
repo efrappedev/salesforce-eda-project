@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Gift_Commitment__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <label>Gift Commitment</label>
+    <referenceTo>Gift_Commitment__c</referenceTo>
+    <relationshipLabel>Commitment Schedules</relationshipLabel>
+    <relationshipName>Commitment_Schedules</relationshipName>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

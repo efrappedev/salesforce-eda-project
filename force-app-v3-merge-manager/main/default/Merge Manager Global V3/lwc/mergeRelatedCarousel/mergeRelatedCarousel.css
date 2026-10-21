@@ -1,0 +1,58 @@
+:host { display: block; }
+
+.carousel-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
+}
+
+.carousel-arrow {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    width: 22px;
+    height: 38px;
+    cursor: pointer;
+    font-size: 1.25rem;
+    color: #514f4d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.1s;
+}
+.carousel-arrow:hover:not(:disabled) { background: #f3f2f2; }
+.carousel-arrow:disabled { opacity: 0.25; cursor: default; }
+
+.carousel-items {
+    flex: 1;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    min-width: 0;
+}
+
+.rc-item {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+    padding: 0 2px;
+}
+
+.rc-label {
+    font-size: 0.6875rem;
+    color: #706e6b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0 0 2px;
+}
+
+/* countClass values come from the parent — replicate eda-count_active here */
+.eda-count_active {
+    color: #ba0517;
+    font-weight: 700;
+}

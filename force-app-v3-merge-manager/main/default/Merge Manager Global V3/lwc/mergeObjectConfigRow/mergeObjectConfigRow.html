@@ -1,0 +1,10 @@
+<template>
+    <div class="icon-bg" style={iconBgStyle}>
+        <template if:true={hasIcon}>
+            <img src={iconUrl} alt="" class="icon-img" />
+        </template>
+        <template if:false={hasIcon}>
+            <div class="icon-placeholder"></div>
+        </template>
+    </div>
+</template>

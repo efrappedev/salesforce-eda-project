@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
+    <cacheControl>Private</cacheControl>
+    <contentType>application/json</contentType>
+    <description>Test-only copy of the Data Update Center forms (Account + Église, every question) that the Apex tests run against, so production can keep minimal base forms that staff change at will. Not read outside tests.</description>
+</StaticResource>

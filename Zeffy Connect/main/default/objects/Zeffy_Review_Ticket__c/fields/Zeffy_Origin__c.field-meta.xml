@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Origin__c</fullName>
+    <description>Where the payment came from in Zeffy (data.type): Online (donation form), Manual (entered by hand by staff in Zeffy) or Imported. A deleted Manual payment is removed from Salesforce; Online/Imported ones are kept as Canceled.</description>
+    <inlineHelpText>Online = donor paid through the Zeffy form. Manual = entered by hand by staff in Zeffy. Imported = imported into Zeffy.</inlineHelpText>
+    <label>Zeffy Origin</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>false</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>Online</fullName><default>false</default><label>Online</label></value>
+            <value><fullName>Manual</fullName><default>false</default><label>Manual</label></value>
+            <value><fullName>Imported</fullName><default>false</default><label>Imported</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

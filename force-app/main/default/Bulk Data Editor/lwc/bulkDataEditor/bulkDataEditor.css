@@ -4,12 +4,65 @@
     border-radius: 0.25rem;
 }
 
-.slds-path__title {
-    font-size: 0.75rem;
+/* Hand-built step indicator — deliberately NOT slds-path. The native SLDS
+   chevron paints part of its shape (the connector tip) on the <li> itself
+   via ::before/::after, which kept bleeding through no matter how the inner
+   link was recolored. Building our own chip + connector gives full control
+   with no hidden native layers. See feedback_slds_path_no_force_color. */
+.step-path {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0.25rem 0;
+    gap: 0.125rem;
+    overflow-x: auto;
 }
 
-.wizard-step-clickable .slds-path__link {
+.step-path__item {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.step-path__connector {
+    color: #c9c7c5;
+    margin: 0 0.125rem;
+    flex-shrink: 0;
+}
+
+.step-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    background-color: #f3f2f2;
+    color: #514f4d;
+    cursor: default;
+    white-space: nowrap;
+}
+
+.step-chip_current {
+    background-color: #032d60;
+    color: #ffffff;
+}
+
+.step-chip_complete {
+    background-color: #2e844a;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
     cursor: pointer;
+}
+
+.step-chip_complete:hover {
+    background-color: #23673a;
 }
 
 /* Caps the wizard's width so rows/comboboxes stay easy to scan on wide

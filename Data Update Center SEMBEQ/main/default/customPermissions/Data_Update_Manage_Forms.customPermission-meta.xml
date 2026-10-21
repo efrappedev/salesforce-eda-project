@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Opens the Data Update Center Form Builder (create, edit, publish forms). Grant only to the staff lead and IT, not to daily staff who only work the request inbox.</description>
+    <isLicensed>false</isLicensed>
+    <label>Data Update Manage Forms</label>
+</CustomPermission>

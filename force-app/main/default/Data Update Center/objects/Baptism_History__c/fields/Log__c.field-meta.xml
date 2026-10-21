@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Log__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Lookup to the Data_Update_Log__c (APPLY_COMPLETED) entry that created this row. Mapped as History_Target_Log_Field_API_Name__c so DataUpdateReviewController.rollbackChange() can find and delete exactly this row when the field is rolled back.</description>
+    <label>Log</label>
+    <referenceTo>Data_Update_Log__c</referenceTo>
+    <relationshipLabel>Baptism History</relationshipLabel>
+    <relationshipName>Baptism_History</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

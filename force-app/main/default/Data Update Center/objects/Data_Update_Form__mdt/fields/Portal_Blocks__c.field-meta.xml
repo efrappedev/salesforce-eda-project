@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Blocks__c</fullName>
+    <description>JSON array written by the form builder Tools tab: design blocks (title, text, image, banner, logo, video, divider, spacer) placed on the Login or Questions screen of the public portal, each anchored after a fixed text, section, question or other block. Blank = no blocks.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Portal Blocks</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

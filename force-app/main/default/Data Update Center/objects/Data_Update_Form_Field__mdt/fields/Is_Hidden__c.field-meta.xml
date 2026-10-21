@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Hidden__c</fullName>
+    <description>If true, the question stays in the form layout (order, section, texts kept, still shown in the form builder) but the public form does not show it and does not accept a value for it. Different from Is_Active__c = false, which takes the question out of the form entirely (back to the builder palette). Review mode keeps showing it on tickets that already have a value, like an inactive field.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Is Hidden</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

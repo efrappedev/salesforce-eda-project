@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Card_Last4__c</fullName>
+    <label>Card Last 4</label>
+    <type>Text</type>
+    <length>4</length>
+</CustomField>

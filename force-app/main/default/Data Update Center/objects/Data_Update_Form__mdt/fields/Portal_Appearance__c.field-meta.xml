@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Appearance__c</fullName>
+    <description>JSON written by the form builder Appearance panel: one font and the question, section and accent colors applied uniformly to the whole public form ({"font":"verdana","question":"#1f2937","section":"#0b5cab","accent":"#0176d3"}). Font is one of a fixed list (dataUpdateAppearance), colors are #RRGGBB. Blank = standard look.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Portal Appearance</label>
+    <length>1000</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

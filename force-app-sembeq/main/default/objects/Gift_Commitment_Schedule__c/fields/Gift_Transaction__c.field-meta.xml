@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Gift_Transaction__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Gift Transaction</label>
+    <referenceTo>Gift_Transaction__c</referenceTo>
+    <relationshipLabel>Commitment Schedule Entries</relationshipLabel>
+    <relationshipName>Commitment_Schedule_Entries</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

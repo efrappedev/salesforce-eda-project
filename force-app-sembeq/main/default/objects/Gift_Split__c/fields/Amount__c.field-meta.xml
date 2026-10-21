@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Amount__c</fullName>
+    <description>Portion of the Gift's total amount going to this Gift Designation. The sum of all splits for a Gift should equal Gift_Transaction__c.Amount__c.</description>
+    <label>Amount</label>
+    <precision>16</precision>
+    <scale>2</scale>
+    <required>true</required>
+    <type>Currency</type>
+</CustomField>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <defaultLandingTab>Data_Update_Center</defaultLandingTab>
+    <description>Review inbox for data update requests submitted from the public portal — audit trail, hold/resume, reopen. Works for both AEBEQ and SEMBEQ.</description>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
+    <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
+    <label>Data Update Center</label>
+    <navType>Standard</navType>
+    <setupExperience>all</setupExperience>
+    <tabs>Data_Update_Center</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>

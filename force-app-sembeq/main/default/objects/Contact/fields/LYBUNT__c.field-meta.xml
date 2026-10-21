@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LYBUNT__c</fullName>
+    <description>Gave last year but not this year. Maintained by Flow.</description>
+    <defaultValue>false</defaultValue>
+    <label>LYBUNT</label>
+    <type>Checkbox</type>
+</CustomField>

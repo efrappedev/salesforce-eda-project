@@ -1,0 +1,161 @@
+<template>
+    <div class="duc-list-root">
+        <div class="duc-list-head">
+            <div class="duc-lp-title">
+                <c-data-update-icon name="form" size="15"></c-data-update-icon>
+                <span class="duc-lp-text">{i18n.rdReqTitle}</span>
+            </div>
+            <select class="duc-select" aria-label={i18n.rdLkForm} onchange={handleFormFilterChange}>
+                <template for:each={formOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+            <select class="duc-select" aria-label={i18n.rdFilterStatus} onchange={handleStatusFilterChange}>
+                <template for:each={statusOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+            <label class="duc-search">
+                <c-data-update-icon name="search" size="15"></c-data-update-icon>
+                <input type="text" placeholder={i18n.rdSearch} aria-label={i18n.rdSearch} value={searchTerm} autocomplete="off"
+                       oninput={handleSearchChange} onkeydown={handleSearchKey} />
+            </label>
+            <div class="duc-count-row">
+                <span>{countLabel}</span>
+                <span class="duc-count-tools">
+                    <template lwc:if={showPageNav}>
+                        <span class="duc-pager">
+                            <button class="duc-pen" disabled={isPrevDisabled} onclick={handlePrevPage}
+                                    title={i18n.rdPrev} aria-label={i18n.rdPrev}>
+                                <c-data-update-icon name="chevleft" size="14"></c-data-update-icon>
+                            </button>
+                            <template lwc:if={_editingPage}>
+                                <input type="number" class="duc-pager-input" min="1" max={totalPages}
+                                       onkeydown={handlePageInputKey} onblur={handlePageInputBlur} />
+                            </template>
+                            <template lwc:else>
+                                <span class="duc-pager-label" role="button" tabindex="0" onclick={handlePageLabelClick} onkeydown={handlePageLabelKey}>{pageLabel}</span>
+                            </template>
+                            <button class="duc-pen" disabled={isNextDisabled} onclick={handleNextPage}
+                                    title={i18n.rdNext} aria-label={i18n.rdNext}>
+                                <c-data-update-icon name="chevright" size="14"></c-data-update-icon>
+                            </button>
+                        </span>
+                    </template>
+                    <button class="duc-pen duc-pen_brand" onclick={handleRefresh} title={i18n.rdRefresh} aria-label={i18n.rdRefresh}>
+                        <c-data-update-icon name="refresh" size="15"></c-data-update-icon>
+                    </button>
+                </span>
+            </div>
+        </div>
+
+        <div class="duc-list" role="listbox" aria-label={i18n.rdReqTitle}>
+            <template lwc:if={showSpinner}>
+                <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+            </template>
+            <template for:each={entries} for:item="e">
+                <div key={e.key} class="duc-entry">
+                <template lwc:if={e.isSingle}>
+                    <div class={e.r.itemClass} role="option" tabindex="0" aria-selected={e.r.ariaSelected}
+                         data-id={e.r.id} data-label={e.r.name} data-status={e.r.status}
+                         onclick={handleRequestClick} onkeydown={handleItemKey}>
+                        <span class="duc-tno-row">
+                            <span class="duc-tno" title={e.r.tnoTitle}>#{e.r.tnoFull}</span>
+                            <template lwc:if={e.r.hasViewers}>
+                                <span class="duc-peer" title={e.r.viewingTip} aria-label={e.r.viewingTip}>{e.r.peerInitials}<template lwc:if={e.r.peerMore}><em>{e.r.peerMore}</em></template></span>
+                            </template>
+                        </span>
+                        <span class="duc-pill" style={e.r.statusStyle}>{e.r.statusText}</span>
+                        <span class="duc-nm" title={e.r.name}>{e.r.name}</span>
+                        <span class="duc-meta">{e.r.changesText} · {e.r.when}</span>
+                        <span class="duc-form-lbl" title={e.r.formLabelDisplay}>{i18n.rdFormPrefix} <b>{e.r.formLabelDisplay}</b></span>
+                    </div>
+                </template>
+                <template lwc:if={e.isGroup}>
+                    <div class="duc-grp">
+                        <template lwc:if={e.collapsed}>
+                            <div class={e.cardClass} role="option" tabindex="0" aria-selected="false"
+                                 data-target={e.targetId} data-name={e.name} data-count={e.count}
+                                 onclick={handleMultiTicketReview} onkeydown={handleGroupKey}>
+                                <span class="duc-tno-row">
+                                    <span class="duc-tno" title={e.latest.tnoTitle}>#{e.latest.tnoFull}</span>
+                                </span>
+                                <template lwc:if={e.latestShowPill}>
+                                    <span class="duc-pill" style={e.latest.statusStyle}>{e.latest.statusText}</span>
+                                </template>
+                                <span class="duc-nm" title={e.name}>{e.name}</span>
+                                <span class="duc-meta">{e.latest.changesText} · {e.latest.when}</span>
+                                <span class="duc-form-lbl" title={e.latest.formLabelDisplay}>{i18n.rdFormPrefix} <b>{e.latest.formLabelDisplay}</b></span>
+                                <span class="duc-gchip"><c-data-update-icon name="list" size="13"></c-data-update-icon>{e.chipText}</span>
+                            </div>
+                        </template>
+                        <template lwc:if={e.expanded}>
+                            <div class="duc-ghead">
+                                <span class="duc-ghead-nm" title={e.name}>{e.name}</span>
+                                <span class="duc-ghead-n">{e.chipText}</span>
+                            </div>
+                            <template for:each={e.sections} for:item="s">
+                                <div key={s.key}>
+                                    <div class={s.secClass}>{s.form} <span>· {s.n}</span></div>
+                                    <template for:each={s.tickets} for:item="t">
+                                        <div key={t.id} class={t.miniClass} role="option" tabindex="0" aria-selected={t.ariaSelected}
+                                             data-id={t.id} data-label={t.name} data-status={t.status}
+                                             onclick={handleRequestClick} onkeydown={handleItemKey}>
+                                            <span class="duc-tno" title={t.tnoTitle}>#{t.tnoFull}</span>
+                                            <template lwc:if={t.showPill}>
+                                                <span class="duc-pill" style={t.statusStyle}>{t.statusText}</span>
+                                            </template>
+                                            <span class="duc-meta">{t.changesText} · {t.when}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                        <div class="duc-gfoot">
+                            <button class="duc-gbtn" data-target={e.targetId} aria-expanded={e.expandedTxt}
+                                    onclick={handleGroupToggle}>{e.toggleText}</button>
+                            <button class={e.reviewClass} data-target={e.targetId} data-name={e.name} data-count={e.count}
+                                    onclick={handleMultiTicketReview}>{e.reviewText}</button>
+                        </div>
+                    </div>
+                </template>
+                </div>
+            </template>
+            <template lwc:if={isEmpty}>
+                <template lwc:if={isSearching}>
+                    <div class="duc-empty">
+                        <div>{noSearchResultsText}</div>
+                        <template lwc:if={isStatusFiltered}>
+                            <button class="duc-link" onclick={handleShowAllStatuses}>{i18n.rdShowAllStatuses}</button>
+                        </template>
+                        <button class="duc-link" onclick={handleClearSearch}>{i18n.rdClearSearch}</button>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <div class="duc-empty">{i18n.rdNoResults}</div>
+                </template>
+            </template>
+        </div>
+    </div>
+
+    <template lwc:if={isHoldModalOpen}>
+        <div class="duc-mback" onclick={handleCancelHold}></div>
+        <div class="duc-mini-modal" role="dialog" aria-modal="true" aria-label={i18n.rdHoldQ}>
+            <div class="duc-mm-head">
+                <span class="duc-mm-ic" style={holdTone}><c-data-update-icon name="pause" size="15"></c-data-update-icon></span>
+                <div>
+                    <div class="duc-mm-title">{i18n.rdHoldQ}</div>
+                    <div class="duc-mm-sub">{holdTicket.name} · <span class="duc-tno">#{holdTicket.tnoZeros}{holdTicket.tnoDigits}</span></div>
+                </div>
+            </div>
+            <textarea class="duc-textarea duc-hold-note" rows="2" placeholder={i18n.rdHoldNotePh}
+                      oninput={handleHoldReasonChange} onkeydown={handleHoldKey}></textarea>
+            <div class="duc-mm-foot">
+                <button class="duc-btn" onclick={handleCancelHold}>{i18n.rdCancel}</button>
+                <button class="duc-btn duc-btn_primary" onclick={handleConfirmHold} disabled={isHolding}>
+                    <c-data-update-icon name="pause" size="15"></c-data-update-icon>{i18n.rdPutHold}
+                </button>
+            </div>
+        </div>
+    </template>
+</template>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Address_Differs__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Checked when the address sent by Zeffy differs from the billing address of the linked account. Cleared automatically once both addresses match.</description>
+    <label>Address Differs</label>
+    <type>Checkbox</type>
+</CustomField>

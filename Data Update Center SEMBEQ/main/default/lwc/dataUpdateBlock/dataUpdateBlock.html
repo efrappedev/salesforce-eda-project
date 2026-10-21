@@ -1,0 +1,30 @@
+<template>
+    <div class="dublk">
+        <template lwc:if={isTitle}>
+            <template lwc:if={textEmpty}><h2 class="dublk-title dublk-empty">{emptyText}</h2></template>
+            <template lwc:else>
+                <h2 class="dublk-title" style={textStyle}><template for:each={runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h2>
+            </template>
+        </template>
+        <template lwc:if={isText}>
+            <template lwc:if={textEmpty}><p class="dublk-text dublk-empty">{emptyText}</p></template>
+            <template lwc:else>
+                <p class="dublk-text" style={textStyle}><template for:each={runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+            </template>
+        </template>
+        <template lwc:if={showImage}>
+            <div class="dublk-picture" style={pictureWrapStyle}><img src={imageUrl} alt={imageAlt} style={imageStyle} /></div>
+        </template>
+        <template lwc:if={showImageEmpty}>
+            <div class="dublk-picture" style={pictureWrapStyle}><span class="dublk-ph" style={emptyImageStyle}>🖼 {emptyImageLabel}</span></div>
+        </template>
+        <template lwc:if={showFrame}>
+            <div class="dublk-video"><iframe src={embedUrl} title={videoTitle} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
+        </template>
+        <template lwc:if={showVideoStub}>
+            <div class="dublk-video dublk-video_stub"><span class="dublk-play">▶</span><span class="dublk-video-url">{videoStubText}</span></div>
+        </template>
+        <template lwc:if={isDivider}><hr class="dublk-hr" /></template>
+        <template lwc:if={isSpacer}><div class="dublk-spacer" style={spacerStyle}></div></template>
+    </div>
+</template>

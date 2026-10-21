@@ -1,0 +1,115 @@
+<template>
+    <div class="duc-lk">
+        <div class="duc-lk-top">
+            <label class="duc-search">
+                <c-data-update-icon name="search" size="15"></c-data-update-icon>
+                <input type="text" placeholder={i18n.rdLkSearch} aria-label={i18n.rdLkSearch} value={searchTerm} autocomplete="off"
+                       oninput={handleSearchChange} onkeydown={handleSearchKey} />
+            </label>
+            <template lwc:if={showFormSelect}>
+                <select class="duc-select" aria-label={i18n.rdLkForm} onchange={handleFormSelect}>
+                    <template for:each={formOptions} for:item="o">
+                        <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                    </template>
+                </select>
+            </template>
+            <span class="duc-hint duc-lk-count">{countText}</span>
+            <template lwc:if={showPageNav}>
+                <span class="duc-pager">
+                    <button class="duc-pen" disabled={isPrevDisabled} onclick={handlePrevPage}
+                            title={i18n.rdPrev} aria-label={i18n.rdPrev}>
+                        <c-data-update-icon name="chevleft" size="14"></c-data-update-icon>
+                    </button>
+                    <template lwc:if={editingPage}>
+                        <input type="number" class="duc-pager-input" min="1" max={totalPages}
+                               onkeydown={handlePageInputKey} onblur={handlePageInputBlur} />
+                    </template>
+                    <template lwc:else>
+                        <span class="duc-pager-label" role="button" tabindex="0" onclick={handlePageLabelClick} onkeydown={handlePageLabelKey}>{pageLabel}</span>
+                    </template>
+                    <button class="duc-pen" disabled={isNextDisabled} onclick={handleNextPage}
+                            title={i18n.rdNext} aria-label={i18n.rdNext}>
+                        <c-data-update-icon name="chevright" size="14"></c-data-update-icon>
+                    </button>
+                </span>
+            </template>
+            <button class="duc-pen" onclick={handleRefresh} title={i18n.rdRefresh} aria-label={i18n.rdRefresh}>
+                <c-data-update-icon name="refresh" size="15"></c-data-update-icon>
+            </button>
+        </div>
+
+        <template lwc:if={showSpinner}>
+            <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+        </template>
+        <template lwc:elseif={isEmpty}>
+            <div class="duc-empty duc-lk-empty">{emptyText}</div>
+        </template>
+        <template lwc:else>
+            <div class="duc-lk-bar">
+                <span class="duc-hint">{i18n.rdLkHint}</span>
+                <button class="duc-btn" onclick={handleUnlockAll} disabled={isUnlockAllDisabled}>
+                    {unlockAllLabel}
+                </button>
+                <button class="duc-btn duc-btn_primary" onclick={handleUnlockSelected} disabled={isUnlockSelectedDisabled}>
+                    <c-data-update-icon name="unlock" size="14"></c-data-update-icon>{unlockSelectedLabel}
+                </button>
+            </div>
+
+            <div class="duc-lk-scroll">
+                <table class="duc-ltable">
+                    <thead>
+                        <tr>
+                            <th class="duc-lk-chkcol">
+                                <input type="checkbox" class="duc-lk-all" checked={allSelectableSelected}
+                                       disabled={isSelectAllDisabled} aria-label={i18n.rdAll}
+                                       onchange={handleToggleSelectAll} />
+                            </th>
+                            <th>{i18n.rdLkName}</th>
+                            <th class="duc-hide-sm">{i18n.rdLkForm}</th>
+                            <th>{i18n.rdLkSince}</th>
+                            <th class="duc-hide-sm">{i18n.rdLkTicket}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={records} for:item="r">
+                            <tr key={r.recordId} class={r.rowClass}>
+                                <td>
+                                    <input type="checkbox" data-id={r.recordId} checked={r.checked}
+                                           disabled={r.blocked} aria-label={r.recordName}
+                                           onchange={handleRowCheckboxChange} />
+                                </td>
+                                <td>
+                                    <template lwc:if={r.hasTicket}>
+                                        <button class="duc-lk-link" data-request-id={r.latestRequestId}
+                                                data-request-number={r.latestRequestNumber}
+                                                data-request-name={r.recordName}
+                                                data-request-status={r.latestRequestStatus}
+                                                onclick={handleViewTicket}>{r.recordName}</button>
+                                    </template>
+                                    <template lwc:else>
+                                        <span class="duc-lk-name">{r.recordName}</span>
+                                    </template>
+                                    <template lwc:if={r.blocked}>
+                                        <div class="duc-lk-blocked">
+                                            <c-data-update-icon name="info" size="12"></c-data-update-icon>{i18n.rdLkBlocked}
+                                        </div>
+                                    </template>
+                                </td>
+                                <td class="duc-hide-sm duc-lk-muted">{r.formLabel}</td>
+                                <td class="duc-lk-muted">{r.since}</td>
+                                <td class="duc-hide-sm">
+                                    <template lwc:if={r.hasTicket}>
+                                        <span class="duc-pill" style={r.pillStyle}>{r.statusText}</span>
+                                    </template>
+                                    <template lwc:else>
+                                        <span class="duc-hint">—</span>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+    </div>
+</template>

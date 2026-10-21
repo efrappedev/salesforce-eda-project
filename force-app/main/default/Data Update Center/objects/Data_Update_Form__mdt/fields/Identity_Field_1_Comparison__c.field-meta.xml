@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Identity_Field_1_Comparison__c</fullName>
+    <description>How Identity_Field_1_API_Name__c is compared. Exact = direct string match. Normalized_Text = accent/case/whitespace-folded match (reuses the existing LastName normalization logic).</description>
+    <label>Identity Field 1 Comparison</label>
+    <required>true</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Exact</fullName>
+                <default>true</default>
+                <label>Exact</label>
+            </value>
+            <value>
+                <fullName>Normalized_Text</fullName>
+                <default>false</default>
+                <label>Normalized Text</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

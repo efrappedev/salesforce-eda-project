@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Amount_Not_Applied__c</fullName>
+    <description>Amount Zeffy reports that differs from the gift already created in Salesforce. Nothing is changed automatically: set = the ticket shows in Open with a warning; cleared when staff marks it as reviewed or when Zeffy goes back to the recorded amount.</description>
+    <label>Zeffy Amount (Not Applied)</label>
+    <precision>16</precision>
+    <scale>2</scale>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Currency</type>
+</CustomField>

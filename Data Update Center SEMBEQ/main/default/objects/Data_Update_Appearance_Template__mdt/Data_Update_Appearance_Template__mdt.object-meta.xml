@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Named appearance (font + colors) saved from the form builder Appearance panel. Applying one to a form COPIES its values into that form's Portal_Appearance__c: editing or deleting the template later never changes forms that already used it.</description>
+    <label>Data Update Appearance Template</label>
+    <pluralLabel>Data Update Appearance Templates</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

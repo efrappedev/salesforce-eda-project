@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Source_Donation__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Donation that originated the scholarship - optional if funded from accumulated fund balance. In AEBEQ this lookup points to GiftTransaction instead of Gift_Transaction__c.</description>
+    <label>Source Gift</label>
+    <referenceTo>Gift_Transaction__c</referenceTo>
+    <relationshipLabel>Scholarships</relationshipLabel>
+    <relationshipName>Scholarships</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

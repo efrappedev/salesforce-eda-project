@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Honoree_Contact__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>If the honoree is an existing Contact.</description>
+    <label>Honoree Contact</label>
+    <referenceTo>Contact</referenceTo>
+    <relationshipLabel>Gift Tributes (Honoree)</relationshipLabel>
+    <relationshipName>Gift_Tributes_Honoree</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

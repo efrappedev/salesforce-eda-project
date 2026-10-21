@@ -1,12 +1,32 @@
 import { LightningElement, api } from 'lwc';
 import { getLabels } from 'c/i18n';
 
+const OVERWRITE = '__overwrite__';
+
 export default class MergeComparisonMatrix extends LightningElement {
     @api matrix;
     @api masterId;
     @api fieldDecisions;
     @api loserIds;
+    @api emailRescues = [];
     @api lang = 'fr';
+
+    // Email rescue dropdown: only one open at a time, floats over the table (position: fixed)
+    _openRescueField = null;
+    _rescueMenuStyle = '';
+    _closeRescueMenu = () => { if (this._openRescueField) this._openRescueField = null; };
+
+    connectedCallback() {
+        window.addEventListener('click', this._closeRescueMenu);
+        window.addEventListener('scroll', this._closeRescueMenu, true);
+        window.addEventListener('resize', this._closeRescueMenu);
+    }
+
+    disconnectedCallback() {
+        window.removeEventListener('click', this._closeRescueMenu);
+        window.removeEventListener('scroll', this._closeRescueMenu, true);
+        window.removeEventListener('resize', this._closeRescueMenu);
+    }
 
     get i18n() { return getLabels(this.lang); }
 
@@ -42,13 +62,104 @@ export default class MergeComparisonMatrix extends LightningElement {
         });
     }
 
+    // ── Email rescue map: computes available rescue targets per email field ────
+
+    get emailRescueMap() {
+        if (!this.matrix) return {};
+        const decisions = this.fieldDecisions || {};
+        const rescues   = this.emailRescues   || [];
+
+        // Current rescue targets already chosen: sourceField → targetField
+        const chosenBySource = {};
+        for (const r of rescues) {
+            chosenBySource[r.sourceField] = r.targetField;
+        }
+
+        // All updateable email-type rows
+        const emailRows = this.matrix.rows.filter(
+            r => r.fieldType === 'EMAIL' && r.isUpdateable !== false
+        );
+
+        // Email fields that are empty on master = available rescue targets
+        const emptyOnMaster = emailRows
+            .filter(r => {
+                const v = r.valuesByRecordId?.[this.masterId];
+                return !v || v === '—';
+            })
+            .map(r => ({ label: r.fieldLabel, value: r.fieldApiName }));
+
+        // Targets already taken by another source field (one rescue per target)
+        const takenTargets = {};
+        for (const r of rescues) takenTargets[r.targetField] = r.sourceField;
+
+        const result = {};
+        for (const row of emailRows) {
+            if (!row.hasConflict) continue;
+            const selectedId = decisions[row.fieldApiName] || this.masterId;
+            const masterVal  = row.valuesByRecordId?.[this.masterId];
+            if (!masterVal || masterVal === '—') continue; // master empty → normal radio is enough
+
+            // Find the loser with a non-empty value
+            const loserId = this.filteredRecordIds.find(id => {
+                const v = row.valuesByRecordId?.[id];
+                return String(id) !== String(this.masterId) && v && v !== '—';
+            });
+            if (!loserId) continue;
+            const loserVal = row.valuesByRecordId?.[loserId];
+
+            const i = this.i18n;
+            // Picklist inside the loser cell: discard / overwrite / save into an empty email field
+            const options = [
+                { label: i.rescueKeepMaster || 'Do not keep', value: '' },
+                ...emptyOnMaster
+                    .filter(t => t.value !== row.fieldApiName
+                              && (!takenTargets[t.value] || takenTargets[t.value] === row.fieldApiName))
+                    .map(t => ({ label: `${i.rescueSaveIn || 'Save to'} → ${t.label}`, value: t.value }))
+            ];
+
+            const loserChosen = String(selectedId) === String(loserId);
+            const current     = loserChosen ? OVERWRITE : (chosenBySource[row.fieldApiName] || '');
+            result[row.fieldApiName] = {
+                loserId,
+                loserVal,
+                options: options.map(o => ({ ...o, key: 'opt_' + o.value, selected: o.value === current, ariaChecked: o.value === current ? 'true' : 'false' })),
+                currentChoice: current,
+                isRescued:     !!current && current !== OVERWRITE,
+                needsAction:   !current,
+                isOpen:        this._openRescueField === row.fieldApiName,
+                ariaExpanded:  this._openRescueField === row.fieldApiName ? 'true' : 'false',
+                optCount:      options.length,
+                menuStyle:     this._rescueMenuStyle,
+                dotClass:      'rescue-dot' + (loserChosen ? ' rescue-dot_on' : ''),
+                btnClass:      'rescue-drop' + (current && current !== OVERWRITE ? ' rescue-drop_active' : '')
+            };
+        }
+        return result;
+    }
+
+    // targetField → rescued value (shown as pending in the target row's master cell)
+    get pendingRescueByTarget() {
+        const out = {};
+        if (!this.matrix) return out;
+        for (const r of this.emailRescues || []) {
+            const srcRow = this.matrix.rows.find(x => x.fieldApiName === r.sourceField);
+            const v = srcRow?.valuesByRecordId?.[r.sourceRecordId];
+            if (v) out[r.targetField] = v;
+        }
+        return out;
+    }
+
     // ── Body rows ─────────────────────────────────────────────────────────────
 
     get tableRows() {
         if (!this.matrix) return [];
-        const decisions = this.fieldDecisions || {};
+        const decisions    = this.fieldDecisions || {};
+        const rescueMap    = this.emailRescueMap;
+        const pendingMap   = this.pendingRescueByTarget;
 
         return this.matrix.rows.map(row => {
+            const rescueInfo  = rescueMap[row.fieldApiName] || null;
+            const pendingVal  = pendingMap[row.fieldApiName] || null;
             const selectedId    = decisions[row.fieldApiName] || this.masterId;
             // Apply same '—' fallback as displayValue so null==null → same, null≠'X' → different
             const selectedValue = row.valuesByRecordId?.[selectedId] ?? '—';
@@ -65,22 +176,31 @@ export default class MergeComparisonMatrix extends LightningElement {
                 if (isSelected)       cellClass += ' matrix-table__value-col_selected';
                 else if (isDifferent) cellClass += ' matrix-table__value-col_different';
 
-                return { recordId: id, displayValue, isSelected, isDifferent, cellClass };
+                const isRescueCell  = !!rescueInfo && String(id) === String(rescueInfo.loserId);
+                const pendingRescue = (pendingVal && String(id) === String(this.masterId)) ? pendingVal : null;
+                if (isRescueCell && rescueInfo.currentChoice && rescueInfo.currentChoice !== OVERWRITE) {
+                    cellClass += ' matrix-table__value-col_rescued';
+                }
+                return {
+                    recordId: id, displayValue, isSelected, isDifferent, cellClass,
+                    isRescueCell, isNormalCell: !isRescueCell, pendingRescue
+                };
             });
 
             return {
-                fieldApiName:   row.fieldApiName,
-                fieldLabel:     row.fieldLabel,
-                isEdaField:     row.isEdaField,
-                hasConflict:    row.hasConflict && !isReadOnly,
+                fieldApiName:    row.fieldApiName,
+                fieldLabel:      row.fieldLabel,
+                isEdaField:      row.isEdaField,
+                hasConflict:     row.hasConflict && !isReadOnly,
                 isReadOnly,
                 cells,
-                radioGroupName: `f_${row.fieldApiName}`,
-                rowClass:       row.isEdaField
+                radioGroupName:  `f_${row.fieldApiName}`,
+                rowClass:        row.isEdaField
                     ? 'matrix-table__row matrix-table__row_eda'
                     : (row.hasConflict && !isReadOnly)
                         ? 'matrix-table__row matrix-table__row_conflict'
-                        : 'matrix-table__row'
+                        : 'matrix-table__row',
+                rescueInfo
             };
         });
     }
@@ -223,6 +343,57 @@ export default class MergeComparisonMatrix extends LightningElement {
         const recordId  = event.target.value;
         this.dispatchEvent(new CustomEvent('fielddecisionchange', {
             detail: { fieldName, recordId }
+        }));
+    }
+
+    // Loser email cell: the email itself is a button that opens a floating menu (row height never changes)
+    handleRescueToggle(event) {
+        event.stopPropagation();
+        const field = event.currentTarget.dataset.sourcefield;
+        if (this._openRescueField === field) {
+            this._openRescueField = null;
+            return;
+        }
+        const rect    = event.currentTarget.getBoundingClientRect();
+        const count   = Number(event.currentTarget.dataset.optcount) || 4;
+        const menuH   = count * 34 + 8;
+        const openUp  = rect.bottom + menuH + 4 > window.innerHeight && rect.top > menuH;
+        const top     = openUp ? rect.top - menuH - 4 : rect.bottom + 4;
+        this._rescueMenuStyle = `top:${Math.round(top)}px;left:${Math.round(rect.left)}px;`;
+        this._openRescueField = field;
+    }
+
+    handleRescuePick(event) {
+        event.stopPropagation();
+        const ds = event.currentTarget.dataset;
+        this._openRescueField = null;
+        this._applyRescueChoice(ds.sourcefield, ds.loserid, ds.value);
+    }
+
+    // The radio dot keeps working like every other row: click = overwrite with the loser's value
+    handleRescueDot(event) {
+        const ds = event.currentTarget.dataset;
+        this._applyRescueChoice(ds.sourcefield, ds.loserid, OVERWRITE);
+    }
+
+    handleRescueMenuKeydown(event) {
+        if (event.key === 'Escape') this._openRescueField = null;
+    }
+
+    // '' = discard, OVERWRITE = take loser value, else = rescue target field
+    _applyRescueChoice(sourceField, sourceRecordId, choice) {
+        if (choice === OVERWRITE) {
+            this.dispatchEvent(new CustomEvent('fielddecisionchange', {
+                detail: { fieldName: sourceField, recordId: sourceRecordId }
+            }));
+            return;
+        }
+        // Discard or rescue: master keeps its own value for this field
+        this.dispatchEvent(new CustomEvent('fielddecisionchange', {
+            detail: { fieldName: sourceField, recordId: this.masterId }
+        }));
+        this.dispatchEvent(new CustomEvent('emailrescuechange', {
+            detail: { sourceField, targetField: choice, sourceRecordId }
         }));
     }
 }

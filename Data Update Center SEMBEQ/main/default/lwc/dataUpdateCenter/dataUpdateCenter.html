@@ -1,0 +1,113 @@
+<template>
+    <div class="duc-app">
+        <div class="duc-top">
+            <!-- The Lightning page header already shows the app name — no second title here. -->
+            <div class="duc-brand"></div>
+            <div class="duc-seg" role="group" aria-label={i18n.rdLanguage}>
+                <button class={langFrClass} data-lang="fr" aria-pressed={langFrPressed} onclick={handleLangChange}>FR</button>
+                <button class={langEnClass} data-lang="en" aria-pressed={langEnPressed} onclick={handleLangChange}>EN</button>
+            </div>
+            <template lwc:if={showBuilderButton}>
+                <button class="duc-btn" onclick={openBuilderModal}>
+                    <c-data-update-icon name="form" size="15"></c-data-update-icon>{i18n.rdBuilder}
+                </button>
+            </template>
+        </div>
+
+        <template lwc:if={showBuilderModal}>
+            <c-data-update-form-builder lang={lang} onclose={closeBuilderModal}></c-data-update-form-builder>
+        </template>
+
+        <div class="duc-main">
+            <div class="duc-panel duc-list-panel">
+                <c-data-update-request-list
+                    lang={lang}
+                    selected-request-id={activeTabId}
+                    onrequestselect={handleRequestSelect}
+                    ongroupselect={handleGroupSelect}
+                    onrequestchanged={handleRequestChanged}
+                    onformfilterchange={handleFormFilterChange}>
+                </c-data-update-request-list>
+            </div>
+
+            <div class="duc-panel duc-ws">
+                <div class="duc-wtabs" role="tablist">
+                    <div class={dashboardTabClass} role="tab" tabindex="0" aria-selected={dashboardSelected}
+                         onclick={handleDashboardTabClick} onkeydown={handleTabKey} data-fixed="dash">
+                        <c-data-update-icon name="chart" size="14"></c-data-update-icon>
+                        <span class="duc-tnm">{i18n.dashboardTab}</span>
+                    </div>
+                    <div class={lockedListTabClass} role="tab" tabindex="0" aria-selected={lockedSelected}
+                         onclick={handleLockedListTabClick} onkeydown={handleTabKey} data-fixed="locked">
+                        <c-data-update-icon name="lock" size="14"></c-data-update-icon>
+                        <span class="duc-tnm">{i18n.lockedAccountsTab}</span>
+                    </div>
+                    <template for:each={enrichedTabs} for:item="tab">
+                        <div key={tab.requestId} class={tab.tabClass} role="tab" tabindex="0"
+                             aria-selected={tab.ariaSelected} data-id={tab.requestId} title={tab.fullLabel} aria-label={tab.fullLabel}
+                             onclick={handleTabActivate} onkeydown={handleTabKey}>
+                            <template lwc:if={tab.isGroup}><c-data-update-icon name="list" size="13"></c-data-update-icon></template>
+                            <span class="duc-tnm">{tab.label}</span>
+                            <template lwc:if={tab.hasTag}><span class="duc-ttag">{tab.tag}</span></template>
+                            <button class="duc-close" data-id={tab.requestId} onclick={handleTabClose}
+                                    aria-label={tab.closeLabel} title={tab.closeLabel}>
+                                <c-data-update-icon name="x" size="13"></c-data-update-icon>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="duc-ws-body">
+                    <template lwc:if={showDashboard}>
+                        <div class={dashboardPanelClass}>
+                            <c-data-update-dashboard lang={lang} form-name={selectedFormFilter} status-name={selectedStatusFilter} onstatusfilter={handleStatusFilter}></c-data-update-dashboard>
+                        </div>
+                    </template>
+
+                    <template lwc:if={showLockedList}>
+                        <div class={lockedListPanelClass}>
+                            <c-data-update-locked-list lang={lang} form-name={selectedFormFilter}
+                                onrequestselect={handleRequestSelect}
+                                onlockschanged={handleLocksChanged}></c-data-update-locked-list>
+                        </div>
+                    </template>
+
+                    <template lwc:if={_dashboardLoading}>
+                        <div class="duc-pane duc-loading">
+                            <lightning-spinner alternative-text={i18n.loading} size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template for:each={enrichedTabs} for:item="tab">
+                        <div key={tab.requestId} class={tab.panelClass}>
+                            <template lwc:if={tab.isGroup}>
+                                <c-data-update-multi-ticket-review
+                                    lang={lang}
+                                    target-record-id={tab.targetRecordId}
+                                    ongroupapplied={handleGroupApplied}
+                                    onrequestselect={handleRequestSelect}>
+                                </c-data-update-multi-ticket-review>
+                            </template>
+                            <template lwc:else>
+                                <c-data-update-review-panel
+                                    lang={lang}
+                                    record-id={tab.requestId}
+                                    request-label={tab.label}
+                                    request-status={tab.status}
+                                    active={tab.isActive}
+                                    group-count={tab.groupCount}
+                                    rollback-ask-token={tab.rollbackAskToken}
+                                    onclosetab={handleReviewCloseTab}
+                                    onapplied={handleReviewApplied}
+                                    onrollback={handleReviewRollback}
+                                    onrequestchanged={handleRequestChanged}
+                                    ongroupselect={handleGroupSelect}>
+                                </c-data-update-review-panel>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

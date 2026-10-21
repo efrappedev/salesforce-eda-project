@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Form admins (staff lead, IT): opens the Form Builder and publishes forms (saved as DUC Form Config records, no metadata rights needed). Assign in addition to Data Update Center Access. Deleting forms also needs Data Update Center Delete Access.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Data Update Center Form Admin</label>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Data_Update_Manage_Forms</name>
+    </customPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>false</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>DUC_Form_Config__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Metadata_Type__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Developer_Name__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Form_Developer_Name__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Label__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Values_JSON__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DUC_Form_Config__c.Is_Deleted__c</field>
+        <readable>false</readable>
+    </fieldPermissions>
+</PermissionSet>

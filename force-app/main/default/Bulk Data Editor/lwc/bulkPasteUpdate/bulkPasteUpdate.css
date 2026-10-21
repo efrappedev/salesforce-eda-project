@@ -1,0 +1,136 @@
+.pu-container {
+    max-width: 680px;
+    margin: 0;
+    transition: max-width 0.15s ease-in-out;
+}
+
+.pu-container_wide {
+    max-width: 1040px;
+}
+
+/* Hand-built step indicator — deliberately NOT slds-path. Same reasoning as
+   bulkDataEditor.css: see feedback_slds_path_no_force_color. */
+.step-path {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0.25rem 0;
+    gap: 0.125rem;
+    overflow-x: auto;
+}
+
+.step-path__item {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.step-path__connector {
+    color: #c9c7c5;
+    margin: 0 0.125rem;
+    flex-shrink: 0;
+}
+
+.step-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    background-color: #f3f2f2;
+    color: #514f4d;
+    cursor: default;
+    white-space: nowrap;
+}
+
+.step-chip_current {
+    background-color: #032d60;
+    color: #ffffff;
+}
+
+.step-chip_complete {
+    background-color: #2e844a;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    cursor: pointer;
+}
+
+.step-chip_complete:hover {
+    background-color: #23673a;
+}
+
+/* Both paste-step toggles ("same value for all" + "set blank") plus the
+   helptext icon sit on one row so they read as a single control cluster,
+   instead of the blank toggle appearing buried inside the right column. */
+.pu-toggle-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+/* Side-by-side paste columns, same visual language as Bulk Edit's Step 3
+   filter/value columns, so pasted rows line up like two adjacent columns
+   from a spreadsheet instead of two stacked boxes. */
+.pu-paste-columns {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.pu-paste-col {
+    flex: 1 1 280px;
+    min-width: 260px;
+}
+
+.wizard-step {
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.wizard-step__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.step-hint {
+    font-size: 0.8125rem;
+    color: #3e3e3c;
+}
+
+.pu-error-text {
+    font-size: 0.75rem;
+    color: #ba0517;
+}
+
+.pu-datatable-wrap {
+    max-height: 24rem;
+    overflow-y: auto;
+}
+
+.pu-match-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    background-color: #f3f9ff;
+    border: 1px solid #c9e3ff;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.pu-match-footer__text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #032d60;
+}

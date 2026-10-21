@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Notify_Contact__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Who to notify, e.g. a family member.</description>
+    <label>Contact to Notify</label>
+    <referenceTo>Contact</referenceTo>
+    <relationshipLabel>Gift Tributes (Notify)</relationshipLabel>
+    <relationshipName>Gift_Tributes_Notify</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

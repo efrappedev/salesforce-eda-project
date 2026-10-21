@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Payment_Method_Id__c</fullName>
+    <description>External reference to the payment method in Zeffy, if exposed. External ID - prevents duplicates.</description>
+    <externalId>true</externalId>
+    <label>Zeffy Payment Method ID</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

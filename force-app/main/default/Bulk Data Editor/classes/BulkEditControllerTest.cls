@@ -195,6 +195,33 @@ private class BulkEditControllerTest {
     }
 
     @isTest
+    static void testGetJobStatus_abortedJob_reportsFailedInsteadOfSpinningForever() {
+        // A genuinely 'Aborted' AsyncApexJob can't be produced inside a test
+        // transaction (System.abortJob on a job that hasn't run yet leaves
+        // AsyncApexJob.Status as 'Queued', not 'Aborted') — TEST_FORCE_JOB_ABORTED
+        // simulates the branch directly, same pattern as the other TEST_FORCE_*
+        // flags on this class.
+        BulkEditController.TEST_FORCE_JOB_ABORTED = true;
+        BulkEditWrappers.BulkEditJobResult jobResult;
+        Test.startTest();
+        jobResult = BulkEditController.startBulkEdit(
+            'Account', 'AccountNumber', 'Account', 'Account Number',
+            'OLD-VALUE', false, 'NEW-VALUE', false,
+            null, null, null, null
+        );
+        Test.stopTest();
+
+        // start()/execute()/finish() ran normally here (the flag only forces
+        // getJobStatus to treat the job as aborted), so Status__c is really
+        // 'Completed' — getJobStatus must still report 'Failed' once the
+        // forced-abort branch overrides it, proving that branch runs and wins.
+        BulkEditWrappers.JobStatusResult status = BulkEditController.getJobStatus(jobResult.logId);
+        System.assert(status.isDone);
+        System.assertEquals('Failed', status.status);
+        System.assertNotEquals(null, status.errorMessage);
+    }
+
+    @isTest
     static void testStartBulkEdit_withFilter() {
         // Blank AccountNumber accounts are i=10 (Technology) and i=11
         // (Banking). Filtering to Industry='Technology' must restrict the

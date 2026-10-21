@@ -416,8 +416,10 @@
                     master-id={masterId}
                     field-decisions={fieldDecisions}
                     loser-ids={selectedLoserIds}
+                    email-rescues={emailRescues}
                     onmasterchange={handleMasterChange}
-                    onfielddecisionchange={handleFieldDecisionChange}>
+                    onfielddecisionchange={handleFieldDecisionChange}
+                    onemailrescuechange={handleEmailRescueChange}>
                 </c-merge-comparison-matrix>
             </template>
 
@@ -662,7 +664,7 @@
                         </p>
                         <ul class="slds-list_dotted">
                             <template for:each={customDecisionSummary} for:item="d">
-                                <li key={d.fieldLabel} class="slds-text-body_small">
+                                <li key={d.key} class="slds-text-body_small">
                                     {d.fieldLabel}
                                     &nbsp;&#8592;&nbsp;
                                     <em>{d.sourceName}</em>

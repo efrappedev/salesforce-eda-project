@@ -1,0 +1,114 @@
+<template>
+    <section class="duht">
+        <div class="duht-head">
+            <h3 class="duht-title">{title}</h3>
+            <template lwc:if={hasHelp}>
+                <button type="button" class="duht-info" title={i18n.htHelp} aria-label={i18n.htHelp}
+                    aria-expanded={helpExpanded} onclick={handleToggleHelp}>i</button>
+            </template>
+            <template lwc:if={showCount}>
+                <span class="duht-count">{linesText}</span>
+            </template>
+            <template lwc:if={hasLines}>
+                <button type="button" class="duht-clear" onclick={handleClear} disabled={disabled}>{i18n.htClear}</button>
+            </template>
+        </div>
+        <template lwc:if={showHelp}>
+            <p class="duht-help">{helpText}</p>
+        </template>
+        <template lwc:if={showModes}>
+        <div class="duht-modes" role="group" aria-label={title}>
+            <button type="button" class={entryTabClass} aria-pressed={entryPressed} onclick={handleModeEntry}
+                disabled={entryDisabled}>{i18n.htModeEntry}</button>
+            <button type="button" class={tableTabClass} aria-pressed={tablePressed} onclick={handleModeTable}
+                disabled={disabled}>{i18n.htModeTable}</button>
+        </div>
+        </template>
+        <p class="duht-howto">{howTo}</p>
+
+        <template lwc:if={isEntry}>
+            <div class="duht-entry">
+                <template for:each={draftFields} for:item="f">
+                    <label key={f.key} class="duht-field">
+                        <span class="duht-field-label">{f.label}<template lwc:if={f.required}><abbr class="duht-req" title="*">*</abbr></template></span>
+                        <template lwc:if={f.isDate}>
+                            <input class="duht-input" type="date" value={f.value} data-c={f.c} disabled={disabled}
+                                onchange={handleDraftInput} onblur={handleDraftBlur} onpaste={handleDraftPaste} />
+                        </template>
+                        <template lwc:elseif={f.isCheckbox}>
+                            <input class="duht-check" type="checkbox" checked={f.checked} data-c={f.c} disabled={disabled}
+                                onchange={handleDraftInput} onblur={handleDraftBlur} />
+                        </template>
+                        <template lwc:elseif={f.isPicklist}>
+                            <select class="duht-input" data-c={f.c} disabled={disabled} onchange={handleDraftInput} onblur={handleDraftBlur}>
+                                <option value="">—</option>
+                                <template for:each={f.options} for:item="o">
+                                    <option key={o.key} value={o.value} selected={o.selected}>{o.label}</option>
+                                </template>
+                            </select>
+                        </template>
+                        <template lwc:else>
+                            <input class="duht-input" type="text" value={f.value} data-c={f.c} inputmode={f.inputMode}
+                                maxlength={f.maxLength} disabled={disabled}
+                                oninput={handleDraftInput} onblur={handleDraftBlur} onpaste={handleDraftPaste} />
+                        </template>
+                    </label>
+                </template>
+            </div>
+            <template lwc:if={entryError}>
+                <p class="duht-error" role="alert">{entryError}</p>
+            </template>
+        </template>
+
+        <template lwc:if={isTable}>
+        <div class="duht-scroll">
+            <div class="duht-grid" style={gridStyle} role="table" aria-label={title}>
+                <div class="duht-row duht-row_head" role="row">
+                    <span class="duht-th duht-num" role="columnheader">#</span>
+                    <template for:each={headers} for:item="h">
+                        <span key={h.key} class="duht-th" role="columnheader">{h.label}</span>
+                    </template>
+                    <template lwc:if={hasDate}>
+                        <span class="duht-th" role="columnheader">{i18n.htReadAs}</span>
+                    </template>
+                    <span class="duht-th" role="columnheader"></span>
+                </div>
+                <template for:each={viewRows} for:item="row">
+                    <template lwc:if={row.isMore}>
+                        <div key={row.key} class="duht-more" role="row">{row.moreText}</div>
+                    </template>
+                    <template lwc:else>
+                        <div key={row.key} class={row.className} role="row">
+                            <span class="duht-num">{row.num}</span>
+                            <template for:each={row.cells} for:item="cell">
+                                <input key={cell.key} class="duht-cell" type="text" value={cell.value}
+                                    data-r={cell.r} data-c={cell.c} placeholder={cell.placeholder}
+                                    inputmode={cell.inputMode} aria-label={cell.ariaLabel} disabled={disabled}
+                                    onchange={handleCellChange} onpaste={handlePaste} />
+                            </template>
+                            <template lwc:if={hasDate}>
+                                <span class="duht-read">{row.read}</span>
+                            </template>
+                            <span class="duht-flag" title={row.error}>{row.flag}</span>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+        </template>
+
+        <template lwc:if={showFormatLine}>
+            <p class={formatLine.className}>
+                <template lwc:if={formatLine.warning}><strong>{formatLine.warning} </strong></template>
+                {i18n.htDateFormat} <strong>{formatLine.order}</strong>{formatLine.auto} ·
+                <button type="button" class="duht-link" onclick={handleSwapOrder} disabled={disabled}>{i18n.htChange}</button>
+            </p>
+        </template>
+        <template lwc:if={showErrors}>
+            <p class="duht-error" role="alert">{errorsText}</p>
+        </template>
+        <template lwc:if={tooManyText}>
+            <p class="duht-error" role="alert">{tooManyText}</p>
+        </template>
+    </section>
+</template>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightningCommunity__Default</target>
+        <target>lightningCommunity__Page</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            <property name="formNameOverride" type="String" label="Form Developer Name (override)"
+                description="Optional. Pins this page to always show one form (e.g. AEBEQ_Eglise_Update), bypassing the ?form= URL query param — use this to give a form its own dedicated page. Leave blank to keep the current behavior (reads ?form=&lt;DeveloperName&gt; from the URL, defaults to AEBEQ_Account_Update)." />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

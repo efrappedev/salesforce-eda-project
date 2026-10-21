@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Gift__c</fullName>
+    <description>Gift being split. Deleting the Gift deletes its splits too.</description>
+    <label>Gift</label>
+    <referenceTo>Gift_Transaction__c</referenceTo>
+    <relationshipLabel>Gift Splits</relationshipLabel>
+    <relationshipName>Gift_Splits</relationshipName>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

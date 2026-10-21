@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Form__c</fullName>
+    <description>Metadata Relationship to the parent Data_Update_Form__mdt this field belongs to.</description>
+    <label>Form</label>
+    <referenceTo>Data_Update_Form__mdt</referenceTo>
+    <relationshipLabel>Data Update Form Fields</relationshipLabel>
+    <relationshipName>Data_Update_Form_Fields</relationshipName>
+    <required>true</required>
+    <type>MetadataRelationship</type>
+</CustomField>

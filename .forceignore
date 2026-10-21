@@ -10,3 +10,6 @@ package.xml
 
 # LWC Jest
 **/__tests__/**
+
+# Custom Notification Types (unrecognized by CLI registry)
+**/customNotifications/**

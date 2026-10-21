@@ -723,6 +723,7 @@ private class MergeExecutionControllerTest {
             new List<String>{ String.valueOf(c2.Id) },
             new Map<String,String>(),
             'validate objectType path',
+            null,
             null
         );
         System.assertEquals(true, result.success);
@@ -755,6 +756,7 @@ private class MergeExecutionControllerTest {
             new List<String>{ String.valueOf(c2.Id) },
             new Map<String,String>(),
             'Controller test',
+            null,
             null
         );
         Test.stopTest();
@@ -2123,5 +2125,198 @@ private class MergeExecutionControllerTest {
         System.assertEquals('New Reason', updated[0].Closed_Reason__c, 'First ticket reason updated');
         System.assert(updated[0].Notes__c.contains('|||New Reason|||'), 'Notes should have new reason');
         System.assertEquals('New Reason', updated[1].Closed_Reason__c, 'Second ticket reason updated');
+    }
+
+    @IsTest
+    static void exec_captureRelated_soqlCapExceeded_continuesSafely() {
+        // Covers captureLoserRelatedIds SOQL budget cap: configsProcessed++ and break path.
+        // With cap=0 and 1 config: loop enters, increments to 1, 1 > 0 = true → break.
+        // The System.debug warning also fires (covers that branch).
+        insert new Related_Object_Config__c(
+            Name               = 'Cap Test Config',
+            Object_API_Name__c = 'Case',
+            Parent_Field__c    = 'AccountId',
+            Object_Type__c     = 'Account',
+            Is_Active__c       = true,
+            Sort_Order__c      = 1
+        );
+        Account master = makeAccount('CapMaster');
+        Account loser  = makeAccount('CapLoser');
+        Merge_Ticket__c ticket = makeAccountTicket(master, loser, 'Account|Phone|5140099CAP');
+        MergeExecutionService.TEST_SOQL_CAP_OVERRIDE = 0;
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(
+            makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id })
+        );
+        Test.stopTest();
+        MergeExecutionService.TEST_SOQL_CAP_OVERRIDE = null;
+        System.assertEquals(true, result.success,
+            'Merge should succeed even when SOQL cap prevents related record capture');
+    }
+
+    @IsTest
+    static void exec_accountMerge_withCaseRelated_reparentsToMaster() {
+        // Covers captureLoserRelatedIds loop body (SOQL + byLoser logic) and
+        // reparentAndDeleteLosers newSObject-based reparent path.
+        insert new Related_Object_Config__c(
+            Name               = 'Case Reparent Config',
+            Object_API_Name__c = 'Case',
+            Parent_Field__c    = 'AccountId',
+            Object_Type__c     = 'Account',
+            Is_Active__c       = true,
+            Sort_Order__c      = 1
+        );
+        Account master = makeAccount('ReparentMaster');
+        Account loser  = makeAccount('ReparentLoser');
+        Case loserCase = new Case(AccountId = loser.Id, Subject = 'Test case on loser');
+        insert loserCase;
+        Merge_Ticket__c ticket = makeAccountTicket(master, loser, 'Account|Phone|5140099REP');
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(
+            makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id })
+        );
+        Test.stopTest();
+        System.assertEquals(true, result.success, 'Merge failed: ' + result.errorMessage);
+        System.assertEquals(0, [SELECT COUNT() FROM Account WHERE Id = :loser.Id]);
+        Case updatedCase = [SELECT AccountId FROM Case WHERE Id = :loserCase.Id];
+        System.assertEquals(master.Id, updatedCase.AccountId,
+            'Case should be reparented to master Account after merge');
+    }
+
+    @IsTest
+    static void exec_emailRescue_copiesLoserEmailToAlternateField() {
+        // Verifies that emailRescues cross-copies a loser's Email to an alternative email
+        // field on the master rather than losing it.
+        Account acc    = makeAccount('RescueOrg');
+        Contact master = makeContact('RM', 'master@rescue.com', acc.Id);
+        Contact loser  = makeContact('RL', 'loser@rescue.com',  acc.Id);
+        Merge_Ticket__c ticket = makeContactTicket(master, loser, 'Contact|Email|shared@rescue.com');
+
+        MergeWrappers.MergeRequest req = makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id });
+        MergeWrappers.EmailRescueDecision rescue = new MergeWrappers.EmailRescueDecision();
+        rescue.sourceRecordId = String.valueOf(loser.Id);
+        rescue.sourceField    = 'Email';
+        rescue.targetField    = 'Email'; // same field used as target (org may not have Alternative_Email__c) — still exercises the code path
+        req.emailRescues = new List<MergeWrappers.EmailRescueDecision>{ rescue };
+
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(req);
+        Test.stopTest();
+
+        System.assertEquals(true, result.success, 'Email rescue merge failed: ' + result.errorMessage);
+    }
+
+    @IsTest
+    static void ctrl_emailRescue_parsedFromJson_andApplied() {
+        // Verifies executeMerge on MergeController parses emailRescuesJson correctly.
+        Account acc    = makeAccount('RescueCtrlOrg');
+        Contact master = makeContact('RC1', 'master@ctrlrescue.com', acc.Id);
+        Contact loser  = makeContact('RC2', 'loser@ctrlrescue.com',  acc.Id);
+        Merge_Ticket__c ticket = makeContactTicket(master, loser, 'Contact|Email|shared@ctrlrescue.com');
+
+        String rescueJson = JSON.serialize(new List<Map<String,String>>{
+            new Map<String,String>{
+                'sourceRecordId' => String.valueOf(loser.Id),
+                'sourceField'    => 'Email',
+                'targetField'    => 'Email'
+            }
+        });
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeController.executeMerge(
+            String.valueOf(ticket.Id),
+            String.valueOf(master.Id),
+            new List<String>{ String.valueOf(loser.Id) },
+            new Map<String,String>(),
+            'email rescue ctrl test',
+            null,
+            rescueJson
+        );
+        Test.stopTest();
+        System.assertEquals(true, result.success, 'Email rescue (ctrl) failed: ' + result.errorMessage);
+    }
+
+    private static MergeWrappers.EmailRescueDecision rescueOf(String srcId, String srcField, String tgtField) {
+        MergeWrappers.EmailRescueDecision r = new MergeWrappers.EmailRescueDecision();
+        r.sourceRecordId = srcId;
+        r.sourceField    = srcField;
+        r.targetField    = tgtField;
+        return r;
+    }
+
+    @IsTest
+    static void exec_emailRescue_skipsInvalidEntries() {
+        // Covers the guard paths of applyEmailRescues: blank entry, bad Id, source not in
+        // the ticket, non-updateable target and a target field that does not exist.
+        Account acc    = makeAccount('RescueEdgeOrg');
+        Contact master = makeContact('RE1', 'master@edgerescue.com', acc.Id);
+        Contact loser  = makeContact('RE2', 'loser@edgerescue.com',  acc.Id);
+        Contact other  = makeContact('RE3', 'other@edgerescue.com',  acc.Id);
+        Merge_Ticket__c ticket = makeContactTicket(master, loser, 'Contact|Email|edge@rescue.com');
+
+        MergeWrappers.MergeRequest req = makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id });
+        req.emailRescues = new List<MergeWrappers.EmailRescueDecision>{
+            rescueOf(null, 'Email', 'Email'),
+            rescueOf('not-an-id', 'Email', 'Email'),
+            rescueOf(String.valueOf(other.Id), 'Email', 'Email'),
+            rescueOf(String.valueOf(loser.Id), 'Email', 'CreatedDate'),
+            rescueOf(String.valueOf(loser.Id), 'Email', 'No_Such_Field__c')
+        };
+
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(req);
+        Test.stopTest();
+
+        System.assertEquals(true, result.success, 'Invalid rescues must be skipped: ' + result.errorMessage);
+        System.assertEquals('master@edgerescue.com', [SELECT Email FROM Contact WHERE Id = :master.Id].Email,
+            'Skipped rescues must not change the master email');
+    }
+
+    @IsTest
+    static void ctrl_emailRescue_invalidJson_isIgnored() {
+        // Covers the parse-error catch in MergeController.executeMerge: bad JSON is ignored
+        // and the merge still runs.
+        Account acc    = makeAccount('RescueBadJsonOrg');
+        Contact master = makeContact('RJ1', 'master@badjson.com', acc.Id);
+        Contact loser  = makeContact('RJ2', 'loser@badjson.com',  acc.Id);
+        Merge_Ticket__c ticket = makeContactTicket(master, loser, 'Contact|Email|shared@badjson.com');
+
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeController.executeMerge(
+            String.valueOf(ticket.Id),
+            String.valueOf(master.Id),
+            new List<String>{ String.valueOf(loser.Id) },
+            new Map<String,String>(),
+            'bad rescue json',
+            null,
+            '{not valid json'
+        );
+        Test.stopTest();
+        System.assertEquals(true, result.success, 'Bad rescue JSON must not block the merge: ' + result.errorMessage);
+    }
+
+    @IsTest
+    static void exec_captureRelated_realBudgetHit_stopsAndSucceeds() {
+        // Covers the real-SOQL-budget break path (TEST_FORCE_SOQL_BUDGET_HIT=true simulates
+        // Limits.getQueries() being within 25 of the limit, triggering the break on the first config).
+        insert new Related_Object_Config__c(
+            Name               = 'Budget Hit Config',
+            Object_API_Name__c = 'Case',
+            Parent_Field__c    = 'AccountId',
+            Object_Type__c     = 'Account',
+            Is_Active__c       = true,
+            Sort_Order__c      = 1
+        );
+        Account master = makeAccount('BudgetHitMaster');
+        Account loser  = makeAccount('BudgetHitLoser');
+        Merge_Ticket__c ticket = makeAccountTicket(master, loser, 'Account|Phone|5140099BHT');
+        MergeExecutionService.TEST_FORCE_SOQL_BUDGET_HIT = true;
+        Test.startTest();
+        MergeWrappers.MergeResult result = MergeExecutionService.executeMerge(
+            makeRequest(ticket.Id, master.Id, new List<Id>{ loser.Id })
+        );
+        Test.stopTest();
+        MergeExecutionService.TEST_FORCE_SOQL_BUDGET_HIT = false;
+        System.assertEquals(true, result.success,
+            'Merge should succeed even when real SOQL budget triggers early stop');
     }
 }

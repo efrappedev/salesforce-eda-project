@@ -1,0 +1,207 @@
+<template>
+    <div class="tuf-container" style={appearanceStyle}>
+        <div class="tuf-lang-switch">
+            <button class={langFrClass} data-lang="fr" onclick={handleLangChange}>{i18n.langFr}</button>
+            <span class="tuf-lang-sep">·</span>
+            <button class={langEnClass} data-lang="en" onclick={handleLangChange}>{i18n.langEn}</button>
+        </div>
+
+        <!-- ── Loading step ─────────────────────────────────────────────────── -->
+        <template if:true={isLoadingStep}>
+            <div class="tuf-card">
+                <p class="tuf-subtitle">{i18n.loading}</p>
+            </div>
+        </template>
+
+        <!-- ── Config error step ────────────────────────────────────────────── -->
+        <template if:true={isConfigErrorStep}>
+            <div class="tuf-card">
+                <h1 class="tuf-title">{i18n.error}</h1>
+                <p class="tuf-subtitle">{i18n.unknownError}</p>
+            </div>
+        </template>
+
+        <!-- ── Lookup step ─────────────────────────────────────────────────── -->
+        <template if:true={isLookupStep}>
+            <div class="tuf-card">
+                <template for:each={loginBlocks.start} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <h1 class="tuf-title" style={screenText.lookupTitle.style}><template for:each={screenText.lookupTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h1>
+                <template for:each={loginBlocks.lookupTitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <p class="tuf-subtitle" style={screenText.lookupSubtitle.style}><template for:each={screenText.lookupSubtitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                <template for:each={loginBlocks.lookupSubtitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+
+                <div class="tuf-field">
+                    <label class="tuf-label" for="identity1">{i18n.idLabel}</label>
+                    <input type="text" id="identity1" class="tuf-input" placeholder={idPlaceholder} autocomplete="off"
+                           value={identity1} oninput={handleIdentity1Change} onchange={handleIdentity1Change} disabled={isBusy} />
+                    <p class="tuf-help" style={screenText.idHelp.style}><template for:each={screenText.idHelp.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                </div>
+                <template for:each={loginBlocks.idField} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+
+                <template if:true={requiresIdentityField2}>
+                    <div class="tuf-field">
+                        <label class="tuf-label" for="identity2">{identity2Label}</label>
+                        <input type="text" id="identity2" class="tuf-input" placeholder={identity2Placeholder} autocomplete="off"
+                               value={identity2} oninput={handleIdentity2Change} onchange={handleIdentity2Change} disabled={isBusy} />
+                    </div>
+                </template>
+
+                <template if:true={recaptchaSiteKey}>
+                    <template if:true={recaptchaChallengeShown}>
+                        <div class="tuf-recaptcha-backdrop"></div>
+                    </template>
+                    <div class="tuf-recaptcha">
+                        <span class="tuf-recaptcha-loading" aria-hidden="true">{i18n.loading}</span>
+                        <iframe src={recaptchaFrameUrl} title="reCAPTCHA" class={recaptchaIframeClass} scrolling="no"></iframe>
+                    </div>
+                </template>
+
+                <template if:true={lookupErrorMessage}>
+                    <p class="tuf-error" role="alert">{lookupErrorMessage}</p>
+                </template>
+
+                <button class="tuf-btn-primary" onclick={handleContinue} disabled={isContinueDisabled}>
+                    <template if:true={isBusy}>{i18n.loading}</template>
+                    <template if:false={isBusy}>{i18n.btnContinue}</template>
+                </button>
+                <template if:true={continueHint}>
+                    <p class="tuf-help tuf-hint" aria-live="polite">{continueHint}</p>
+                </template>
+                <template for:each={loginBlocks.button} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+            </div>
+        </template>
+
+        <!-- ── Already pending step ────────────────────────────────────────── -->
+        <template if:true={isPendingStep}>
+            <div class="tuf-card">
+                <template for:each={messageBlocks.pending.start} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <h1 class="tuf-title" style={screenText.pendingTitle.style}><template for:each={screenText.pendingTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h1>
+                <template for:each={messageBlocks.pending.pendingTitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <p class="tuf-subtitle" style={screenText.pendingMessage.style}><template for:each={screenText.pendingMessage.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                <template for:each={messageBlocks.pending.pendingMessage} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+            </div>
+        </template>
+
+        <!-- ── Locked step ──────────────────────────────────────────────────── -->
+        <template if:true={isLockedStep}>
+            <div class="tuf-card">
+                <template for:each={messageBlocks.locked.start} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <h1 class="tuf-title" style={screenText.lockedTitle.style}><template for:each={screenText.lockedTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h1>
+                <template for:each={messageBlocks.locked.lockedTitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <p class="tuf-subtitle" style={screenText.lockedMessage.style}><template for:each={screenText.lockedMessage.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                <template for:each={messageBlocks.locked.lockedMessage} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+            </div>
+        </template>
+
+        <!-- ── Form step ────────────────────────────────────────────────────── -->
+        <template if:true={isFormStep}>
+            <div class="tuf-card">
+                <template for:each={formHeadBlocks.formStart} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <h1 class="tuf-title" style={screenText.formTitle.style}><template for:each={screenText.formTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h1>
+                <template for:each={formHeadBlocks.formTitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <p class="tuf-subtitle" style={screenText.formSubtitle.style}><template for:each={screenText.formSubtitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                <template for:each={formHeadBlocks.formSubtitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <template if:true={hasRequiredMark}><p class="tuf-legend"><span class="tuf-req" aria-hidden="true">*</span> {i18n.requiredLegend}</p></template>
+
+                <template for:each={sections} for:item="section">
+                    <div key={section.key}>
+                        <template if:true={section.label}>
+                            <h2 class="tuf-section-title">{section.label}</h2>
+                        </template>
+                        <template for:each={section.rows} for:item="row">
+                            <div key={row.key} class={row.rowClass}>
+                                <template if:true={row.isBlock}>
+                                    <c-data-update-block block={row.block} lang={lang}></c-data-update-block>
+                                </template>
+                                <template if:true={row.isTable}>
+                                    <c-data-update-history-table table={row.table} lang={lang} disabled={isBusy}
+                                        ontablechange={handleTableChange}></c-data-update-history-table>
+                                </template>
+                                <template for:each={row.fields} for:item="field">
+                                    <div key={field.fieldApiName} class="tuf-field">
+                                        <template if:true={field.isCheckbox}>
+                                            <label class="tuf-checkbox-row" for={field.fieldApiName}>
+                                                <input type="checkbox" id={field.fieldApiName} class="tuf-checkbox"
+                                                       data-field={field.fieldApiName} checked={field.checked} aria-invalid={field.ariaInvalid}
+                                                       onchange={handleFieldChange} disabled={field.isBusy} />
+                                                <span>{field.label}<template if:true={field.showRequiredMark}><abbr class="tuf-req" title={i18n.requiredMark}> *</abbr></template></span>
+                                            </label>
+                                        </template>
+                                        <template if:true={field.isPicklist}>
+                                            <label class="tuf-label" for={field.fieldApiName}>{field.label}<template if:true={field.showRequiredMark}><abbr class="tuf-req" title={i18n.requiredMark}> *</abbr></template></label>
+                                            <select id={field.fieldApiName} class="tuf-input tuf-select"
+                                                    data-field={field.fieldApiName} aria-invalid={field.ariaInvalid}
+                                                    onchange={handleFieldChange} disabled={field.isBusy}>
+                                                <option value="">{i18n.selectPlaceholder}</option>
+                                                <template for:each={field.picklistOptions} for:item="opt">
+                                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                                </template>
+                                            </select>
+                                        </template>
+                                        <template if:true={field.isPlainInput}>
+                                            <label class="tuf-label" for={field.fieldApiName}>{field.label}<template if:true={field.showRequiredMark}><abbr class="tuf-req" title={i18n.requiredMark}> *</abbr></template></label>
+                                            <input type={field.inputType} id={field.fieldApiName} class="tuf-input" autocomplete={field.autocomplete}
+                                                   data-field={field.fieldApiName} value={field.value} aria-invalid={field.ariaInvalid}
+                                                   oninput={handleFieldChange} onchange={handleFieldChange}
+                                                   disabled={field.isBusy} />
+                                        </template>
+                                        <template if:true={field.isReadOnlyCheckbox}>
+                                            <label class="tuf-checkbox-row tuf-readonly" for={field.fieldApiName}>
+                                                <input type="checkbox" id={field.fieldApiName} class="tuf-checkbox"
+                                                       checked={field.readOnlyChecked} disabled />
+                                                <span>{field.label}</span>
+                                            </label>
+                                        </template>
+                                        <template if:true={field.isReadOnlyText}>
+                                            <label class="tuf-label" for={field.fieldApiName}>{field.label}</label>
+                                            <input type={field.readOnlyInputType} id={field.fieldApiName} class="tuf-input tuf-input_readonly"
+                                                   value={field.readOnlyValue} readonly aria-readonly="true" tabindex="-1" />
+                                        </template>
+                                        <template if:true={field.helpText}>
+                                            <p class="tuf-help">{field.helpText}</p>
+                                        </template>
+                                        <template if:true={field.hasHistoryDate}>
+                                            <label class="tuf-label tuf-label_sub" for={field.historyDateId}>{i18n.historyDateLabel}</label>
+                                            <input type="date" id={field.historyDateId} class="tuf-input"
+                                                   data-field={field.historyDateKey} value={field.historyDateValue}
+                                                   oninput={handleFieldChange} onchange={handleFieldChange}
+                                                   disabled={field.isBusy} />
+                                            <p class="tuf-help">{i18n.historyDateHelp}</p>
+                                        </template>
+                                        <template if:true={field.error}>
+                                            <p class="tuf-error" role="alert">{field.error}</p>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={submitErrorMessage}>
+                    <p class="tuf-error" role="alert">{submitErrorMessage}</p>
+                </template>
+
+                <div class="tuf-actions">
+                    <button class="tuf-btn-secondary" onclick={handleFormBack} disabled={isBusy}>{i18n.btnBack}</button>
+                    <button class="tuf-btn-primary" onclick={handleSubmit} disabled={isSubmitDisabled}>
+                        <template if:true={isBusy}>{i18n.saving}</template>
+                        <template if:false={isBusy}>{i18n.btnSubmit}</template>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- ── Confirmation step ───────────────────────────────────────────── -->
+        <template if:true={isConfirmationStep}>
+            <div class="tuf-card">
+                <template for:each={messageBlocks.confirm.start} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <h1 class="tuf-title" style={screenText.confirmTitle.style}><template for:each={screenText.confirmTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></h1>
+                <template for:each={messageBlocks.confirm.confirmTitle} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <p class="tuf-subtitle" style={screenText.confirmMessage.style}><template for:each={screenText.confirmMessage.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template></p>
+                <template for:each={messageBlocks.confirm.confirmMessage} for:item="blk"><c-data-update-block key={blk.id} block={blk} lang={lang}></c-data-update-block></template>
+                <button class="tuf-btn-secondary" onclick={handleNewRequest}>{i18n.btnNewRequest}</button>
+            </div>
+        </template>
+    </div>
+</template>

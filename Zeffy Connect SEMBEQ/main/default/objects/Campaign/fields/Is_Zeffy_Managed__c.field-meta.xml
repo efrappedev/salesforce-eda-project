@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Zeffy_Managed__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Checked automatically when the Zeffy Connect robot creates or links this campaign. Uncheck to treat as a manually managed Salesforce campaign.</description>
+    <externalId>false</externalId>
+    <label>Zeffy Managed</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

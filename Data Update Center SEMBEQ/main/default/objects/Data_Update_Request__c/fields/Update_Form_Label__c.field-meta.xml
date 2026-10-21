@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Update_Form_Label__c</fullName>
+    <description>Human-readable label of the Data_Update_Form__mdt this request came from, snapshotted at submit time. Kept as its own field (not resolved live from the CMDT) so the request queue and ticket detail can still show which form a ticket came from even after that Data_Update_Form__mdt record is hard-deleted.</description>
+    <label>Update Form Label</label>
+    <length>255</length>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

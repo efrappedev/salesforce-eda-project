@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://www.google.com</url>
+    <description>Outbound Apex callout target for DataUpdateReCaptchaService.verifyToken() — POSTs to Google's reCAPTCHA siteverify endpoint to validate the v2 checkbox token from the Data Update Center public lookup form.</description>
+</RemoteSiteSetting>

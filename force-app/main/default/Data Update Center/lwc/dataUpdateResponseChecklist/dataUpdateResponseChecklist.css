@@ -1,0 +1,70 @@
+@import 'c/dataUpdateUiStyles';
+
+.duc-cl {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9001;
+    width: min(760px, calc(100vw - 32px)); height: min(720px, calc(100vh - 48px));
+    background: var(--duc-surface); color: var(--duc-text); border: 1px solid var(--duc-line); border-radius: 16px;
+    box-shadow: var(--duc-pop); display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
+    animation: duc-mpop .16s ease-out;
+}
+
+.duc-cl-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 12px; flex: none; }
+.duc-cl-titles { flex: 1; min-width: 0; }
+.duc-cl-title { font-size: 17px; font-weight: 700; line-height: 1.25; margin: 0; }
+.duc-cl-sub { font-size: 12.5px; color: var(--duc-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.duc-cl-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; padding: 0 20px 14px; flex: none; }
+.duc-cl-field { display: grid; gap: 4px; flex: none; min-width: 0; }
+.duc-cl-tools .duc-cl-field .duc-select { width: 200px; max-width: 100%; }
+.duc-cl-lbl {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--duc-faint);
+}
+.duc-cl-search { flex: 1; min-width: 180px; }
+
+/* date dialog sits above the checklist */
+.duc-cl-dback { z-index: 9002; }
+.duc-cl-dmodal { z-index: 9003; width: min(320px, calc(100vw - 32px)); }
+.duc-cl-dmodal .duc-select { width: 100%; box-sizing: border-box; }
+
+.duc-cl-summary {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 20px;
+    border-top: 1px solid var(--duc-line); border-bottom: 1px solid var(--duc-line); background: var(--duc-surface-2); flex: none;
+}
+.duc-cl-progress { flex: 1; min-width: 180px; display: grid; gap: 6px; font-size: 13px; }
+.duc-cl-track { display: block; height: 6px; background: var(--duc-line-2); border-radius: 6px; overflow: hidden; }
+.duc-cl-track i { display: block; height: 100%; background: var(--duc-applied); border-radius: 6px; transition: width .3s; }
+
+.duc-cl-segs { display: inline-flex; gap: 2px; padding: 3px; background: var(--duc-surface); border: 1px solid var(--duc-line); border-radius: 10px; }
+.duc-cl-seg {
+    border: 0; background: none; border-radius: 7px; padding: 5px 10px; font-size: 12px; font-weight: 600;
+    color: var(--duc-muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.duc-cl-seg:hover { color: var(--duc-text); }
+.duc-cl-seg_on, .duc-cl-seg_on:hover { background: var(--duc-text); color: var(--duc-surface); }
+.duc-cl-n { font-size: 11px; opacity: .75; font-variant-numeric: tabular-nums; }
+
+.duc-cl-body { flex: 1; min-height: 0; overflow: auto; padding: 6px 12px; }
+.duc-cl-list { list-style: none; margin: 0; padding: 0; }
+.duc-cl-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-bottom: 1px solid var(--duc-line-2);
+    font-size: 13px; border-radius: 6px;
+}
+.duc-cl-row:last-child { border-bottom: 0; }
+.duc-cl-row:hover { background: var(--duc-surface-2); }
+.duc-cl-mark {
+    width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: var(--duc-line-2); color: var(--duc-faint);
+}
+.duc-cl-row_yes .duc-cl-mark { background: var(--duc-applied-bg); color: var(--duc-applied); }
+.duc-cl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--duc-muted); }
+.duc-cl-row_yes .duc-cl-name { color: var(--duc-text); font-weight: 600; }
+.duc-cl-date { font-size: 12px; color: var(--duc-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.duc-cl-foot { display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--duc-line); flex: none; }
+
+@media (max-width: 600px) {
+    .duc-cl-field { flex: 1; }
+    .duc-cl-tools .duc-cl-field .duc-select { width: 100%; }
+    .duc-cl-segs { width: 100%; }
+    .duc-cl-seg { flex: 1; justify-content: center; }
+}

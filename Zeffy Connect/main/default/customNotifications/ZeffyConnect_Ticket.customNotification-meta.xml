@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomNotificationType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customNotifTypeName>ZeffyConnect_Ticket</customNotifTypeName>
+    <description>Bell notification for new and assigned Zeffy Connect tickets</description>
+    <masterLabel>Zeffy Connect Ticket</masterLabel>
+    <shouldSendEmail>false</shouldSendEmail>
+</CustomNotificationType>

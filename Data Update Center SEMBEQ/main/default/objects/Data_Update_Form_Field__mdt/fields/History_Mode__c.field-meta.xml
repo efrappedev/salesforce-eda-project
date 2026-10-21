@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>History_Mode__c</fullName>
+    <description>Replace (default): the field just overwrites the current value on the target record, as always. Historize: in addition to that, every apply also inserts a row on the mapped history object so the value can be charted over time in native Reports (e.g. église attendance/membership). History_Only: no field on the target record at all — the value only becomes a new row on the mapped history object, linked to the target record; Field_API_Name__c then holds the virtual key HistoryObject.ValueField. History_Table: a paste-from-Excel table on the public form (églises) — each pasted line becomes one row on the mapped history object; Field_API_Name__c holds the virtual key HistoryObject#table and History_Table_Columns__c the checked columns.</description>
+    <label>History Mode</label>
+    <required>true</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Replace</fullName>
+                <default>true</default>
+                <label>Replace</label>
+            </value>
+            <value>
+                <fullName>Historize</fullName>
+                <default>false</default>
+                <label>Historize</label>
+            </value>
+            <value>
+                <fullName>History_Only</fullName>
+                <default>false</default>
+                <label>History Only</label>
+            </value>
+            <value>
+                <fullName>History_Table</fullName>
+                <default>false</default>
+                <label>History Table</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

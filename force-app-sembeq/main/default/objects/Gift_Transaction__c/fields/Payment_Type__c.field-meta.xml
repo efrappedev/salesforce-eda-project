@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Payment_Type__c</fullName>
+    <description>Type of Zeffy payment: donation, ticket (event), membership, raffle. Zeffy handles multiple payment types through the same webhook.</description>
+    <label>Payment Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>false</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>Donation</fullName><default>true</default><label>Donation</label></value>
+            <value><fullName>Ticket</fullName><default>false</default><label>Ticket / Event</label></value>
+            <value><fullName>Membership</fullName><default>false</default><label>Membership</label></value>
+            <value><fullName>Raffle</fullName><default>false</default><label>Raffle</label></value>
+            <value><fullName>Other</fullName><default>false</default><label>Other</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

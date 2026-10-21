@@ -79,3 +79,26 @@ force-app/main/default/Fundraising/Demo SF Aebeq/
 Apk/Xuper_4.34.5_Emagoplay/
 
 .claude/
+
+# Zeffy Connect backups — donor personal data, never to GitHub
+Zeffy Connect/backups/
+Zeffy Connect SEMBEQ/backups/
+
+# Zeffy Connect manual + UI screenshots (contain real donor data) — never to GitHub
+Zeffy Connect/manual/
+# Zeffy Connect demo data (real-looking donor data) — never to GitHub
+Zeffy Connect/DEMO AEBEQ/
+
+# Respaldos locales (nunca a GitHub)
+/backups/
+
+# Manuales, SOWs y capturas de manual (cualquier formato) — nunca a GitHub
+Manuales y SOWs/**/SOW*
+duc-manual-*/
+# Snapshots de Playwright y scripts Apex sueltos en la raíz
+/*.yml
+/del.apex
+# Respaldos con datos reales de org
+force-app-aebeq/scripts/backups/
+# Datos demo de Fundraising/DMC (exports de org)
+Donation Management Center/demo-data/

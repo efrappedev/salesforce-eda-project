@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+    Hosts the Google reCAPTCHA v2 checkbox widget for the public Data Update
+    Center lookup form (dataUpdateForm LWC). Lightning Web Security blocks LWC
+    components from injecting remote <script> tags into <head> ("Cannot
+    prepend META to HEAD"), and this LWR site does not support native
+    Visualforce pages (no way to register one as a site page, and a raw
+    *.vf.force.com URL returns "Invalid Page" for the site's Guest user). A
+    Static Resource is served same-origin as the site itself, so it isn't
+    subject to either restriction — the LWC embeds it via <iframe>, and the
+    verified token is relayed back with postMessage. The token itself carries
+    no trust on its own, it's only meaningful once
+    DataUpdateReCaptchaService.verifyToken() checks it server-side against
+    Google, so no origin allowlisting is needed on the receiving end.
+
+    The image-challenge popup (when the checkbox click isn't enough to pass)
+    renders as another iframe inside THIS document rather than escaping to the
+    top-level page like it would on a normal (non-nested) page — nested
+    iframes can't break out of their parent's box. So instead of clipping it,
+    a poll watches for Google's challenge iframe ("bframe") becoming visible
+    and tells the parent LWC to grow the outer iframe to fit it, then shrink
+    back once it's dismissed.
+-->
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        html, body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
+    </style>
+</head>
+<body>
+    <div id="recaptcha-container"></div>
+    <script>
+        // Widget language follows the form's FR/EN toggle (hl passed by the LWC).
+        (function () {
+            var hl = new URLSearchParams(window.location.search).get('hl') === 'en' ? 'en' : 'fr';
+            var s = document.createElement('script');
+            s.src = 'https://www.google.com/recaptcha/api.js?onload=dataUpdateRecaptchaFrameOnLoad&render=explicit&hl=' + hl;
+            s.async = true;
+            s.defer = true;
+            document.head.appendChild(s);
+        })();
+    </script>
+    <script>
+        function dataUpdateRecaptchaFrameOnLoad() {
+            var params = new URLSearchParams(window.location.search);
+            var siteKey = params.get('k');
+            if (!siteKey) return;
+            window.grecaptcha.render('recaptcha-container', {
+                sitekey: siteKey,
+                callback: function (token) {
+                    parent.postMessage({ source: 'dataUpdateRecaptchaFrame', type: 'token', token: token }, '*');
+                },
+                'expired-callback': function () {
+                    parent.postMessage({ source: 'dataUpdateRecaptchaFrame', type: 'expired' }, '*');
+                }
+            });
+        }
+
+        var challengeVisible = false;
+        setInterval(function () {
+            var bframe = document.querySelector('iframe[src*="bframe"]');
+            var visible = !!bframe && window.getComputedStyle(bframe).visibility !== 'hidden';
+            if (visible !== challengeVisible) {
+                challengeVisible = visible;
+                parent.postMessage({ source: 'dataUpdateRecaptchaFrame', type: visible ? 'challengeShown' : 'challengeHidden' }, '*');
+            }
+        }, 300);
+    </script>
+</body>
+</html>

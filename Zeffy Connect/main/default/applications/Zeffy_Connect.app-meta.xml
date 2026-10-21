@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <defaultLandingTab>Zeffy_Connect_Review_Manager</defaultLandingTab>
+    <description>Zeffy Connect AEBEQ — review unmatched donor tickets, link accounts, and configure the Zeffy → Salesforce integration.</description>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>true</isNavPersonalizationDisabled>
+    <isServiceCloudConsole>false</isServiceCloudConsole>
+    <label>Zeffy Connect</label>
+    <navType>Standard</navType>
+    <tabs>Zeffy_Connect_Review_Manager</tabs>
+    <tabs>Zeffy_Review_Ticket__c</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>

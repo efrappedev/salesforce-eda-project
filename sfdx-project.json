@@ -9,6 +9,18 @@
     },
     {
       "path": "force-app-sembeq"
+    },
+    {
+      "path": "Zeffy Connect"
+    },
+    {
+      "path": "Donation Management Center"
+    },
+    {
+      "path": "Zeffy Connect SEMBEQ"
+    },
+    {
+      "path": "Data Update Center SEMBEQ"
     }
   ],
   "name": "Button test",

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <label>Status</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>SUCCESS</fullName><default>false</default><label>SUCCESS</label></value>
+            <value><fullName>DUPLICATE_SKIPPED</fullName><default>false</default><label>DUPLICATE_SKIPPED</label></value>
+            <value><fullName>AUTH_FAILED</fullName><default>false</default><label>AUTH_FAILED</label></value>
+            <value><fullName>EMPTY_PAYLOAD</fullName><default>false</default><label>EMPTY_PAYLOAD</label></value>
+            <value><fullName>INVALID_JSON</fullName><default>false</default><label>INVALID_JSON</label></value>
+            <value><fullName>MISSING_TX_ID</fullName><default>false</default><label>MISSING_TX_ID</label></value>
+            <value><fullName>SERVICE_INACTIVE</fullName><default>false</default><label>SERVICE_INACTIVE</label></value>
+            <value><fullName>NO_CONFIG</fullName><default>false</default><label>NO_CONFIG</label></value>
+            <value><fullName>TICKET_INSERT_FAILED</fullName><default>false</default><label>TICKET_INSERT_FAILED</label></value>
+            <value><fullName>GIFT_TX_FAILED</fullName><default>false</default><label>GIFT_TX_FAILED</label></value>
+            <value><fullName>APEX_LIMIT_ERROR</fullName><default>false</default><label>APEX_LIMIT_ERROR</label></value>
+            <value><fullName>UNHANDLED_EXCEPTION</fullName><default>false</default><label>UNHANDLED_EXCEPTION</label></value>
+            <value><fullName>IGNORED</fullName><default>false</default><label>IGNORED</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

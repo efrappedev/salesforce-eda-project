@@ -1,0 +1,761 @@
+{
+ "Data_Update_Form__mdt": [
+  {
+   "attributes": {
+    "type": "Data_Update_Form__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update",
+   "MasterLabel": "Account Updates",
+   "Allow_Duplicate_Open_Requests__c": false,
+   "Identity_Field_1_API_Name__c": "ID_Account__c",
+   "Identity_Field_1_Comparison__c": "Exact",
+   "Identity_Field_2_API_Name__c": "LastName",
+   "Identity_Field_2_Comparison__c": "Normalized_Text",
+   "Is_Active__c": true,
+   "Is_Core_Form__c": true,
+   "Lock_Date_Field_API_Name__c": "Data_Update_Locked_Date__c",
+   "Lock_Field_API_Name__c": "Data_Update_Locked__c",
+   "Network_Name__c": "Mise à jour de compte AEBEQ",
+   "Owner_Queue_DeveloperName__c": "Data_Update_Requests",
+   "Record_Name_Field_API_Name__c": "Name",
+   "Subject_Template__c": "{RecordName}",
+   "Target_Base_Filter_Field__c": "IsPersonAccount",
+   "Target_Base_Filter_Value__c": "true",
+   "Target_Object_API_Name__c": "Account"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update",
+   "MasterLabel": "Église Update",
+   "Allow_Duplicate_Open_Requests__c": true,
+   "Identity_Field_1_API_Name__c": "ID_Account__c",
+   "Identity_Field_1_Comparison__c": "Exact",
+   "Identity_Field_2_API_Name__c": "Enregistrement_provincial_etatique__c",
+   "Identity_Field_2_Comparison__c": "Normalized_Text",
+   "Is_Active__c": true,
+   "Is_Core_Form__c": true,
+   "Lock_Date_Field_API_Name__c": "Data_Update_Locked_Date__c",
+   "Lock_Field_API_Name__c": "Data_Update_Locked__c",
+   "Network_Name__c": "Mise à jour de compte Églises AEBEQ",
+   "Owner_Queue_DeveloperName__c": "Data_Update_Requests",
+   "Record_Name_Field_API_Name__c": "Name",
+   "Subject_Template__c": "{RecordName}",
+   "Target_Base_Filter_Field__c": "RecordType.DeveloperName",
+   "Target_Base_Filter_Value__c": "Eglise",
+   "Target_Object_API_Name__c": "Account"
+  }
+ ],
+ "Data_Update_Form_Field__mdt": [
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_Alternative_Email_1",
+   "MasterLabel": "AEBEQ_Account_Update - Alternative_Email",
+   "Display_Order__c": 40.0,
+   "Field_API_Name__c": "Alternative_Email_1__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Alternative Email 1",
+   "Label_ES__c": "Alternative Email 1",
+   "Label_FR__c": "Alternative Email 1",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_Email",
+   "MasterLabel": "AEBEQ Account Update - Email",
+   "Display_Order__c": 10.0,
+   "Field_API_Name__c": "PersonEmail",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email",
+   "Label_ES__c": "Correo electrónico",
+   "Label_FR__c": "Courriel",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_Excl",
+   "MasterLabel": "AEBEQ_Account_Update - Excl__c",
+   "Display_Order__c": 120.0,
+   "Field_API_Name__c": "Excl__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Checkbox",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Excl.?",
+   "Label_ES__c": "Excl.?",
+   "Label_FR__c": "Excl.?",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_Excl_raison",
+   "MasterLabel": "AEBEQ_Account_Update - Excl_raison__c",
+   "Display_Order__c": 130.0,
+   "Field_API_Name__c": "Excl_raison__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Picklist",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Excl. (raison)",
+   "Label_ES__c": "Excl. (raison)",
+   "Label_FR__c": "Excl. (raison)",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_FirstName",
+   "MasterLabel": "AEBEQ Account Update - First Name",
+   "Display_Order__c": 1.0,
+   "Field_API_Name__c": "FirstName",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "First Name",
+   "Label_ES__c": "Nombre",
+   "Label_FR__c": "Prénom",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Identity",
+   "Section_Label_ES__c": "Identidad",
+   "Section_Label_FR__c": "Identité"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_HomePhone",
+   "MasterLabel": "AEBEQ Account Update - Home Phone",
+   "Display_Order__c": 30.0,
+   "Field_API_Name__c": "PersonHomePhone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Home Phone",
+   "Label_ES__c": "Teléfono residencial",
+   "Label_FR__c": "Téléphone résidentiel",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_LastName",
+   "MasterLabel": "AEBEQ Account Update - Last Name",
+   "Display_Order__c": 2.0,
+   "Field_API_Name__c": "LastName",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Last Name",
+   "Label_ES__c": "Apellido",
+   "Label_FR__c": "Nom de famille",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Identity",
+   "Section_Label_ES__c": "Identidad",
+   "Section_Label_FR__c": "Identité"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MQ",
+   "MasterLabel": "AEBEQ_Account_Update - MQ__c",
+   "Display_Order__c": 140.0,
+   "Field_API_Name__c": "MQ__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Checkbox",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "MQ",
+   "Label_ES__c": "MQ",
+   "Label_FR__c": "MQ",
+   "Same_Row_As_Previous__c": false
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MailingCity",
+   "MasterLabel": "AEBEQ Account Update - Mailing City",
+   "Display_Order__c": 50.0,
+   "Field_API_Name__c": "PersonMailingCity",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "City",
+   "Label_ES__c": "Ciudad",
+   "Label_FR__c": "Ville",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MailingCountry",
+   "MasterLabel": "AEBEQ Account Update - Mailing Country",
+   "Display_Order__c": 80.0,
+   "Field_API_Name__c": "PersonMailingCountry",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Country",
+   "Label_ES__c": "País",
+   "Label_FR__c": "Pays",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MailingPostalCode",
+   "MasterLabel": "AEBEQ Account Update - Postal Code",
+   "Display_Order__c": 70.0,
+   "Field_API_Name__c": "PersonMailingPostalCode",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Postal Code",
+   "Label_ES__c": "Código postal",
+   "Label_FR__c": "Code postal",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MailingState",
+   "MasterLabel": "AEBEQ Account Update - Mailing State",
+   "Display_Order__c": 60.0,
+   "Field_API_Name__c": "PersonMailingState",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "State/Province",
+   "Label_ES__c": "Provincia/Estado",
+   "Label_FR__c": "Province",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MailingStreet",
+   "MasterLabel": "AEBEQ Account Update - Mailing Street",
+   "Display_Order__c": 40.0,
+   "Field_API_Name__c": "PersonMailingStreet",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Street",
+   "Label_ES__c": "Calle",
+   "Label_FR__c": "Rue",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Mailing Address",
+   "Section_Label_ES__c": "Dirección postal",
+   "Section_Label_FR__c": "Adresse postale"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Account_Update_MobilePhone",
+   "MasterLabel": "AEBEQ Account Update - Mobile Phone",
+   "Display_Order__c": 20.0,
+   "Field_API_Name__c": "PersonMobilePhone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Account_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Mobile Phone",
+   "Label_ES__c": "Teléfono móvil",
+   "Label_FR__c": "Téléphone mobile",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact Information",
+   "Section_Label_ES__c": "Información de contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Alt_Email_1",
+   "MasterLabel": "AEBEQ Eglise Update - Email 1",
+   "Display_Order__c": 3.0,
+   "Field_API_Name__c": "Alternative_Email_1__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email 1",
+   "Label_ES__c": "Correo 1",
+   "Label_FR__c": "Courriel 1",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Alt_Email_2",
+   "MasterLabel": "AEBEQ Eglise Update - Email 2",
+   "Display_Order__c": 4.0,
+   "Field_API_Name__c": "Alternative_Email_2__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email 2",
+   "Label_ES__c": "Correo 2",
+   "Label_FR__c": "Courriel 2",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Alt_Email_3",
+   "MasterLabel": "AEBEQ Eglise Update - Email 3",
+   "Display_Order__c": 5.0,
+   "Field_API_Name__c": "Alternative_Email_3__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Email",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Email 3",
+   "Label_ES__c": "Correo 3",
+   "Label_FR__c": "Courriel 3",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Attendance",
+   "MasterLabel": "AEBEQ Eglise Update - Attendance",
+   "Display_Order__c": 10.0,
+   "Field_API_Name__c": "Eglise_Attendance__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Date_Source_Field_API_Name__c": "Eglise_Attendance_Date__c",
+   "History_Mode__c": "Historize",
+   "History_Target_Account_Field_API_Name__c": "Account__c",
+   "History_Target_Date_Field_API_Name__c": "Metric_Date__c",
+   "History_Target_Log_Field_API_Name__c": "Log__c",
+   "History_Target_Object_API_Name__c": "Attendance_History__c",
+   "History_Target_Value_Field_API_Name__c": "Value__c",
+   "Input_Type__c": "Number",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Attendance count",
+   "Label_ES__c": "Asistencia",
+   "Label_FR__c": "Nombre de personnes en assistance",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Statistics",
+   "Section_Label_ES__c": "Estadísticas",
+   "Section_Label_FR__c": "Statistiques"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Attendance_Date",
+   "MasterLabel": "AEBEQ Eglise Update - Attendance Date",
+   "Display_Order__c": 11.0,
+   "Field_API_Name__c": "Eglise_Attendance_Date__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Date",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Attendance date",
+   "Label_ES__c": "Fecha de la asistencia",
+   "Label_FR__c": "Date de l'assistance",
+   "Same_Row_As_Previous__c": true,
+   "Section_Label_EN__c": "Statistics",
+   "Section_Label_ES__c": "Estadísticas",
+   "Section_Label_FR__c": "Statistiques"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Attendance_History_T",
+   "MasterLabel": "AEBEQ_Eglise_Update - Attendance_History",
+   "Display_Order__c": 10.0,
+   "Field_API_Name__c": "Attendance_History__c#table",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "History_Table",
+   "History_Table_Columns__c": "[{\"fr\":\"Metric Date\",\"f\":\"Metric_Date__c\",\"en\":\"Metric Date\"},{\"fr\":\"Value\",\"f\":\"Value__c\",\"en\":\"Value\"}]",
+   "History_Table_Input_Mode__c": "Fields",
+   "History_Target_Account_Field_API_Name__c": "Account__c",
+   "History_Target_Date_Field_API_Name__c": "Metric_Date__c",
+   "History_Target_Log_Field_API_Name__c": "Log__c",
+   "History_Target_Object_API_Name__c": "Attendance_History__c",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Attendance History",
+   "Label_FR__c": "Attendance History",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "New section",
+   "Section_Label_FR__c": "Nouvelle section"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Baptism_History_Tabl",
+   "MasterLabel": "AEBEQ_Eglise_Update - Baptism_History__c",
+   "Display_Order__c": 20.0,
+   "Field_API_Name__c": "Baptism_History__c#table",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "History_Table",
+   "History_Table_Columns__c": "[{\"fr\":\"Metric Date\",\"f\":\"Metric_Date__c\",\"en\":\"Metric Date\"},{\"fr\":\"Value\",\"f\":\"Value__c\",\"en\":\"Value\"}]",
+   "History_Table_Input_Mode__c": "Fields",
+   "History_Target_Account_Field_API_Name__c": "Account__c",
+   "History_Target_Date_Field_API_Name__c": "Metric_Date__c",
+   "History_Target_Log_Field_API_Name__c": "Log__c",
+   "History_Target_Object_API_Name__c": "Baptism_History__c",
+   "Input_Type__c": "Text",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Baptism History",
+   "Label_FR__c": "Baptism History",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "New section",
+   "Section_Label_FR__c": "Nouvelle section"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Baptisms",
+   "MasterLabel": "AEBEQ Eglise Update - Baptisms",
+   "Display_Order__c": 20.0,
+   "Field_API_Name__c": "Eglise_Baptisms__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Date_Source_Field_API_Name__c": "Eglise_Baptisms_Date__c",
+   "History_Mode__c": "Historize",
+   "History_Target_Account_Field_API_Name__c": "Account__c",
+   "History_Target_Date_Field_API_Name__c": "Metric_Date__c",
+   "History_Target_Log_Field_API_Name__c": "Log__c",
+   "History_Target_Object_API_Name__c": "Baptism_History__c",
+   "History_Target_Value_Field_API_Name__c": "Value__c",
+   "Input_Type__c": "Number",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Baptisms (last year)",
+   "Label_ES__c": "Bautizados (último año)",
+   "Label_FR__c": "Baptêmes de la dernière année",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Statistics",
+   "Section_Label_ES__c": "Estadísticas",
+   "Section_Label_FR__c": "Statistiques"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Baptisms_Date",
+   "MasterLabel": "AEBEQ Eglise Update - Baptisms Date",
+   "Display_Order__c": 21.0,
+   "Field_API_Name__c": "Eglise_Baptisms_Date__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Date",
+   "Is_Active__c": false,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Baptisms date",
+   "Label_ES__c": "Fecha de los bautizos",
+   "Label_FR__c": "Date des baptêmes",
+   "Same_Row_As_Previous__c": true,
+   "Section_Label_EN__c": "Statistics",
+   "Section_Label_ES__c": "Estadísticas",
+   "Section_Label_FR__c": "Statistiques"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Phone",
+   "MasterLabel": "AEBEQ Eglise Update - Phone",
+   "Display_Order__c": 1.0,
+   "Field_API_Name__c": "Phone",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Phone",
+   "Label_ES__c": "Teléfono",
+   "Label_FR__c": "Téléphone",
+   "Same_Row_As_Previous__c": false,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  },
+  {
+   "attributes": {
+    "type": "Data_Update_Form_Field__mdt"
+   },
+   "DeveloperName": "AEBEQ_Eglise_Update_Work_Phone",
+   "MasterLabel": "AEBEQ Eglise Update - Work phone",
+   "Display_Order__c": 2.0,
+   "Field_API_Name__c": "Work_Phone__c",
+   "Form__r": {
+    "attributes": {
+     "type": "Data_Update_Form__mdt"
+    },
+    "DeveloperName": "AEBEQ_Eglise_Update"
+   },
+   "History_Mode__c": "Replace",
+   "Input_Type__c": "Phone",
+   "Is_Active__c": true,
+   "Is_Hidden__c": false,
+   "Is_Read_Only__c": false,
+   "Is_Required__c": false,
+   "Label_EN__c": "Work phone",
+   "Label_ES__c": "Teléfono trabajo",
+   "Label_FR__c": "Téléphone (bureau)",
+   "Same_Row_As_Previous__c": true,
+   "Section_Label_EN__c": "Contact information",
+   "Section_Label_ES__c": "Contacto",
+   "Section_Label_FR__c": "Coordonnées"
+  }
+ ],
+ "Data_Update_Appearance_Template__mdt": []
+}

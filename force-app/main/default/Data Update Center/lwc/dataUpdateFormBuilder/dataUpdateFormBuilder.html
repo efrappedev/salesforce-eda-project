@@ -1,0 +1,1063 @@
+<template>
+    <div class="dub" role="dialog" aria-modal="true" aria-label={i18n.btnBuilder} onkeydown={handleKeydown}>
+        <div class="dub-wrap">
+            <!-- Publish bar: the form (name + public link), form actions, publish state. -->
+            <div role="banner" class="dub-bar">
+                <div class="dub-switch">
+                    <span class="dub-switch__txt">
+                        <span class="dub-switch__name">{currentFormLabel}<template lwc:if={isMainForm}><span class="dub-tag">{i18n.builderMainForm}</span></template></span>
+                        <span class="dub-switch__path dub-mono">{publicUrlShort}</span>
+                    </span>
+                    <svg class="dub-switch__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+                    <select class="dub-switch__select" aria-label={i18n.builderChangeForm} onchange={handleFormSelect} disabled={isPublishing}>
+                        <template for:each={formOptions} for:item="f">
+                            <option key={f.value} value={f.value} selected={f.selected}>{f.label}</option>
+                        </template>
+                    </select>
+                </div>
+                <template lwc:if={publicUrl}>
+                    <button class={copyBtnClass} type="button" onclick={handleCopyUrl} title={i18n.builderCopyLink} aria-label={i18n.builderCopyLink}>
+                        <template lwc:if={urlCopied}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></template>
+                        <template lwc:else><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg></template>
+                    </button>
+                    <template lwc:if={urlCopied}><span class="dub-copied" role="status">{i18n.builderLinkCopied}</span></template>
+                    <a class="dub-ib" href={publicUrl} target="_blank" rel="noopener" title={i18n.builderOpenPage} aria-label={i18n.builderOpenPage}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg></a>
+                </template>
+                <span class="dub-bar__sep"></span>
+                <template lwc:if={showMultiSwitch}>
+                    <span class="dub-ms">
+                        <button type="button" class={multiClass} role="switch" aria-checked={multiChecked} aria-label={i18n.builderMultiLabel} onclick={handleMultiToggle}></button>
+                        <span class="dub-ms__label" onclick={handleMultiToggle}>{i18n.builderMultiLabel}</span>
+                        <button type="button" class={multiTipClass} aria-label={i18n.builderMultiHelp} onclick={handleMultiTip}>?</button>
+                        <template lwc:if={multiTip}>
+                            <span class="dub-tip" role="tooltip"><b>{i18n.builderMultiLabel}</b>{i18n.builderMultiHelp}</span>
+                        </template>
+                    </span>
+                    <span class="dub-bar__sep"></span>
+                </template>
+                <template lwc:if={showMainToggle}>
+                    <button class={mainToggleClass} type="button" role="switch" aria-checked={isMainForm} onclick={handleMainToggle} disabled={isPublishing} title={mainToggleTitle} aria-label={mainToggleTitle}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z"></path><template lwc:if={isMainForm}><path d="M9 12l2 2 4-4"></path></template></svg></button>
+                    <template lwc:if={isMainForm}><span class="dub-bar__sep"></span></template>
+                </template>
+                <template lwc:if={showDeleteFormButton}>
+                    <button class="dub-ib dub-ib--danger" type="button" onclick={handleDeleteForm} disabled={isPublishing} title={i18n.builderDeleteForm} aria-label={i18n.builderDeleteForm}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M10 11v6M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg></button>
+                    <span class="dub-bar__sep"></span>
+                </template>
+                <button class="dub-btn dub-btn--bar" type="button" onclick={handleNewForm} disabled={newFormDisabled}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>{i18n.builderNewForm}</button>
+                <div class="dub-bar__actions">
+                    <template lwc:if={isPublishing}>
+                        <span class="dub-pill dub-pill--run"><span class="dub-dot"></span>{i18n.builderPublishing}</span>
+                    </template>
+                    <template lwc:elseif={changeCount}>
+                        <span class="dub-pill dub-pill--draft"><span class="dub-dot"></span>{unsavedText}</span>
+                        <button class="dub-btn dub-btn--bar dub-btn--quiet" type="button" onclick={handleDiscard} disabled={isLoading}>{i18n.builderDiscard}</button>
+                    </template>
+                    <template lwc:else>
+                        <span class="dub-pill dub-pill--ok"><span class="dub-dot"></span>{i18n.builderPublished}</span>
+                    </template>
+                    <button class="dub-btn dub-btn--bar dub-btn--primary" type="button" onclick={handlePublish} disabled={noChanges}><template lwc:if={publishShowsLock}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></template>{publishLabel}</button>
+                    <span class="dub-bar__sep"></span>
+                    <button class="dub-ib" type="button" onclick={handleClose} title={i18n.builderClose} aria-label={i18n.builderClose}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+                </div>
+                <template lwc:if={lockStrip}>
+                    <div class={lockStrip.className} role="status">
+                        <template lwc:if={lockStrip.isCooldown}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></template>
+                        <template lwc:elseif={lockStrip.isMine}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg></template>
+                        <template lwc:else><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></template>
+                        <span class="dub-lockstrip__text">{lockStrip.text}</span>
+                        <template lwc:if={lockStrip.isCooldown}>
+                            <span class="dub-lockstrip__track"><span style={lockStrip.drainStyle}></span></span>
+                        </template>
+                        <template lwc:else>
+                            <span class="dub-lockstrip__track dub-lockstrip__track--run"><span></span></span>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <template lwc:if={showNewForm}>
+                <div class="dub-newform__backdrop" onclick={handleCancelNewForm}></div>
+                <div class={newFormClass} role="dialog" aria-modal="true" aria-label={i18n.builderNewFormTitle} onkeydown={handleNewFormKey}>
+                    <h2 class="dub-newform__title">{i18n.builderNewFormTitle}</h2>
+                    <label class="dub-field">
+                        <span class="dub-label-sm">{i18n.builderNewFormName}</span>
+                        <input class="dub-input" maxlength="40" value={newForm.name} oninput={handleNewFormName}
+                            placeholder={i18n.builderNewFormNamePlaceholder} disabled={newForm.creating}>
+                    </label>
+                    <template lwc:if={newForm.advanced}>
+                        <div class="dub-newform__adv">
+                            <p class="dub-hint">{i18n.builderNewFormAdvancedIntro}</p>
+                            <div class="dub-newform__sec">
+                                <span class="dub-newform__sectitle">{i18n.builderAdvWhere}</span>
+                                <div class="dub-newform__grid">
+                                    <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvSite}</span>
+                                    <select class="dub-select dub-newform__select" data-key="site" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advSiteOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                    <label class="dub-field"><span class="dub-label-sm">{i18n.formWizardObjectField}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderNewFormObjectHint} data-tip={i18n.builderNewFormObjectHint}>ⓘ</span></span>
+                                    <select class="dub-select dub-newform__select" data-key="object" onchange={handleAdvObject} disabled={newForm.creating}>
+                                        <template for:each={advObjectOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                </div>
+                            </div>
+                            <template lwc:if={newForm.loadingFields}>
+                                <p class="dub-hint">{i18n.builderLoading}</p>
+                            </template>
+                            <template lwc:if={advHasObject}>
+                                <div class="dub-newform__sec">
+                                    <span class="dub-newform__sectitle">{i18n.builderAdvIdentity}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderNewFormIdentityHint} data-tip={i18n.builderNewFormIdentityHint}>ⓘ</span></span>
+                                    <div class="dub-newform__grid">
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvIdentity1}</span>
+                                            <span class="dub-newform__combo">
+                                    <select class="dub-select dub-newform__select" data-key="identity1" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advIdentity1Options} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                    <select class="dub-select dub-newform__select dub-newform__cmp" data-key="comparison1" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advComparison1Options} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                            </span>
+                                        </label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvIdentity2}</span>
+                                            <span class="dub-newform__combo">
+                                    <select class="dub-select dub-newform__select" data-key="identity2" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advIdentity2Options} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                                <template lwc:if={advHasIdentity2}>
+                                    <select class="dub-select dub-newform__select dub-newform__cmp" data-key="comparison2" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advComparison2Options} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                                </template>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="dub-newform__sec">
+                                    <span class="dub-newform__sectitle">{i18n.builderAdvOptional}</span>
+                                    <div class="dub-newform__grid dub-newform__grid--3">
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvRecordName}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderAdvRecordNameHint} data-tip={i18n.builderAdvRecordNameHint}>ⓘ</span></span>
+                                    <select class="dub-select dub-newform__select" data-key="recordName" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advRecordNameOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvFilter}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderAdvFilterHint} data-tip={i18n.builderAdvFilterHint}>ⓘ</span></span>
+                                    <select class="dub-select dub-newform__select" data-key="filterField" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advFilterOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvFilterValue}</span>
+                                            <input class="dub-input" data-key="filterValue" value={newForm.adv.filterValue} oninput={handleAdvInput}
+                                                placeholder={i18n.builderNewFormFilterPlaceholder} disabled={newForm.creating}></label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvLock}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderAdvLockHint} data-tip={i18n.builderAdvLockHint}>ⓘ</span></span>
+                                    <select class="dub-select dub-newform__select" data-key="lockField" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advLockOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvLockDate}</span>
+                                    <select class="dub-select dub-newform__select" data-key="lockDateField" onchange={handleAdvInput} disabled={newForm.creating}>
+                                        <template for:each={advLockDateOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select></label>
+                                        <label class="dub-field"><span class="dub-label-sm">{i18n.builderAdvQueue}<span class="dub-newform__info" tabindex="0" role="note" aria-label={i18n.builderAdvQueueHint} data-tip={i18n.builderAdvQueueHint}>ⓘ</span></span>
+                                            <input class="dub-input" data-key="queue" value={newForm.adv.queue} oninput={handleAdvInput}
+                                                placeholder={i18n.builderAdvQueuePlaceholder} disabled={newForm.creating}></label>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template lwc:else>
+                        <div class="dub-field">
+                            <span class="dub-label-sm">{i18n.builderNewFormBasedOn}</span>
+                            <div class="dub-newform__sites" role="group">
+                                <template for:each={newFormBases} for:item="o">
+                                    <button type="button" key={o.value} class="dub-newform__site" data-value={o.value} aria-pressed={o.pressed}
+                                        onclick={handleNewFormSite} disabled={newForm.creating}>{o.label}</button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <template lwc:if={newFormShowMulti}>
+                        <span class="dub-ms">
+                        <button type="button" class={newFormMultiClass} role="switch" aria-checked={newFormMultiChecked} aria-label={i18n.builderMultiLabel} onclick={handleNewFormMulti}></button>
+                        <span class="dub-ms__label" onclick={handleNewFormMulti}>{i18n.builderMultiLabel}</span>
+                        <button type="button" class={newFormMultiTipClass} aria-label={i18n.builderMultiHelp} onclick={handleNewFormMultiTip}>?</button>
+                        <template lwc:if={newForm.multiTip}>
+                            <span class="dub-tip" role="tooltip"><b>{i18n.builderMultiLabel}</b>{i18n.builderMultiHelp}</span>
+                        </template>
+                    </span>
+                    </template>
+                    <template lwc:if={newFormNoCore}>
+                        <p class="dub-error">{i18n.builderNewFormNoCore}</p>
+                    </template>
+                    <template lwc:if={newForm.error}>
+                        <p class="dub-error">{newForm.error}</p>
+                    </template>
+                    <p class="dub-hint">{i18n.builderNewFormNext}</p>
+                    <div class="dub-newform__actions">
+                        <button class="dub-newform__advlink" type="button" onclick={handleToggleNewFormAdvanced} disabled={newForm.creating}>{newFormAdvancedLabel}</button>
+                        <button class="dub-btn" type="button" onclick={handleCancelNewForm} disabled={newForm.creating}>{i18n.builderNewFormCancel}</button>
+                        <button class="dub-btn dub-btn--primary" type="button" onclick={handleCreateNewForm} disabled={newFormCantCreate}>
+                            <template lwc:if={newForm.creating}>{i18n.builderNewFormCreating}</template>
+                            <template lwc:else>{i18n.builderNewFormCreate}</template>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template lwc:if={showDeleteForm}>
+                <div class="dub-newform__backdrop" onclick={handleCancelDeleteForm}></div>
+                <div class="dub-newform dub-newform--danger" role="alertdialog" aria-modal="true" aria-label={i18n.deleteFormConfirmTitle} onkeydown={handleDeleteFormKey}>
+                    <h2 class="dub-newform__title">{i18n.deleteFormConfirmTitle}</h2>
+                    <div class="dub-newform__target">
+                        <strong>{deleteForm.label}</strong>
+                        <span class="dub-mono">{deleteForm.url}</span>
+                    </div>
+                    <p class="dub-hint">{i18n.builderDeleteWarning}</p>
+                    <template lwc:if={deleteForm.error}>
+                        <p class="dub-error">{deleteForm.error}</p>
+                    </template>
+                    <div class="dub-newform__actions">
+                        <button class="dub-btn" type="button" onclick={handleCancelDeleteForm} disabled={deleteForm.deleting}>{i18n.btnCancelDelete}</button>
+                        <button class="dub-btn dub-btn--danger-solid" type="button" onclick={handleConfirmDeleteForm} disabled={deleteForm.deleting}>
+                            <template lwc:if={deleteForm.deleting}>{i18n.builderDeleting}</template>
+                            <template lwc:else>{i18n.builderDeleteForm}</template>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={isLoading}>
+                <div class="dub-pane dub-loading"><lightning-spinner alternative-text={i18n.builderLoading} size="small"></lightning-spinner></div>
+            </template>
+            <template if:true={loadError}>
+                <div class="dub-pane dub-loading"><p class="dub-error">{loadError}</p></div>
+            </template>
+
+            <template if:true={showBody}>
+                <div class="dub-panes">
+                    <!-- Palette -->
+                    <div role="complementary" class="dub-pane" aria-label={leftPaneTitle}>
+                        <div class="dub-pane__head"><span class="dub-pane__title">{leftPaneTitle}</span></div>
+                        <div class="dub-pane__body">
+                            <div class="dub-maintabs" role="tablist">
+                                <button type="button" role="tab" class="dub-maintab" data-value="questions" aria-selected={leftTabQuestionsSelected} onclick={handleLeftTab}>{i18n.builderTabQuestions}</button>
+                                <button type="button" role="tab" class="dub-maintab" data-value="tools" aria-selected={leftTabToolsSelected} onclick={handleLeftTab}>{i18n.builderTabTools}</button>
+                            </div>
+                            <template lwc:if={isQuestionsTab}>
+                            <div class="dub-palette-top">
+                            <div class="dub-tabs" role="tablist">
+                                <button type="button" role="tab" class="dub-tab" data-value="fields" aria-selected={tabFieldsSelected} onclick={handlePaletteTab}>{i18n.builderRecordFields} <span class="dub-tab__count">{tabFieldsCount}</span></button>
+                                <button type="button" role="tab" class="dub-tab dub-tab--related" data-value="related" aria-selected={tabRelatedSelected} onclick={handlePaletteTab}>{i18n.builderRelated} <span class="dub-tab__count">{tabRelatedCount}</span></button>
+                            </div>
+                            <input class="dub-search" type="search" placeholder={i18n.builderSearch} aria-label={i18n.builderSearch}
+                                value={search} oninput={handleSearch}>
+                            </div>
+                            <template if:true={isFieldsTab}>
+                                <div class="dub-group">
+                                    <template for:each={fieldChips} for:item="c">
+                                        <div key={c.id} class={c.className} draggable={c.draggable} data-chip={c.id}
+                                            ondragstart={handleChipDragStart} ondragend={handleDragEnd}>
+                                            <span class="dub-chip__grip" aria-hidden="true">⋮⋮</span>
+                                            <span class="dub-chip__name">{c.name}<small class={c.subClass} title={c.sub}>{c.sub}</small></span>
+                                            <template if:true={c.used}><span class="dub-chip__add">{i18n.builderInUse}</span></template>
+                                            <template if:false={c.used}>
+                                                <button type="button" class="dub-icon-btn dub-chip__add" data-chip={c.id}
+                                                    onclick={handleChipAdd} aria-label={c.addLabel} title={c.addLabel}>+</button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasFieldChips}><span class="dub-hint">{i18n.builderNoResults}</span></template>
+                                </div>
+                            </template>
+                            <template if:true={isRelatedTab}>
+                                <div class="dub-group">
+                                    <template for:each={relatedChips} for:item="c">
+                                        <div key={c.id} class={c.className} draggable={c.draggable} data-chip={c.id}
+                                            ondragstart={handleChipDragStart} ondragend={handleDragEnd}>
+                                            <span class="dub-chip__grip" aria-hidden="true">⋮⋮</span>
+                                            <span class="dub-chip__name">{c.name}<small title={c.sub}>{c.sub}</small></span>
+                                            <template if:true={c.used}>
+                                                <template lwc:if={c.isTable}>
+                                                    <button type="button" class="dub-icon-btn dub-chip__add dub-chip__remove" data-chip={c.id}
+                                                        onclick={handleChipRemove} aria-label={i18n.builderTableRemove} title={i18n.builderTableRemove}>−</button>
+                                                </template>
+                                                <template lwc:else><span class="dub-chip__add">{i18n.builderInUse}</span></template>
+                                            </template>
+                                            <template if:false={c.used}>
+                                                <button type="button" class="dub-icon-btn dub-chip__add" data-chip={c.id}
+                                                    onclick={handleChipAdd} aria-label={c.addLabel} title={c.addLabel}>+</button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template if:false={hasRelatedChips}><span class="dub-hint">{i18n.builderNoResults}</span></template>
+                                </div>
+                            </template>
+                            <p class="dub-legend">{i18n.builderLegend}</p>
+                            </template>
+                            <template lwc:else>
+                                <p class="dub-hint">{i18n.builderToolsHint}</p>
+                                <template for:each={toolGroups} for:item="g">
+                                    <div key={g.key} class="dub-tools-group">
+                                        <span class="dub-label-sm">{g.label}</span>
+                                        <div class="dub-tiles">
+                                            <template for:each={g.tools} for:item="t">
+                                                <button key={t.type} type="button" class="dub-tile" data-type={t.type} onclick={handleToolAdd} title={t.hint}>
+                                                    <lightning-icon icon-name={t.icon} size="x-small" class="dub-tile__icon"></lightning-icon>
+                                                    <span class="dub-tile__name">{t.label}</span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div class="dub-tile-note">
+                                    <lightning-icon icon-name="utility:layout" size="x-small"></lightning-icon>
+                                    <span>{i18n.builderToolsColumnsHint}</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Live preview -->
+                    <div role="region" class="dub-pane" aria-label={i18n.builderPreview}>
+                        <div class="dub-pane__head">
+                            <span class="dub-pane__title">{i18n.builderPreview}</span>
+                            <div class="dub-preview-tools">
+                                <div class="dub-seg" role="group">
+                                    <button type="button" data-value="access" aria-pressed={segScreenAccess} onclick={handleScreen}>{i18n.builderScreenAccess}</button>
+                                    <button type="button" data-value="questions" aria-pressed={segScreenQuestions} onclick={handleScreen}>{i18n.builderScreenQuestions}</button>
+                                    <button type="button" data-value="messages" aria-pressed={segScreenMessages} onclick={handleScreen}>{i18n.builderScreenMessages}</button>
+                                </div>
+                                <div class="dub-seg" role="group">
+                                    <button type="button" data-value="fr" aria-pressed={segFr} onclick={handlePreviewLang}>FR</button>
+                                    <button type="button" data-value="en" aria-pressed={segEn} onclick={handlePreviewLang}>EN</button>
+                                </div>
+                                <div class="dub-seg" role="group">
+                                    <button type="button" aria-pressed={appearanceBtnPressed} onclick={handleToggleAppearance}>{i18n.builderAppearanceBtn}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dub-stage">
+                            <div class="dub-paper" style={paperStyle}>
+                                <!-- Screen 1: access -->
+                                <template if:true={isAccessScreen}>
+                                    <template for:each={loginItems} for:item="it">
+                                        <div key={it.id} class={it.itemClass}>
+                                            <template lwc:if={it.isBlock}>
+                                                <div class={it.className} data-b={it.id} tabindex="0" role="button" onclick={handleBlockClick} onkeydown={handleBlockKey}>
+                                                    <span class="dub-blk__tag">{it.label}<template lwc:if={it.incomplete}><span class="dub-warn-tag">{it.incompleteTag}</span></template></span>
+                                                    <c-data-update-block block={it.block} lang={previewLang} mode="preview"></c-data-update-block>
+                                                    <div class="dub-blk__tools">
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="-1" onclick={handleBlockMove} title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="1" onclick={handleBlockMove} title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} onclick={handleBlockDuplicate} title={i18n.builderDuplicate} aria-label={i18n.builderDuplicate}>⧉</button>
+                                                        <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-b={it.id} onclick={handleBlockRemove} title={i18n.builderRemoveBlock} aria-label={i18n.builderRemoveBlock}>✕</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_lookupTitle}>
+                                                <div class="dub-paper__title" style={textLookupTitle.blockStyle}>
+                                                    <span class={textLookupTitle.className} data-text="lookupTitle" tabindex="0"
+                                                        onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={textLookupTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={textLookupTitle.isCustom}><span class="dub-custom-tag">{textLookupTitle.customTag}</span></template></span>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_lookupSubtitle}>
+                                                <div class="dub-paper__sub" style={textLookupSubtitle.blockStyle}>
+                                                    <span class={textLookupSubtitle.className} data-text="lookupSubtitle" tabindex="0"
+                                                        onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={textLookupSubtitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={textLookupSubtitle.isCustom}><span class="dub-custom-tag">{textLookupSubtitle.customTag}</span></template></span>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_idField}>
+                                                <div class="dub-stack">
+                                                    <span class="dub-acc-fixed"><span class="dub-q__label">{pv.idLabel}</span><span class="dub-lock">{i18n.builderFixedTag}</span></span>
+                                                    <input class="dub-q__input dub-q__input--wide" tabindex="-1" placeholder={pv.idPlaceholder} readonly>
+                                                    <span class="dub-q__help" style={textIdHelp.blockStyle}>
+                                                        <span class={textIdHelp.className} data-text="idHelp" tabindex="0"
+                                                            onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={textIdHelp.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={textIdHelp.isCustom}><span class="dub-custom-tag">{textIdHelp.customTag}</span></template></span>
+                                                    </span>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_button}>
+                                                <div class="dub-stack dub-stack--login">
+                                                    <template if:true={hasIdentity2}>
+                                                        <div class="dub-stack">
+                                                            <span class="dub-acc-fixed"><span class="dub-q__label">{identity2.label}</span><span class="dub-lock">{i18n.builderFixedTag}</span></span>
+                                                            <input class="dub-q__input dub-q__input--wide" tabindex="-1" placeholder={identity2.placeholder} readonly>
+                                                        </div>
+                                                    </template>
+                                                    <div class="dub-captcha"><span></span><span>{pv.builderRobot}</span><span class="dub-lock">{i18n.builderFixedTag}</span></div>
+                                                    <button type="button" class="dub-btn dub-paper__submit" tabindex="-1" disabled>{pv.btnContinue}</button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <!-- Screen 3: messages (record locked, request pending, request sent) -->
+                                <template if:true={isMessagesScreen}>
+                                    <template for:each={messageCards} for:item="card">
+                                        <div key={card.screen} class={card.className} data-lane={card.screen} onclick={handleMsgCard}>
+                                            <span class="dub-msg-card__name">{card.name}</span>
+                                            <template for:each={card.items} for:item="it">
+                                                <div key={it.id} class={it.itemClass}>
+                                                    <template lwc:if={it.isBlock}>
+                                                        <div class={it.className} data-b={it.id} tabindex="0" role="button" onclick={handleBlockClick} onkeydown={handleBlockKey}>
+                                                            <span class="dub-blk__tag">{it.label}<template lwc:if={it.incomplete}><span class="dub-warn-tag">{it.incompleteTag}</span></template></span>
+                                                            <c-data-update-block block={it.block} lang={previewLang} mode="preview"></c-data-update-block>
+                                                            <div class="dub-blk__tools">
+                                                                <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="-1" onclick={handleBlockMove} title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                                <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="1" onclick={handleBlockMove} title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                                <button type="button" class="dub-icon-btn" data-b={it.id} onclick={handleBlockDuplicate} title={i18n.builderDuplicate} aria-label={i18n.builderDuplicate}>⧉</button>
+                                                                <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-b={it.id} onclick={handleBlockRemove} title={i18n.builderRemoveBlock} aria-label={i18n.builderRemoveBlock}>✕</button>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:elseif={it.isMsgTitle}>
+                                                        <div class="dub-paper__title" style={it.text.blockStyle}>
+                                                            <span class={it.text.className} data-text={it.text.key} tabindex="0"
+                                                                onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={it.text.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={it.text.isCustom}><span class="dub-custom-tag">{it.text.customTag}</span></template></span>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:else>
+                                                        <div class="dub-paper__sub" style={it.text.blockStyle}>
+                                                            <span class={it.text.className} data-text={it.text.key} tabindex="0"
+                                                                onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={it.text.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={it.text.isCustom}><span class="dub-custom-tag">{it.text.customTag}</span></template></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div class="dub-msg-card dub-msg-card--plain">
+                                        <span class="dub-msg-card__name">{i18n.builderMsgCardError}</span>
+                                        <div class="dub-msg-error">
+                                            <span class={textErrNoChanges.className} data-text="errNoChanges" tabindex="0"
+                                                onclick={handleTextSelect} onkeydown={handleTextKey}>{textErrNoChanges.value}<template if:true={textErrNoChanges.isCustom}><span class="dub-custom-tag">{textErrNoChanges.customTag}</span></template></span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Screen 2: questions -->
+                                <template if:true={isQuestionsScreen}>
+                                    <template for:each={headItems} for:item="it">
+                                        <div key={it.id} class={it.itemClass}>
+                                            <template lwc:if={it.isBlock}>
+                                                <div class={it.className} data-b={it.id} tabindex="0" role="button" onclick={handleBlockClick} onkeydown={handleBlockKey}>
+                                                    <span class="dub-blk__tag">{it.label}<template lwc:if={it.incomplete}><span class="dub-warn-tag">{it.incompleteTag}</span></template></span>
+                                                    <c-data-update-block block={it.block} lang={previewLang} mode="preview"></c-data-update-block>
+                                                    <div class="dub-blk__tools">
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="-1" onclick={handleBlockMove} title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} data-dir="1" onclick={handleBlockMove} title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                        <button type="button" class="dub-icon-btn" data-b={it.id} onclick={handleBlockDuplicate} title={i18n.builderDuplicate} aria-label={i18n.builderDuplicate}>⧉</button>
+                                                        <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-b={it.id} onclick={handleBlockRemove} title={i18n.builderRemoveBlock} aria-label={i18n.builderRemoveBlock}>✕</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_formTitle}>
+                                                <div class="dub-paper__title" style={textFormTitle.blockStyle}>
+                                                    <span class={textFormTitle.className} data-text="formTitle" tabindex="0"
+                                                        onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={textFormTitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={textFormTitle.isCustom}><span class="dub-custom-tag">{textFormTitle.customTag}</span></template></span>
+                                                </div>
+                                            </template>
+                                            <template lwc:elseif={it.is_formSubtitle}>
+                                                <div class="dub-paper__sub" style={textFormSubtitle.blockStyle}>
+                                                    <span class={textFormSubtitle.className} data-text="formSubtitle" tabindex="0"
+                                                        onclick={handleTextSelect} onkeydown={handleTextKey}><template for:each={textFormSubtitle.runs} for:item="r"><span key={r.key} style={r.style}>{r.t}</span></template><template if:true={textFormSubtitle.isCustom}><span class="dub-custom-tag">{textFormSubtitle.customTag}</span></template></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template for:each={previewSections} for:item="s">
+                                        <div role="group" key={s.id} class={s.className}>
+                                            <div class="dub-section__head">
+                                                <span class={s.titleClass} data-section={s.id} onclick={handleSectionSelect}>{s.title}</span>
+                                                <button type="button" class="dub-icon-btn" data-section={s.id} onclick={handleSectionSelect}
+                                                    title={i18n.builderEditSection} aria-label={i18n.builderEditSection}>✎</button>
+                                                <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-section={s.id} onclick={handleRemoveSection}
+                                                    title={i18n.builderRemoveSection} aria-label={i18n.builderRemoveSection}>✕</button>
+                                            </div>
+                                            <template if:true={s.isEmpty}>
+                                                <div class={s.emptyClass} data-section={s.id} ondragover={handleEmptyDragOver} ondrop={handleDrop}>{pv.builderDropHere}</div>
+                                            </template>
+                                            <template for:each={s.questions} for:item="q">
+                                                <div key={q.id} class="dub-q-wrap">
+                                                    <template if:true={q.dropBefore}><div class="dub-dropline"></div></template>
+                                                    <template lwc:if={q.isBlock}>
+                                                        <div class="dub-blk-drag" data-q={q.id} draggable="true" ondragstart={handleQuestionDragStart}
+                                                            ondragover={handleQuestionDragOver} ondrop={handleDrop} ondragend={handleDragEnd}>
+                                                            <div class={q.className} data-b={q.id} tabindex="0" role="button" onclick={handleBlockClick} onkeydown={handleBlockKey}>
+                                                                <span class="dub-blk__tag">{q.label}<template lwc:if={q.incomplete}><span class="dub-warn-tag">{q.incompleteTag}</span></template></span>
+                                                                <c-data-update-block block={q.block} lang={previewLang} mode="preview"></c-data-update-block>
+                                                                <div class="dub-blk__tools">
+                                                                    <button type="button" class="dub-icon-btn" data-b={q.id} data-dir="-1" onclick={handleBlockMove} title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                                    <button type="button" class="dub-icon-btn" data-b={q.id} data-dir="1" onclick={handleBlockMove} title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                                    <button type="button" class="dub-icon-btn" data-b={q.id} onclick={handleBlockDuplicate} title={i18n.builderDuplicate} aria-label={i18n.builderDuplicate}>⧉</button>
+                                                                    <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-b={q.id} onclick={handleBlockRemove} title={i18n.builderRemoveBlock} aria-label={i18n.builderRemoveBlock}>✕</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:elseif={q.isTable}>
+                                                        <div class={q.className} data-q={q.id} data-t={q.id} draggable="true" onclick={handleTableClick}
+                                                            ondragstart={handleQuestionDragStart} ondragover={handleQuestionDragOver}
+                                                            ondrop={handleDrop} ondragend={handleDragEnd} role="button" tabindex="0" onkeydown={handleTableKey}>
+                                                            <div class="dub-htable__head">
+                                                                <span class="dub-q__grip" aria-hidden="true">⋮⋮</span>
+                                                                <span class="dub-htable__title">{q.title}</span>
+                                                                <template lwc:if={q.hasHelp}><span class="dub-htable__info" title={q.help}>i</span></template>
+                                                                <template lwc:if={q.isNew}><span class="dub-new-tag">{i18n.builderNewTag}</span></template>
+                                                                <template lwc:if={q.incomplete}><span class="dub-warn-tag">{i18n.builderIncompleteTag}</span></template>
+                                                                <span class="dub-htable__tools">
+                                                                    <button type="button" class="dub-icon-btn" data-q={q.id} data-dir="-1" onclick={handleMove}
+                                                                        title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                                    <button type="button" class="dub-icon-btn" data-q={q.id} data-dir="1" onclick={handleMove}
+                                                                        title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                                    <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-t={q.id} onclick={handleTableRemove}
+                                                                        title={i18n.builderTableRemove} aria-label={i18n.builderTableRemove}>✕</button>
+                                                                </span>
+                                                            </div>
+                                                            <template lwc:if={q.isFieldsPreview}>
+                                                                <div class="dub-htable__fields">
+                                                                    <template for:each={q.fields} for:item="f">
+                                                                        <div key={f.key} class="dub-htable__field">
+                                                                            <span class="dub-q__label">{f.label}</span>
+                                                                            <template lwc:if={f.isCheckbox}>
+                                                                                <input class="dub-q__check" type="checkbox" tabindex="-1" disabled>
+                                                                            </template>
+                                                                            <template lwc:elseif={f.isPicklist}>
+                                                                                <select class="dub-q__input" tabindex="-1" disabled><option></option></select>
+                                                                            </template>
+                                                                            <template lwc:else>
+                                                                                <input class="dub-q__input" type={f.htmlType} tabindex="-1" readonly>
+                                                                            </template>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <template lwc:else>
+                                                            <div class="dub-htable__grid" style={q.gridStyle}>
+                                                                <template for:each={q.headers} for:item="h">
+                                                                    <span key={h.key} class="dub-htable__th">{h.label}</span>
+                                                                </template>
+                                                                <template for:each={q.blanks} for:item="r">
+                                                                    <template for:each={r.cells} for:item="c">
+                                                                        <span key={c.key} class="dub-htable__td"></span>
+                                                                    </template>
+                                                                </template>
+                                                            </div>
+                                                            </template>
+                                                            <span class="dub-htable__foot">{q.footer}</span>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:else>
+                                                    <div class={q.className} data-q={q.id} draggable="true" onclick={handleQuestionClick}
+                                                        tabindex="0" role="button" aria-label={q.label} onkeydown={handleQuestionKey}
+                                                        ondragstart={handleQuestionDragStart} ondragover={handleQuestionDragOver}
+                                                        ondrop={handleDrop} ondragend={handleDragEnd}>
+                                                        <span class="dub-q__grip" aria-hidden="true">⋮⋮</span>
+                                                        <div class="dub-q__body">
+                                                            <span class="dub-q__label">{q.label}<template if:true={q.isRequired}><span class="dub-req">*</span></template><template if:true={q.isNew}><span class="dub-new-tag">{q.newTag}</span></template><template if:true={q.incomplete}><span class="dub-warn-tag">{q.incompleteTag}</span></template><template if:true={q.isHidden}><span class="dub-hidden-tag">{q.hiddenTag}</span></template><template if:true={q.isReadOnly}><span class="dub-ro-tag">{q.readOnlyTag}</span></template></span>
+                                                            <template if:true={q.hasHelp}><span class="dub-q__help">{q.help}</span></template>
+                                                            <template if:true={q.isPlain}>
+                                                                <div class="dub-q__related">
+                                                                    <input class="dub-q__input" type={q.htmlType} tabindex="-1" readonly>
+                                                                    <template if:true={q.hasDate}>
+                                                                        <input class="dub-q__input" type="date" tabindex="-1" readonly aria-label={q.dateLabel}>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <template if:true={q.isCheckbox}>
+                                                                <input class="dub-q__check" type="checkbox" tabindex="-1" disabled>
+                                                            </template>
+                                                            <template if:true={q.isPicklist}>
+                                                                <select class="dub-q__input" tabindex="-1" disabled><option>{q.selectPlaceholder}</option></select>
+                                                            </template>
+                                                            <template if:true={q.hasDate}><span class="dub-q__help">{q.dateLabel} : {q.dateHelp}</span></template>
+                                                            <span class="dub-q__tags"><span class={q.tagClass}>{q.tag}</span><template if:true={q.isHistorize}><span class="dub-tag dub-tag--history">{q.historyTag}</span></template></span>
+                                                        </div>
+                                                        <div class="dub-q__tools">
+                                                            <button type="button" class="dub-icon-btn" data-q={q.id} onclick={handleToggleHidden}
+                                                                title={q.toggleHiddenTitle} aria-label={q.toggleHiddenTitle} aria-pressed={q.hiddenPressed}>
+                                                                <lightning-icon icon-name={q.toggleHiddenIcon} size="xx-small"></lightning-icon>
+                                                            </button>
+                                                            <button type="button" class="dub-icon-btn" data-q={q.id} data-dir="-1" onclick={handleMove}
+                                                                title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                            <button type="button" class="dub-icon-btn" data-q={q.id} data-dir="1" onclick={handleMove}
+                                                                title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                            <button type="button" class="dub-icon-btn dub-icon-btn--danger" data-q={q.id} onclick={handleRemoveQuestion}
+                                                                title={i18n.builderRemoveQuestion} aria-label={i18n.builderRemoveQuestion}>✕</button>
+                                                        </div>
+                                                    </div>
+                                                    </template>
+                                                    <template if:true={q.dropAfter}><div class="dub-dropline"></div></template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <button type="button" class="dub-btn dub-btn--ghost dub-add-section" onclick={handleAddSection}>{i18n.builderNewSection}</button>
+                                    <button type="button" class="dub-btn dub-btn--primary dub-paper__submit" tabindex="-1" disabled>{pv.btnSubmit}</button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Properties -->
+                    <div role="complementary" class="dub-pane" aria-label={propsTitle}>
+                        <div class="dub-pane__head"><span class="dub-pane__title">{propsTitle}</span></div>
+                        <div class="dub-pane__body">
+                            <template if:true={appearanceOpen}>
+                                <p class="dub-hint">{i18n.builderAppearanceHint}</p>
+                                <p class="dub-ap-status">{appearanceStatus}</p>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderAppearanceFont}</span>
+                                    <select class="dub-input" aria-label={i18n.builderAppearanceFont} onchange={handleAppearanceFont}>
+                                        <template for:each={fontOptions} for:item="f">
+                                            <option key={f.key} value={f.key} selected={f.selected} style={f.style}>{f.label}</option>
+                                        </template>
+                                    </select>
+                                    <span class="dub-ap-sample" style={fontSample}>Aa Bb Cc — Éé Çç 123</span>
+                                </div>
+                                <template for:each={appearanceColors} for:item="c">
+                                    <div key={c.key} class="dub-field">
+                                        <span class="dub-label-sm">{c.label}</span>
+                                        <div class="dub-ap-color">
+                                            <input type="color" class="dub-ap-swatch" value={c.value} data-key={c.key}
+                                                aria-label={c.label} oninput={handleAppearanceColor}>
+                                            <input type="text" class="dub-input dub-mono" value={c.value} data-key={c.key} maxlength="7"
+                                                aria-label={c.hexLabel} onchange={handleAppearanceHex}>
+                                        </div>
+                                        <template if:true={c.lowContrast}><p class="dub-hint dub-hint--error" role="alert">{c.warning}</p></template>
+                                    </div>
+                                </template>
+                                <button type="button" class="dub-btn dub-btn--sm" onclick={handleAppearanceReset} disabled={appearanceIsDefault}>{i18n.builderAppearanceReset}</button>
+
+                                <div class="dub-ap-templates">
+                                    <span class="dub-pane__title">{i18n.builderTemplates}</span>
+                                    <p class="dub-hint">{i18n.builderTemplatesHint}</p>
+                                    <template lwc:if={hasTemplates}>
+                                        <div class="dub-ap-row">
+                                            <select class="dub-input" aria-label={i18n.builderTemplates} onchange={handleTemplatePick}>
+                                                <option value="">{i18n.builderTemplatePick}</option>
+                                                <template for:each={templateOptions} for:item="t">
+                                                    <option key={t.developerName} value={t.developerName} selected={t.selected}>{t.label}</option>
+                                                </template>
+                                            </select>
+                                            <button type="button" class="dub-btn dub-btn--sm" onclick={handleTemplateApply}
+                                                disabled={templateActionDisabled}>{i18n.builderTemplateApply}</button>
+                                            <button type="button" class="dub-icon-btn dub-icon-btn--danger" onclick={handleTemplateDelete}
+                                                disabled={templateDeleteDisabled} title={i18n.builderTemplateDelete} aria-label={i18n.builderTemplateDelete}>✕</button>
+                                        </div>
+                                    </template>
+                                    <template lwc:else><p class="dub-hint">{i18n.builderTemplateNone}</p></template>
+                                    <div class="dub-ap-row">
+                                        <input type="text" class="dub-input" maxlength="40" value={templateName}
+                                            placeholder={i18n.builderTemplateName} aria-label={i18n.builderTemplateName} oninput={handleTemplateName}>
+                                        <button type="button" class="dub-btn dub-btn--sm" onclick={handleTemplateSave}
+                                            disabled={templateSaveDisabled}>{templateSaveLabel}</button>
+                                    </div>
+                                </div>
+                            </template>
+                            <template if:true={showTextProps}>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{selectedText.name}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <textarea class="dub-input dub-textarea" rows={selectedText.rows} maxlength={selectedText.maxLength} data-lang="fr" value={selectedText.fr}
+                                                placeholder={selectedText.placeholderFr} oninput={handleTextInput} onselect={handleTextSelection}
+                                                onkeyup={handleTextSelection} onmouseup={handleTextSelection}></textarea></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <textarea class="dub-input dub-textarea" rows={selectedText.rows} maxlength={selectedText.maxLength} data-lang="en" value={selectedText.en}
+                                                placeholder={selectedText.placeholderEn} oninput={handleTextInput} onselect={handleTextSelection}
+                                                onkeyup={handleTextSelection} onmouseup={handleTextSelection}></textarea></div>
+                                    </div>
+                                </div>
+                                <template lwc:if={selectedText.isBlock}></template>
+                                <template lwc:else><p class="dub-hint">{i18n.builderBlankUsesStandard}</p></template>
+                                <template lwc:if={selectedText.noStyle}></template>
+                                <template lwc:else>
+                                <div class="dub-field dub-palette">
+                                    <span class="dub-label-sm">{i18n.builderStyleText}</span>
+                                    <div class="dub-tools-row">
+                                        <div class="dub-seg dub-seg--tools" role="group">
+                                            <button type="button" class="dub-tool dub-tool--b" data-prop="b" aria-pressed={textPalette.boldPressed}
+                                                onmousedown={preventBlur} onclick={handleStyleToggle} title={i18n.builderStyleBold} aria-label={i18n.builderStyleBold}>B</button>
+                                            <button type="button" class="dub-tool dub-tool--i" data-prop="i" aria-pressed={textPalette.italicPressed}
+                                                onmousedown={preventBlur} onclick={handleStyleToggle} title={i18n.builderStyleItalic} aria-label={i18n.builderStyleItalic}>I</button>
+                                            <button type="button" class="dub-tool dub-tool--u" data-prop="u" aria-pressed={textPalette.underlinePressed}
+                                                onmousedown={preventBlur} onclick={handleStyleToggle} title={i18n.builderStyleUnderline} aria-label={i18n.builderStyleUnderline}>U</button>
+                                        </div>
+                                        <div class="dub-seg dub-seg--tools" role="group">
+                                            <button type="button" class="dub-tool" data-value="left" aria-pressed={textPalette.alignLeftPressed}
+                                                onclick={handleStyleAlign} title={i18n.builderStyleAlignLeft} aria-label={i18n.builderStyleAlignLeft}>
+                                                <lightning-icon icon-name="utility:left_align_text" size="xx-small"></lightning-icon></button>
+                                            <button type="button" class="dub-tool" data-value="center" aria-pressed={textPalette.alignCenterPressed}
+                                                onclick={handleStyleAlign} title={i18n.builderStyleAlignCenter} aria-label={i18n.builderStyleAlignCenter}>
+                                                <lightning-icon icon-name="utility:center_align_text" size="xx-small"></lightning-icon></button>
+                                        </div>
+                                        <button type="button" class="dub-btn dub-btn--sm" onmousedown={preventBlur} onclick={handleStyleClear}>{i18n.builderStyleClear}</button>
+                                    </div>
+                                    <span class="dub-label-sm">{i18n.builderStyleColor}</span>
+                                    <div class="dub-swatches">
+                                        <template for:each={textPalette.colors} for:item="c">
+                                            <button type="button" key={c.key} class={c.className} style={c.style} data-value={c.value}
+                                                onmousedown={preventBlur} onclick={handleStyleColor} title={c.label} aria-label={c.label}></button>
+                                        </template>
+                                    </div>
+                                    <span class="dub-label-sm">{i18n.builderStyleHighlight}</span>
+                                    <div class="dub-swatches">
+                                        <template for:each={textPalette.highlights} for:item="c">
+                                            <button type="button" key={c.key} class={c.className} style={c.style} data-value={c.value}
+                                                onmousedown={preventBlur} onclick={handleStyleHighlight} title={c.label} aria-label={c.label}></button>
+                                        </template>
+                                    </div>
+                                    <span class="dub-label-sm">{i18n.builderStyleSize}</span>
+                                    <div class="dub-seg dub-seg--tools" role="group">
+                                        <template for:each={textPalette.sizes} for:item="z">
+                                            <button type="button" key={z.value} class="dub-tool dub-tool--wide" data-value={z.value} aria-pressed={z.pressed}
+                                                onclick={handleStyleSize}>{z.label}</button>
+                                        </template>
+                                    </div>
+                                    <p class={textPalette.tipClass}>{textPalette.tip}</p>
+                                </div>
+                                </template>
+                                <template lwc:if={selectedText.isBlock}></template>
+                                <template lwc:else>
+                                    <button type="button" class="dub-btn dub-btn--sm dub-self-start" onclick={handleTextReset}>{i18n.builderResetStandard}</button>
+                                </template>
+                            </template>
+
+                            <template if:true={showBlockProps}>
+                                <template lwc:if={selectedBlock.hint}><p class="dub-hint">{selectedBlock.hint}</p></template>
+                                <template lwc:if={selectedBlock.isImage}>
+                                    <template lwc:if={selectedBlock.hasImage}>
+                                        <div class="dub-img-current"><img src={selectedBlock.imageUrl} alt="" onload={handleImageLoad}></div>
+                                        <template lwc:if={selectedBlock.actualSize}><p class="dub-hint">{selectedBlock.actualSize}</p></template>
+                                        <template lwc:if={selectedBlock.tooSmall}><p class="dub-hint dub-hint--error">{selectedBlock.tooSmallText}</p></template>
+                                    </template>
+                                    <div class="dub-reco">
+                                        <p>{selectedBlock.reco}</p>
+                                        <p>{selectedBlock.recoWeight}</p>
+                                    </div>
+                                    <lightning-file-upload label={selectedBlock.uploadLabel} name="blockImage" accept={imageAccept}
+                                        disabled={blockUploadDisabled} onuploadfinished={handleImageUploaded}></lightning-file-upload>
+                                    <template lwc:if={isUploading}><p class="dub-hint">{i18n.builderImageUploading}</p></template>
+                                    <template lwc:if={selectedBlock.hasImage}>
+                                        <button type="button" class="dub-btn dub-btn--sm dub-self-start" onclick={handleImageRemove}>{i18n.builderRemoveImage}</button>
+                                    </template>
+                                    <div class="dub-field">
+                                        <span class="dub-label-sm">{i18n.builderImageAlt}</span>
+                                        <div class="dub-lang-rows">
+                                            <div class="dub-lang-row"><span>FR</span>
+                                                <input class="dub-input" maxlength="200" data-prop="altFr" value={selectedBlock.altFr} oninput={handleBlockInput}></div>
+                                            <div class="dub-lang-row"><span>EN</span>
+                                                <input class="dub-input" maxlength="200" data-prop="altEn" value={selectedBlock.altEn} oninput={handleBlockInput}></div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template lwc:if={selectedBlock.isVideo}>
+                                    <div class="dub-field">
+                                        <label for="bVideo">{i18n.builderVideoUrl}</label>
+                                        <input class="dub-input" id="bVideo" type="url" maxlength="1000" data-prop="url" value={selectedBlock.videoUrl}
+                                            placeholder="https://www.youtube.com/watch?v=…" oninput={handleBlockInput}>
+                                    </div>
+                                    <template lwc:if={selectedBlock.videoInvalid}><p class="dub-hint dub-hint--error">{i18n.builderVideoInvalid}</p></template>
+                                    <p class="dub-hint">{i18n.builderVideoHelp}</p>
+                                    <div class="dub-reco"><p>{selectedBlock.reco}</p></div>
+                                </template>
+                                <template lwc:if={selectedBlock.showSize}>
+                                    <div class="dub-field">
+                                        <span class="dub-label-sm">{i18n.builderBlockSize}</span>
+                                        <div class="dub-seg dub-seg--tools" role="group">
+                                            <template for:each={selectedBlock.sizes} for:item="z">
+                                                <button type="button" key={z.value} class="dub-tool dub-tool--wide" data-value={z.value} aria-pressed={z.pressed}
+                                                    onclick={handleBlockSize}>{z.label}</button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template lwc:if={selectedBlock.showAlign}>
+                                    <div class="dub-field">
+                                        <span class="dub-label-sm">{i18n.builderBlockAlign}</span>
+                                        <div class="dub-seg dub-seg--tools" role="group">
+                                            <button type="button" class="dub-tool" data-value="left" aria-pressed={selectedBlock.alignLeftPressed}
+                                                onclick={handleBlockAlign} title={i18n.builderStyleAlignLeft} aria-label={i18n.builderStyleAlignLeft}>
+                                                <lightning-icon icon-name="utility:left_align_text" size="xx-small"></lightning-icon></button>
+                                            <button type="button" class="dub-tool" data-value="center" aria-pressed={selectedBlock.alignCenterPressed}
+                                                onclick={handleBlockAlign} title={i18n.builderStyleAlignCenter} aria-label={i18n.builderStyleAlignCenter}>
+                                                <lightning-icon icon-name="utility:center_align_text" size="xx-small"></lightning-icon></button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+
+                            <template if:true={showMessagesHint}>
+                                <p class="dub-hint">{i18n.builderMessagesHint1}</p>
+                                <p class="dub-hint">{i18n.builderMessagesHint2}</p>
+                            </template>
+
+                            <template if:true={showAccessHint}>
+                                <p class="dub-hint">{i18n.builderAccessHint1}</p>
+                                <p class="dub-hint">{i18n.builderAccessHint2}</p>
+                                <p class="dub-hint">{i18n.builderAccessHint3}</p>
+                            </template>
+
+                            <template if:true={showQuestionProps}>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderQuestionText}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <input class="dub-input" maxlength="120" data-prop="label" data-lang="fr" value={selectedQuestion.labelFr} oninput={handleQuestionInput}></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <input class="dub-input" maxlength="120" data-prop="label" data-lang="en" value={selectedQuestion.labelEn} oninput={handleQuestionInput}></div>
+                                    </div>
+                                </div>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderHelpOptional}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <input class="dub-input" maxlength="255" data-prop="help" data-lang="fr" value={selectedQuestion.helpFr} oninput={handleQuestionInput} placeholder={selectedQuestion.helpPlaceholderFr}></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <input class="dub-input" maxlength="255" data-prop="help" data-lang="en" value={selectedQuestion.helpEn} oninput={handleQuestionInput} placeholder={selectedQuestion.helpPlaceholderEn}></div>
+                                    </div>
+                                </div>
+                                <div class="dub-field">
+                                    <label for="qType">{i18n.builderType}</label>
+                                    <select class="dub-input" id="qType" data-prop="type" onchange={handleQuestionInput}>
+                                        <template for:each={selectedQuestion.typeOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderVisLabel}</span>
+                                    <div class="dub-seg dub-seg--vis" role="group">
+                                        <template for:each={selectedQuestion.visibilityOptions} for:item="o">
+                                            <button type="button" key={o.value} data-value={o.value} aria-pressed={o.pressed} onclick={handleVisibility}>{o.label}</button>
+                                        </template>
+                                    </div>
+                                    <p class="dub-hint">{selectedQuestion.visibilityHint}</p>
+                                </div>
+                                <template if:true={selectedQuestion.showRequired}>
+                                    <label class="dub-check"><input type="checkbox" data-prop="required" checked={selectedQuestion.isRequired} onchange={handleQuestionInput}> {i18n.builderRequired}</label>
+                                </template>
+                                <template if:true={selectedQuestion.canSameRow}>
+                                    <label class="dub-check"><input type="checkbox" data-prop="sameRow" checked={selectedQuestion.sameRowAsPrevious} onchange={handleQuestionInput}> {i18n.builderSameRow}</label>
+                                </template>
+                                <div class="dub-field">
+                                    <label for="qSec">{i18n.builderSection}</label>
+                                    <select class="dub-input" id="qSec" data-prop="section" onchange={handleQuestionInput}>
+                                        <template for:each={selectedQuestion.sectionOptions} for:item="o">
+                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <hr class="dub-divider">
+                                <template if:true={selectedQuestion.isField}>
+                                    <div class="dub-dest dub-dest--field">
+                                        <span class="dub-label-sm">{i18n.builderSavedIn}</span>
+                                        <b>{i18n.builderSavedField}</b>
+                                        <span class="dub-mono">{selectedQuestion.fieldApi}</span>
+                                        <span>{selectedQuestion.fieldHint}</span>
+                                        <label class="dub-check dub-check--history"><input type="checkbox" checked={selectedQuestion.keepHistory} onchange={handleKeepHistory}>
+                                            <span><b>{i18n.builderKeepHistory}</b> — {i18n.builderKeepHistoryHint}</span></label>
+                                        <template if:true={selectedQuestion.keepHistory}>
+                                            <div class="dub-field">
+                                                <label for="hObj">{i18n.builderHistoryObject}</label>
+                                                <select class="dub-input" id="hObj" onchange={handleHistoryObject}>
+                                                    <template for:each={selectedQuestion.historyObjectOptions} for:item="o">
+                                                        <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <template if:true={selectedQuestion.hasHistoryObject}>
+                                                <div class="dub-field">
+                                                    <label for="hDate">{i18n.builderRowDate}</label>
+                                                    <select class="dub-input" id="hDate" onchange={handleRowDate}>
+                                                        <template for:each={selectedQuestion.rowDateOptions} for:item="o">
+                                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                            </template>
+                                            <template if:true={selectedQuestion.showHistoryMapping}>
+                                                <div class="dub-field">
+                                                    <label for="hValue">{i18n.builderValueField}</label>
+                                                    <select class="dub-input" id="hValue" data-part="value" onchange={handleTargetInput}>
+                                                        <template for:each={selectedQuestion.histValueOptions} for:item="o">
+                                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                                <div class="dub-field">
+                                                    <label for="hTDate">{i18n.builderDateField}</label>
+                                                    <select class="dub-input" id="hTDate" data-part="date" onchange={handleTargetInput}>
+                                                        <template for:each={selectedQuestion.histDateOptions} for:item="o">
+                                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                                <div class="dub-field">
+                                                    <label for="hAcc">{i18n.builderAccountLookup}</label>
+                                                    <select class="dub-input" id="hAcc" data-part="account" onchange={handleTargetInput}>
+                                                        <template for:each={selectedQuestion.histAccountOptions} for:item="o">
+                                                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                            </template>
+                                        </template>
+                                        <span class="dub-explain">{selectedQuestion.historyExplain}</span>
+                                    </div>
+                                </template>
+                                <template if:true={selectedQuestion.isRelated}>
+                                    <div class="dub-dest dub-dest--related">
+                                        <span class="dub-label-sm">{i18n.builderSavedIn}</span>
+                                        <b>{selectedQuestion.objLabel}</b>
+                                        <span>{i18n.builderSavedRelatedHint}</span>
+                                        <template if:true={selectedQuestion.hasDate}><span>{i18n.builderSavedDateHint}</span></template>
+                                    </div>
+                                    <template if:true={selectedQuestion.isNewRelated}>
+                                        <div class="dub-field">
+                                            <label for="tValue">{i18n.builderValueField}</label>
+                                            <select class="dub-input" id="tValue" data-part="value" onchange={handleTargetInput}>
+                                                <template for:each={selectedQuestion.valueOptions} for:item="o">
+                                                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="dub-field">
+                                            <label for="tDate">{i18n.builderDateField}</label>
+                                            <select class="dub-input" id="tDate" data-part="date" onchange={handleTargetInput}>
+                                                <template for:each={selectedQuestion.dateOptions} for:item="o">
+                                                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="dub-field">
+                                            <label for="tAccount">{i18n.builderAccountLookup}</label>
+                                            <select class="dub-input" id="tAccount" data-part="account" onchange={handleTargetInput}>
+                                                <template for:each={selectedQuestion.accountOptions} for:item="o">
+                                                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="dub-field">
+                                            <label for="tLog">{i18n.builderLogLookup}</label>
+                                            <select class="dub-input" id="tLog" data-part="log" onchange={handleTargetInput}>
+                                                <template for:each={selectedQuestion.logOptions} for:item="o">
+                                                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:true={selectedQuestion.showMappingNote}>
+                                    <p class="dub-hint">{i18n.builderMappingInSettings}</p>
+                                </template>
+                            </template>
+
+                            <template if:true={showSectionProps}>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderSectionTitle}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <input class="dub-input" maxlength="120" data-lang="fr" value={selectedSection.titleFr} oninput={handleSectionInput}></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <input class="dub-input" maxlength="120" data-lang="en" value={selectedSection.titleEn} oninput={handleSectionInput}></div>
+                                    </div>
+                                </div>
+                                <p class="dub-hint">{selectedSection.countText}</p>
+                            </template>
+
+                            <template lwc:if={showTableProps}>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderTableTitle}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <input class="dub-input" maxlength="120" data-prop="title" data-lang="fr" value={selectedTable.titleFr} oninput={handleTableInput}></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <input class="dub-input" maxlength="120" data-prop="title" data-lang="en" value={selectedTable.titleEn} oninput={handleTableInput}></div>
+                                    </div>
+                                </div>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderTableHelp}</span>
+                                    <div class="dub-lang-rows">
+                                        <div class="dub-lang-row"><span>FR</span>
+                                            <textarea class="dub-input dub-textarea" rows="2" maxlength="255" data-prop="help" data-lang="fr" value={selectedTable.helpFr} oninput={handleTableInput}></textarea></div>
+                                        <div class="dub-lang-row"><span>EN</span>
+                                            <textarea class="dub-input dub-textarea" rows="2" maxlength="255" data-prop="help" data-lang="en" value={selectedTable.helpEn} oninput={handleTableInput}></textarea></div>
+                                    </div>
+                                </div>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderTableModeLabel}</span>
+                                    <div class="dub-seg dub-seg--vis" role="group">
+                                        <template for:each={selectedTable.inputModeOptions} for:item="o">
+                                            <button type="button" key={o.value} data-value={o.value} aria-pressed={o.pressed} onclick={handleTableInputMode}>{o.label}</button>
+                                        </template>
+                                    </div>
+                                    <p class="dub-hint">{selectedTable.inputModeHint}</p>
+                                </div>
+                                <div class="dub-field">
+                                    <span class="dub-label-sm">{i18n.builderTableColumns}</span>
+                                    <p class="dub-hint">{i18n.builderTableColumnsHint}</p>
+                                    <ul class="dub-tcols">
+                                        <template for:each={selectedTable.columns} for:item="col">
+                                            <li key={col.f} class={col.className}>
+                                                <div class="dub-tcol__row">
+                                                    <input type="checkbox" data-f={col.f} checked={col.on} disabled={col.locked}
+                                                        onchange={handleTableColToggle} aria-label={col.name}>
+                                                    <span class="dub-tcol__name">{col.name}</span>
+                                                    <template lwc:if={col.locked}><span class="dub-tcol__lock" title={col.lockTitle}>🔒</span></template>
+                                                    <button type="button" class="dub-icon-btn" data-f={col.f} onclick={handleTableColEdit} aria-pressed={col.editPressed}
+                                                        title={i18n.builderTableEditHeader} aria-label={i18n.builderTableEditHeader}>✎</button>
+                                                    <button type="button" class="dub-icon-btn" data-f={col.f} data-dir="-1" onclick={handleTableColMove} disabled={col.isFirst}
+                                                        title={i18n.builderMoveUp} aria-label={i18n.builderMoveUp}>↑</button>
+                                                    <button type="button" class="dub-icon-btn" data-f={col.f} data-dir="1" onclick={handleTableColMove} disabled={col.isLast}
+                                                        title={i18n.builderMoveDown} aria-label={i18n.builderMoveDown}>↓</button>
+                                                </div>
+                                                <span class="dub-tcol__api dub-mono">{col.f} · {col.typeLabel}</span>
+                                                <template lwc:if={col.editing}>
+                                                    <div class="dub-lang-rows dub-tcol__edit">
+                                                        <div class="dub-lang-row"><span>FR</span>
+                                                            <input class="dub-input" maxlength="80" data-f={col.f} data-lang="fr" value={col.fr} oninput={handleTableColLabel}></div>
+                                                        <div class="dub-lang-row"><span>EN</span>
+                                                            <input class="dub-input" maxlength="80" data-f={col.f} data-lang="en" value={col.en} oninput={handleTableColLabel}></div>
+                                                    </div>
+                                                </template>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </div>
+                                <div class="dub-tsaved">
+                                    <span>{selectedTable.savedIn}</span>
+                                    <span class="dub-mono">{selectedTable.objectApiName}</span>
+                                    <span>{i18n.builderTableAutoFill}</span>
+                                </div>
+                            </template>
+
+                            <template if:true={showEmptyHint}>
+                                <p class="dub-hint">{i18n.builderPropsHint}</p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

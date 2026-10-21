@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Required__c</fullName>
+    <description>If true, the public form blocks submission until this field has a value.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Is Required</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

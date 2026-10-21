@@ -55,6 +55,10 @@ public without sharing class MergeExecutionService {
     @TestVisible private static Boolean TEST_FORCE_INVALID_APPEND_JSON  = false;
     // Forces update to throw in appendDeletedIdsToLog (covers line 838)
     @TestVisible private static Boolean TEST_THROW_APPEND_LOG_UPDATE    = false;
+    // Overrides the dynamic SOQL budget in captureLoserRelatedIds (for test coverage of cap path)
+    @TestVisible private static Integer TEST_SOQL_CAP_OVERRIDE          = null;
+    // Forces the real-SOQL-budget break path in captureLoserRelatedIds (covers break on budget ≤25)
+    @TestVisible private static Boolean TEST_FORCE_SOQL_BUDGET_HIT      = false;
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
@@ -111,6 +115,7 @@ public without sharing class MergeExecutionService {
             SObject masterOverride = Schema.getGlobalDescribe()
                 .get(objectType).newSObject(masterId);
             applyFieldDecisions(masterOverride, candidateMap, request.fieldDecisions, fieldMap);
+            applyEmailRescues(masterOverride, candidateMap, request.emailRescues, fieldMap);
 
             // ── 6. Reparent related records to master, then soft-delete losers ─
             // NOTE: losers are deleted BEFORE applying field decisions (step 5c below).
@@ -220,10 +225,13 @@ public without sharing class MergeExecutionService {
             for (Object o : rawIds) recIdSet.add((Id) String.valueOf(o));
             try {
                 if (TEST_THROW_REPARENT_EDA_LOOP) throw new System.QueryException('test-reparent-eda');
-                List<SObject> recs = Database.query(
-                    'SELECT Id FROM ' + String.escapeSingleQuotes(objApiName) + ' WHERE Id IN :recIdSet'
-                );
-                for (SObject r : recs) r.put(lookupField, masterId);
+                Schema.SObjectType sot = gd.get(objApiName.toLowerCase());
+                List<SObject> recs = new List<SObject>();
+                for (Id recId : recIdSet) {
+                    SObject r = sot.newSObject(recId);
+                    r.put(lookupField, masterId);
+                    recs.add(r);
+                }
                 if (!recs.isEmpty()) Database.update(recs, false);
             } catch (Exception e) {
                 System.debug(LoggingLevel.WARN,
@@ -609,7 +617,18 @@ public without sharing class MergeExecutionService {
         // Storing the lookup field here lets undoMerge re-parent without re-querying configs.
         List<Map<String,Object>> reparented = new List<Map<String,Object>>();
 
+        Integer configsProcessed = 0;
         for (Map<String,String> cfg : configs) {
+            configsProcessed++;
+            // Dynamic SOQL budget: re-checked before each query to account for real consumption.
+            // Reserve 25 for post-capture fixed queries (measured baseline ~6-9; buffer for flows/triggers).
+            if (TEST_SOQL_CAP_OVERRIDE != null && configsProcessed > TEST_SOQL_CAP_OVERRIDE) break;
+            if (TEST_SOQL_CAP_OVERRIDE == null && (TEST_FORCE_SOQL_BUDGET_HIT || (Limits.getLimitQueries() - Limits.getQueries()) <= 25)) {
+                System.debug(LoggingLevel.WARN,
+                    'captureLoserRelatedIds: SOQL budget ≤25 remaining, stopped at '
+                    + configsProcessed + '/' + configs.size() + ' configs.');
+                break;
+            }
             String apiName     = cfg.get('apiName');
             String lookupField = cfg.get('lookupField');
             if (!gd.containsKey(apiName.toLowerCase())) continue;
@@ -737,6 +756,37 @@ public without sharing class MergeExecutionService {
             update upd;
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'appendDeletedIdsToLog: ' + e.getMessage());
+        }
+    }
+
+    // ─── Email rescue ─────────────────────────────────────────────────────────
+
+    // Copies a loser's email value into a different (empty) email field on the master.
+    // This runs in memory before the master UPDATE DML, so the rescue value travels
+    // with the regular field-override update at step 5c.
+    private static void applyEmailRescues(
+        SObject                              masterOverride,
+        Map<Id,SObject>                      candidateMap,
+        List<MergeWrappers.EmailRescueDecision> rescues,
+        Map<String,Schema.SObjectField>      fieldMap
+    ) {
+        if (rescues == null || rescues.isEmpty()) return;
+        for (MergeWrappers.EmailRescueDecision r : rescues) {
+            if (String.isBlank(r.sourceRecordId) || String.isBlank(r.sourceField)
+                || String.isBlank(r.targetField)) continue;
+            Id srcId;
+            try { srcId = (Id) r.sourceRecordId; } catch (Exception e) { continue; }
+            SObject source = candidateMap.get(srcId);
+            if (source == null) continue;
+            String tfl = r.targetField.toLowerCase();
+            if (fieldMap != null && fieldMap.containsKey(tfl)
+                && !fieldMap.get(tfl).getDescribe().isUpdateable()) continue;
+            try {
+                masterOverride.put(r.targetField, source.get(r.sourceField));
+            } catch (Exception e) {
+                System.debug(LoggingLevel.WARN,
+                    'applyEmailRescues [' + r.targetField + ']: ' + e.getMessage());
+            }
         }
     }
 

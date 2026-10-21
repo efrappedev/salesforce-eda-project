@@ -1,0 +1,529 @@
+<template>
+    <div class="manager-shell">
+
+        <!-- ── LEFT PANEL: Application List ─────────────────────────────────── -->
+        <div class="list-panel">
+            <div class="list-header">
+                <h1 class="list-title">Admissions</h1>
+                <div class="filters">
+                    <lightning-combobox
+                        label=""
+                        placeholder="Todas las etapas"
+                        value={statusFilter}
+                        options={statusOptions}
+                        onchange={handleStatusChange}
+                        class="filter-status">
+                    </lightning-combobox>
+                    <lightning-input
+                        label=""
+                        placeholder="Buscar solicitante..."
+                        value={searchTerm}
+                        onchange={handleSearchChange}
+                        type="search"
+                        class="filter-search">
+                    </lightning-input>
+                </div>
+            </div>
+
+            <template if:true={loadingList}>
+                <div class="spinner-wrap"><lightning-spinner size="small"></lightning-spinner></div>
+            </template>
+
+            <template if:false={loadingList}>
+                <template if:true={hasApplications}>
+                    <ul class="app-list">
+                        <template for:each={applications} for:item="app">
+                            <li key={app.id}
+                                class={app.rowClass}
+                                data-id={app.id}
+                                onclick={handleSelectApp}>
+                                <div class="app-row-top">
+                                    <span class="app-name">{app.applicantName}</span>
+                                    <span class={app.statusClass}>{app.status}</span>
+                                </div>
+                                <div class="app-row-bottom">
+                                    <span class="app-meta">{app.programName}</span>
+                                    <span class="app-counts">
+                                        <lightning-icon icon-name="utility:user" size="xx-small"></lightning-icon>
+                                        {app.completedReviewCount}/{app.reviewCount}
+                                        &nbsp;&nbsp;
+                                        <lightning-icon icon-name="utility:attach" size="xx-small"></lightning-icon>
+                                        {app.verifiedDocCount}/{app.documentCount}
+                                        <template if:true={app.hasDecision}>
+                                            &nbsp;&nbsp;<lightning-icon icon-name="utility:approval" size="xx-small" class="has-decision-icon"></lightning-icon>
+                                        </template>
+                                    </span>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                </template>
+                <template if:false={hasApplications}>
+                    <p class="empty-list">No hay solicitudes.</p>
+                </template>
+            </template>
+        </div>
+
+        <!-- ── RIGHT PANEL: Detail ───────────────────────────────────────────── -->
+        <div class="detail-panel">
+            <template if:false={selectedAppId}>
+                <div class="empty-detail">
+                    <lightning-icon icon-name="utility:person_account" size="large" class="empty-icon"></lightning-icon>
+                    <p>Selecciona una solicitud para ver el detalle.</p>
+                </div>
+            </template>
+
+            <template if:true={selectedAppId}>
+                <template if:true={loadingDetail}>
+                    <div class="spinner-wrap"><lightning-spinner size="medium"></lightning-spinner></div>
+                </template>
+                <template if:false={loadingDetail}>
+                    <template if:true={detail}>
+
+                        <!-- Detail Header -->
+                        <div class="detail-header">
+                            <div class="detail-title-block">
+                                <h2 class="detail-name">{detail.applicantName}</h2>
+                                <span class={detail.statusClass}>{detail.status}</span>
+                            </div>
+                            <div class="detail-actions">
+                                <lightning-button
+                                    label="Cambiar estado"
+                                    icon-name="utility:edit"
+                                    onclick={handleToggleStatusForm}>
+                                </lightning-button>
+                            </div>
+                        </div>
+
+                        <!-- Status Change Inline Form -->
+                        <template if:true={showStatusForm}>
+                            <div class="inline-form">
+                                <lightning-combobox
+                                    label="Nuevo estado"
+                                    value={newStatus}
+                                    options={statusUpdateOptions}
+                                    onchange={handleNewStatusChange}>
+                                </lightning-combobox>
+                                <div class="form-actions">
+                                    <lightning-button label="Cancelar" onclick={handleToggleStatusForm}></lightning-button>
+                                    <lightning-button label="Guardar" variant="brand" onclick={handleUpdateStatus}></lightning-button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Tabs -->
+                        <lightning-tabset active-tab-value="overview">
+
+                            <!-- ── TAB: Overview ─────────────────────────────── -->
+                            <lightning-tab label="Resumen" value="overview">
+                                <div class="tab-content">
+                                    <div class="field-grid">
+                                        <div class="field-item">
+                                            <label>Solicitante</label>
+                                            <p>{detail.applicantName}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Tipo</label>
+                                            <p>{detail.applicationType}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Programa</label>
+                                            <p>{detail.programName}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Término</label>
+                                            <p>{detail.termName}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Fecha solicitud</label>
+                                            <p><lightning-formatted-date-time value={detail.applicationDateStr} year="numeric" month="short" day="2-digit"></lightning-formatted-date-time></p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Fecha límite</label>
+                                            <p><lightning-formatted-date-time value={detail.dueDateStr} year="numeric" month="short" day="2-digit"></lightning-formatted-date-time></p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Institución anterior</label>
+                                            <p>{detail.previousInstitution}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>GPA anterior</label>
+                                            <p>{detail.previousGpa}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Entrevista requerida</label>
+                                            <p>{detail.interviewRequiredLabel}</p>
+                                        </div>
+                                        <div class="field-item">
+                                            <label>Ayuda financiera solicitada</label>
+                                            <p>{detail.financialAidLabel}</p>
+                                        </div>
+                                    </div>
+                                    <template if:true={detail.comments}>
+                                        <div class="field-item full-width">
+                                            <label>Comentarios</label>
+                                            <p class="comments-text">{detail.comments}</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </lightning-tab>
+
+                            <!-- ── TAB: Reviews ──────────────────────────────── -->
+                            <lightning-tab label="Revisiones" value="reviews">
+                                <div class="tab-content">
+                                    <div class="tab-toolbar">
+                                        <lightning-button
+                                            label="Asignar revisor"
+                                            variant="brand"
+                                            icon-name="utility:add"
+                                            onclick={handleToggleReviewForm}>
+                                        </lightning-button>
+                                    </div>
+
+                                    <!-- Assign Reviewer Form -->
+                                    <template if:true={showReviewForm}>
+                                        <div class="inline-form">
+                                            <h3 class="form-title">Asignar revisor</h3>
+                                            <lightning-record-picker
+                                                label="Revisor (Contact)"
+                                                placeholder="Buscar contacto..."
+                                                object-api-name="Contact"
+                                                value={reviewForm.reviewerId}
+                                                onchange={handleReviewerPick}>
+                                            </lightning-record-picker>
+                                            <lightning-combobox
+                                                label="Tipo de revisión"
+                                                value={reviewForm.reviewType}
+                                                options={reviewTypeOptions}
+                                                onchange={handleReviewTypeChange}>
+                                            </lightning-combobox>
+                                            <lightning-input
+                                                type="date"
+                                                label="Fecha límite"
+                                                value={reviewForm.dueDate}
+                                                onchange={handleReviewDueDateChange}>
+                                            </lightning-input>
+                                            <div class="form-actions">
+                                                <lightning-button label="Cancelar" onclick={handleToggleReviewForm}></lightning-button>
+                                                <lightning-button label="Asignar" variant="brand" onclick={handleAssignReviewer}></lightning-button>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Review Cards -->
+                                    <template if:true={hasReviews}>
+                                        <template for:each={detail.reviews} for:item="rev">
+                                            <div key={rev.id} class={rev.cardClass}>
+                                                <div class="review-card-header">
+                                                    <span class="reviewer-name">
+                                                        <lightning-icon icon-name="utility:user" size="xx-small"></lightning-icon>
+                                                        {rev.reviewerName}
+                                                    </span>
+                                                    <span class={rev.statusBadgeClass}>{rev.status}</span>
+                                                    <template if:true={rev.isOverdue}>
+                                                        <span class="badge-overdue">Vencida</span>
+                                                    </template>
+                                                </div>
+                                                <div class="review-card-body">
+                                                    <div class="field-inline">
+                                                        <label>Tipo:</label><span>{rev.reviewType}</span>
+                                                    </div>
+                                                    <template if:true={rev.dueDate}>
+                                                        <div class="field-inline">
+                                                            <label>Límite:</label>
+                                                            <lightning-formatted-date-time value={rev.dueDateStr} year="numeric" month="short" day="2-digit"></lightning-formatted-date-time>
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={rev.recommendation}>
+                                                        <div class="field-inline">
+                                                            <label>Recomendación:</label><span>{rev.recommendation}</span>
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={rev.score}>
+                                                        <div class="field-inline">
+                                                            <label>Puntaje:</label><span>{rev.score}</span>
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={rev.comments}>
+                                                        <p class="review-comments">{rev.comments}</p>
+                                                    </template>
+                                                </div>
+                                                <template if:false={rev.isCompleted}>
+                                                    <div class="review-card-footer">
+                                                        <lightning-button
+                                                            label="Completar revisión"
+                                                            data-id={rev.id}
+                                                            onclick={handleToggleSubmitReview}>
+                                                        </lightning-button>
+                                                    </div>
+                                                </template>
+
+                                                <!-- Submit Review inline form -->
+                                                <template if:true={rev.showSubmitForm}>
+                                                    <div class="inline-form nested-form">
+                                                        <lightning-combobox
+                                                            label="Recomendación"
+                                                            value={submitForm.recommendation}
+                                                            options={recommendationOptions}
+                                                            onchange={handleRecommendationChange}>
+                                                        </lightning-combobox>
+                                                        <lightning-input
+                                                            type="number"
+                                                            label="Puntaje (0-100)"
+                                                            value={submitForm.score}
+                                                            min="0"
+                                                            max="100"
+                                                            onchange={handleScoreChange}>
+                                                        </lightning-input>
+                                                        <lightning-textarea
+                                                            label="Comentarios"
+                                                            value={submitForm.comments}
+                                                            onchange={handleSubmitCommentsChange}>
+                                                        </lightning-textarea>
+                                                        <div class="form-actions">
+                                                            <lightning-button label="Cancelar" data-id={rev.id} onclick={handleToggleSubmitReview}></lightning-button>
+                                                            <lightning-button label="Enviar" variant="brand" data-id={rev.id} onclick={handleSubmitReview}></lightning-button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <template if:false={hasReviews}>
+                                        <p class="empty-section">Sin revisiones asignadas.</p>
+                                    </template>
+                                </div>
+                            </lightning-tab>
+
+                            <!-- ── TAB: Decision ─────────────────────────────── -->
+                            <lightning-tab label="Decisión" value="decision">
+                                <div class="tab-content">
+                                    <template if:true={detail.decision}>
+                                        <div class="decision-card">
+                                            <div class="decision-badge-row">
+                                                <span class={detail.decision.badgeClass}>{detail.decision.decision}</span>
+                                                <span class="decision-date">
+                                                    <lightning-formatted-date-time value={detail.decision.decisionDateStr} year="numeric" month="long" day="2-digit"></lightning-formatted-date-time>
+                                                </span>
+                                            </div>
+                                            <div class="field-grid">
+                                                <template if:true={detail.decision.decisionMadeByName}>
+                                                    <div class="field-item">
+                                                        <label>Decidido por</label>
+                                                        <p>{detail.decision.decisionMadeByName}</p>
+                                                    </div>
+                                                </template>
+                                                <template if:true={detail.decision.scholarshipAmount}>
+                                                    <div class="field-item">
+                                                        <label>Beca</label>
+                                                        <p><lightning-formatted-number value={detail.decision.scholarshipAmount} format-style="currency" currency-code="CAD"></lightning-formatted-number></p>
+                                                    </div>
+                                                </template>
+                                                <template if:true={detail.decision.responseDeadline}>
+                                                    <div class="field-item">
+                                                        <label>Límite de respuesta</label>
+                                                        <p><lightning-formatted-date-time value={detail.decision.responseDeadlineStr} year="numeric" month="short" day="2-digit"></lightning-formatted-date-time></p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <template if:true={detail.decision.conditions}>
+                                                <div class="field-item full-width">
+                                                    <label>Condiciones</label>
+                                                    <p>{detail.decision.conditions}</p>
+                                                </div>
+                                            </template>
+                                            <template if:true={detail.decision.notes}>
+                                                <div class="field-item full-width">
+                                                    <label>Notas</label>
+                                                    <p>{detail.decision.notes}</p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template if:false={detail.decision}>
+                                        <div class="tab-toolbar">
+                                            <lightning-button
+                                                label="Registrar decisión"
+                                                variant="brand"
+                                                icon-name="utility:approval"
+                                                onclick={handleToggleDecisionForm}>
+                                            </lightning-button>
+                                        </div>
+
+                                        <template if:true={showDecisionForm}>
+                                            <div class="inline-form">
+                                                <h3 class="form-title">Nueva decisión</h3>
+                                                <lightning-combobox
+                                                    label="Decisión"
+                                                    value={decisionForm.decision}
+                                                    options={decisionOptions}
+                                                    onchange={handleDecisionChange}
+                                                    required>
+                                                </lightning-combobox>
+                                                <lightning-input
+                                                    type="date"
+                                                    label="Fecha de decisión"
+                                                    value={decisionForm.decisionDate}
+                                                    onchange={handleDecisionDateChange}>
+                                                </lightning-input>
+                                                <lightning-input
+                                                    type="date"
+                                                    label="Límite de respuesta del solicitante"
+                                                    value={decisionForm.responseDeadline}
+                                                    onchange={handleResponseDeadlineChange}>
+                                                </lightning-input>
+                                                <lightning-input
+                                                    type="number"
+                                                    label="Monto de beca (CAD)"
+                                                    value={decisionForm.scholarshipAmount}
+                                                    onchange={handleScholarshipChange}>
+                                                </lightning-input>
+                                                <lightning-textarea
+                                                    label="Condiciones"
+                                                    value={decisionForm.conditions}
+                                                    onchange={handleConditionsChange}>
+                                                </lightning-textarea>
+                                                <lightning-textarea
+                                                    label="Notas internas"
+                                                    value={decisionForm.notes}
+                                                    onchange={handleDecisionNotesChange}>
+                                                </lightning-textarea>
+                                                <div class="form-actions">
+                                                    <lightning-button label="Cancelar" onclick={handleToggleDecisionForm}></lightning-button>
+                                                    <lightning-button label="Guardar decisión" variant="brand" onclick={handleMakeDecision}></lightning-button>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <template if:false={showDecisionForm}>
+                                            <p class="empty-section">No se ha registrado decisión todavía.</p>
+                                        </template>
+                                    </template>
+                                </div>
+                            </lightning-tab>
+
+                            <!-- ── TAB: Documents ────────────────────────────── -->
+                            <lightning-tab label="Documentos" value="documents">
+                                <div class="tab-content">
+                                    <div class="tab-toolbar">
+                                        <lightning-button
+                                            label="Agregar documento"
+                                            variant="brand"
+                                            icon-name="utility:add"
+                                            onclick={handleToggleDocumentForm}>
+                                        </lightning-button>
+                                    </div>
+
+                                    <!-- Add Document Form -->
+                                    <template if:true={showDocumentForm}>
+                                        <div class="inline-form">
+                                            <h3 class="form-title">Agregar documento</h3>
+                                            <lightning-input
+                                                label="Nombre del documento"
+                                                value={documentForm.documentName}
+                                                onchange={handleDocNameChange}>
+                                            </lightning-input>
+                                            <lightning-combobox
+                                                label="Tipo de documento"
+                                                value={documentForm.documentType}
+                                                options={documentTypeOptions}
+                                                onchange={handleDocTypeChange}
+                                                required>
+                                            </lightning-combobox>
+                                            <lightning-input
+                                                label="URL Google Drive"
+                                                value={documentForm.documentUrl}
+                                                placeholder="https://drive.google.com/..."
+                                                onchange={handleDocUrlChange}>
+                                            </lightning-input>
+                                            <lightning-combobox
+                                                label="Repositorio"
+                                                value={documentForm.repository}
+                                                options={repositoryOptions}
+                                                onchange={handleRepoChange}>
+                                            </lightning-combobox>
+                                            <lightning-input
+                                                type="checkbox"
+                                                label="Requerido"
+                                                checked={documentForm.isRequired}
+                                                onchange={handleDocRequiredChange}>
+                                            </lightning-input>
+                                            <lightning-textarea
+                                                label="Notas"
+                                                value={documentForm.notes}
+                                                onchange={handleDocNotesChange}>
+                                            </lightning-textarea>
+                                            <div class="form-actions">
+                                                <lightning-button label="Cancelar" onclick={handleToggleDocumentForm}></lightning-button>
+                                                <lightning-button label="Agregar" variant="brand" onclick={handleAddDocument}></lightning-button>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Document List -->
+                                    <template if:true={hasDocuments}>
+                                        <table class="doc-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tipo</th>
+                                                    <th>Estado</th>
+                                                    <th>Repositorio</th>
+                                                    <th>Enlace</th>
+                                                    <th>Requerido</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={detail.documents} for:item="doc">
+                                                    <tr key={doc.id}>
+                                                        <td>{doc.documentType}</td>
+                                                        <td><span class={doc.statusClass}>{doc.status}</span></td>
+                                                        <td>{doc.repository}</td>
+                                                        <td>
+                                                            <template if:true={doc.documentUrl}>
+                                                                <a href={doc.documentUrl} target="_blank" rel="noopener noreferrer">
+                                                                    <lightning-icon icon-name="utility:open" size="xx-small"></lightning-icon>
+                                                                    Ver
+                                                                </a>
+                                                            </template>
+                                                            <template if:false={doc.documentUrl}>—</template>
+                                                        </td>
+                                                        <td>
+                                                            <template if:true={doc.isRequired}>
+                                                                <lightning-icon icon-name="utility:check" size="xx-small" class="icon-required"></lightning-icon>
+                                                            </template>
+                                                        </td>
+                                                        <td>
+                                                            <template if:false={doc.isVerified}>
+                                                                <lightning-button-menu
+                                                                    alternative-text="Cambiar estado"
+                                                                    icon-name="utility:down"
+                                                                    menu-alignment="right"
+                                                                    data-id={doc.id}
+                                                                    onselect={handleDocStatusSelect}>
+                                                                    <lightning-menu-item value="Received" label="Marcar Recibido"></lightning-menu-item>
+                                                                    <lightning-menu-item value="Verified" label="Marcar Verificado"></lightning-menu-item>
+                                                                    <lightning-menu-item value="Waived" label="Eximir"></lightning-menu-item>
+                                                                </lightning-button-menu>
+                                                            </template>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </template>
+                                    <template if:false={hasDocuments}>
+                                        <p class="empty-section">Sin documentos registrados.</p>
+                                    </template>
+                                </div>
+                            </lightning-tab>
+
+                        </lightning-tabset>
+                    </template>
+                </template>
+            </template>
+        </div>
+    </div>
+</template>

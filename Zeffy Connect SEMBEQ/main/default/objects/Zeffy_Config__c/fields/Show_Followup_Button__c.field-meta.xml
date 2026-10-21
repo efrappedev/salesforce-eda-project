@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Show_Followup_Button__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Shows the Follow-up Assignment button on review tickets. Only users with the Zeffy_Connect_Settings_Access custom permission can change it.</description>
+    <label>Show Follow-up Assignment Button</label>
+    <type>Checkbox</type>
+</CustomField>

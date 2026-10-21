@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>AEBEQ Eglise Update - Baptisms</label>
+    <protected>false</protected>
+    <values>
+        <field>Display_Order__c</field>
+        <value xsi:type="xsd:double">20.0</value>
+    </values>
+    <values>
+        <field>Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Eglise_Baptisms__c</value>
+    </values>
+    <values>
+        <field>Form__c</field>
+        <value xsi:type="xsd:string">AEBEQ_Eglise_Update</value>
+    </values>
+    <values>
+        <field>Help_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Help_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>History_Date_Source_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Eglise_Baptisms_Date__c</value>
+    </values>
+    <values>
+        <field>History_Mode__c</field>
+        <value xsi:type="xsd:string">Historize</value>
+    </values>
+    <values>
+        <field>History_Table_Columns__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>History_Table_Input_Mode__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>History_Target_Account_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Account__c</value>
+    </values>
+    <values>
+        <field>History_Target_Date_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Metric_Date__c</value>
+    </values>
+    <values>
+        <field>History_Target_Log_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Log__c</value>
+    </values>
+    <values>
+        <field>History_Target_Object_API_Name__c</field>
+        <value xsi:type="xsd:string">Baptism_History__c</value>
+    </values>
+    <values>
+        <field>History_Target_Value_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Value__c</value>
+    </values>
+    <values>
+        <field>Input_Type__c</field>
+        <value xsi:type="xsd:string">Number</value>
+    </values>
+    <values>
+        <field>Is_Active__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Is_Hidden__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Is_Read_Only__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Is_Required__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Label_EN__c</field>
+        <value xsi:type="xsd:string">Baptisms (last year)</value>
+    </values>
+    <values>
+        <field>Label_ES__c</field>
+        <value xsi:type="xsd:string">Bautizados (último año)</value>
+    </values>
+    <values>
+        <field>Label_FR__c</field>
+        <value xsi:type="xsd:string">Baptêmes de la dernière année</value>
+    </values>
+    <values>
+        <field>Same_Row_As_Previous__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Section_Label_EN__c</field>
+        <value xsi:type="xsd:string">Statistics</value>
+    </values>
+    <values>
+        <field>Section_Label_ES__c</field>
+        <value xsi:type="xsd:string">Estadísticas</value>
+    </values>
+    <values>
+        <field>Section_Label_FR__c</field>
+        <value xsi:type="xsd:string">Statistiques</value>
+    </values>
+</CustomMetadata>

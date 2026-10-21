@@ -1,0 +1,131 @@
+@import 'c/dataUpdateUiStyles';
+
+:host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Design tokens — inherited by every child component through var(--duc-*) */
+.duc-app {
+    --duc-bg: #f4f6f9;
+    --duc-surface: #ffffff;
+    --duc-surface-2: #f8fafc;
+    --duc-line: #e3e8ef;
+    --duc-line-2: #eef2f6;
+    --duc-text: #16202e;
+    --duc-muted: #5d6b7e;
+    --duc-faint: #667385;
+    --duc-brand: #0b5cab;
+    --duc-brand-ink: #ffffff;
+    --duc-brand-soft: #e8f1fb;
+    --duc-new: #0b5cab;
+    --duc-new-bg: #e8f1fb;
+    --duc-review: #7a4cc2;
+    --duc-review-bg: #f1ebfb;
+    --duc-hold: #8a5300;
+    --duc-hold-bg: #fdf3e1;
+    --duc-reopen: #c2410c;
+    --duc-reopen-bg: #fdeee6;
+    --duc-applied: #1f7a3f;
+    --duc-applied-bg: #e6f4ea;
+    --duc-ignored: #5d6b7e;
+    --duc-ignored-bg: #eef1f5;
+    --duc-error: #b42318;
+    --duc-error-bg: #fdecea;
+    --duc-neutral: #5d6b7e;
+    --duc-neutral-bg: #eef1f5;
+    --duc-add: #e6f4ea;
+    --duc-add-ink: #1f6b38;
+    --duc-del: #eef1f5;
+    --duc-del-ink: #5f6b7a;
+    --duc-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 16px rgba(16, 24, 40, .06);
+    --duc-pop: 0 8px 30px rgba(16, 24, 40, .18);
+    --duc-r: 12px;
+
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 14px 16px 12px;
+    background: var(--duc-bg);
+    color: var(--duc-text);
+    font: 14px/1.45 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* top bar */
+.duc-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; flex: none; }
+.duc-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; margin-right: auto; }
+.duc-brand-ic {
+    width: 30px; height: 30px; border-radius: 9px; background: var(--duc-brand); color: var(--duc-brand-ink);
+    display: grid; place-items: center;
+}
+.duc-seg {
+    display: inline-flex; background: var(--duc-surface); border: 1px solid var(--duc-line);
+    border-radius: 999px; padding: 3px;
+}
+.duc-seg-btn {
+    border: 0; background: none; padding: 4px 11px; border-radius: 999px; font-weight: 600;
+    font-size: 12px; color: var(--duc-muted); line-height: 1.45;
+}
+.duc-seg-btn_on { background: var(--duc-brand); color: var(--duc-brand-ink); }
+
+/* layout */
+.duc-main {
+    flex: 1; min-height: 0; display: grid; grid-template-columns: 360px minmax(0, 1fr);
+    gap: 14px; align-items: stretch;
+}
+.duc-panel {
+    background: var(--duc-surface); border: 1px solid var(--duc-line); border-radius: var(--duc-r);
+    box-shadow: var(--duc-shadow); min-width: 0; min-height: 0;
+}
+.duc-list-panel { display: flex; flex-direction: column; overflow: hidden; }
+.duc-list-panel > c-data-update-request-list { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.duc-ws { display: flex; flex-direction: column; overflow: hidden; }
+
+/* workspace tabs */
+.duc-wtabs {
+    display: flex; gap: 2px; align-items: flex-end; border-bottom: 1px solid var(--duc-line);
+    padding: 7px 8px 0; overflow-x: auto; overflow-y: hidden; background: var(--duc-surface-2); scrollbar-width: thin;
+    flex: none; border-radius: var(--duc-r) var(--duc-r) 0 0;
+}
+.duc-wtab {
+    display: inline-flex; align-items: center; gap: 7px; border: 1px solid transparent; border-bottom: 0;
+    padding: 7px 9px 7px 11px; border-radius: 9px 9px 0 0; font-weight: 600; font-size: 12.5px;
+    color: var(--duc-muted); white-space: nowrap; max-width: 300px; margin-bottom: -1px; cursor: pointer;
+    user-select: none; flex: none; outline: 0;
+}
+.duc-wtab:hover { color: var(--duc-text); background: rgba(255, 255, 255, .6); }
+.duc-wtab:focus-visible { box-shadow: 0 0 0 2px var(--duc-brand-soft); }
+.duc-wtab_on, .duc-wtab_on:hover {
+    background: var(--duc-surface); border-color: var(--duc-line); color: var(--duc-brand);
+    box-shadow: inset 0 2px 0 var(--duc-brand);
+}
+.duc-tnm { overflow: hidden; text-overflow: ellipsis; }
+/* ticket tabs shrink before the bar scrolls, so Dashboard/Locked stay visible */
+.duc-wtab[data-id] { flex: 0 1 auto; min-width: 96px; max-width: 300px; }
+.duc-wtab[data-id] .duc-tnm { min-width: 0; }
+.duc-ttag {
+    flex: none; font-size: 11px; font-weight: 600; color: var(--duc-muted); font-variant-numeric: tabular-nums;
+    background: var(--duc-line-2); border-radius: 999px; padding: 1px 7px;
+}
+.duc-wtab_on .duc-ttag { color: var(--duc-brand); background: var(--duc-brand-soft); }
+.duc-close {
+    display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; color: var(--duc-faint);
+    border: 0; background: none; padding: 0;
+}
+.duc-close:hover { background: var(--duc-line-2); color: var(--duc-text); }
+
+.duc-ws-body { flex: 1; min-height: 0; min-width: 0; position: relative; display: flex; flex-direction: column; }
+.duc-pane { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.duc-pane > * { flex: none; }
+.duc-pane_detail { overflow: hidden; }
+.duc-pane_detail > c-data-update-review-panel,
+.duc-pane_detail > c-data-update-multi-ticket-review { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.duc-loading { position: relative; min-height: 200px; }
+
+@media (max-width: 860px) {
+    .duc-main { grid-template-columns: 1fr; }
+    .duc-app { height: auto; overflow: visible; }
+}

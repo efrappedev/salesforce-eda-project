@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Allow_Duplicate_Open_Requests__c</fullName>
+    <description>If false (default), a new submission is blocked while an open request from this form already exists for the same target record.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Allow Duplicate Open Requests</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

@@ -1,0 +1,108 @@
+<template>
+    <div class="zc-page">
+        <div class="zc-header">
+            <div class="zc-header__icon">⚡</div>
+            <div>
+                <h1 class="zc-title">Zeffy Connect</h1>
+                <p class="zc-subtitle">Configuración del robot de donaciones Zeffy Connect → Salesforce</p>
+            </div>
+        </div>
+
+        <!-- Status banner -->
+        <div class={statusBannerClass}>
+            <span class="zc-status__dot"></span>
+            <span>{statusLabel}</span>
+        </div>
+
+        <!-- Config form -->
+        <div class="zc-card">
+            <h2 class="zc-section-title">Credenciales</h2>
+
+            <div class="zc-field">
+                <label class="zc-label">API Key
+                    <span class="zc-hint">Para consultas salientes a Zeffy Connect (reportes, historial). Opcional en Fase 1.</span>
+                </label>
+                <input
+                    class="zc-input"
+                    type="password"
+                    value={apiKey}
+                    placeholder="Pega aquí tu API Key de Zeffy Connect"
+                    data-field="apiKey"
+                    oninput={handleInput}
+                />
+            </div>
+
+            <div class="zc-field">
+                <label class="zc-label">Webhook Secret <span class="zc-required">*</span>
+                    <span class="zc-hint">Token que Zeffy Connect envía en el header X-Zeffy-Signature para validar cada webhook.</span>
+                </label>
+                <input
+                    class="zc-input"
+                    type="password"
+                    value={webhookSecret}
+                    placeholder="Pega aquí el Webhook Secret de Zeffy Connect"
+                    data-field="webhookSecret"
+                    oninput={handleInput}
+                />
+            </div>
+
+            <div class="zc-field zc-field--inline">
+                <label class="zc-label">Robot activo</label>
+                <label class="zc-toggle">
+                    <input type="checkbox" checked={isActive} onchange={handleToggle} />
+                    <span class="zc-toggle__slider"></span>
+                </label>
+                <span class="zc-toggle__label">{activeLabel}</span>
+            </div>
+
+            <div class="zc-actions">
+                <button class="zc-btn zc-btn--primary" onclick={handleSave} disabled={isSaving}>
+                    {saveBtnLabel}
+                </button>
+            </div>
+
+            <template if:true={saveSuccess}>
+                <div class="zc-toast zc-toast--success">✓ Configuración guardada correctamente.</div>
+            </template>
+            <template if:true={saveError}>
+                <div class="zc-toast zc-toast--error">✗ {saveError}</div>
+            </template>
+        </div>
+
+        <!-- Webhook URL info -->
+        <div class="zc-card zc-card--info">
+            <h2 class="zc-section-title">URL del Webhook</h2>
+            <p class="zc-body">Configura esta URL en el dashboard de Zeffy Connect → Configuración → Webhooks:</p>
+            <div class="zc-url-box">
+                <code class="zc-url">{webhookUrl}</code>
+                <button class="zc-btn zc-btn--ghost" onclick={handleCopyUrl}>
+                    {copyBtnLabel}
+                </button>
+            </div>
+            <p class="zc-note">
+                ⚠️ Este URL solo funciona si creaste un <strong>Salesforce Site</strong> con acceso al endpoint
+                <code>/services/apexrest/zeffy/*</code>. Si no lo has creado aún, ve a
+                Setup → Sites → New Site y agrega la clase <code>ZeffyConnectWebhookReceiver</code> como Apex REST class.
+            </p>
+        </div>
+
+        <!-- How it works -->
+        <div class="zc-card">
+            <h2 class="zc-section-title">¿Cómo funciona el robot?</h2>
+            <ol class="zc-steps">
+                <li>Zeffy Connect recibe un pago y dispara el webhook a Salesforce</li>
+                <li>El robot busca el donante por Zeffy ID o por email</li>
+                <li>
+                    <strong>Donante conocido</strong> → crea automáticamente el
+                    Gift Transaction (y Gift Commitment si es recurrente)
+                </li>
+                <li>
+                    <strong>Donante desconocido</strong> → crea un <em>Ticket de Revisión</em>
+                    que aparece en la pestaña "Zeffy Connect Review"
+                </li>
+                <li>El staff revisa el ticket y elige: <em>crear nuevo contacto</em> o <em>vincularlo a uno existente</em></li>
+                <li>Después de la primera vinculación, ese donante se procesa automático en el futuro</li>
+            </ol>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,309 @@
+<template>
+    <div class="dash-wrap">
+
+        <!-- Header -->
+        <div class="dash-header">
+            <span class="dash-title">{i18n.dashboardTab}</span>
+            <div class="dash-header__actions">
+                <lightning-button-icon
+                    icon-name="utility:brush"
+                    variant="border"
+                    size="small"
+                    title={i18n.colorCustomize}
+                    onclick={handleOpenColorPanel}>
+                </lightning-button-icon>
+                <lightning-button-icon
+                    icon-name="utility:refresh"
+                    variant="border"
+                    size="small"
+                    title={i18n.dashboardRefresh}
+                    onclick={handleRefresh}>
+                </lightning-button-icon>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <template if:true={isLoading}>
+            <div class="dash-loading">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <template if:false={isLoading}>
+
+            <!-- KPI strip -->
+            <div class="dash-kpis">
+                <div class="dash-kpi">
+                    <div class="dash-kpi__value">{totalTickets}</div>
+                    <div class="dash-kpi__label">{i18n.kpiTotal}</div>
+                </div>
+                <div class="dash-kpi dash-kpi--pending">
+                    <div class="dash-kpi__value">{pendingTickets}</div>
+                    <div class="dash-kpi__label">{i18n.kpiPending}</div>
+                </div>
+                <div class="dash-kpi dash-kpi--merged">
+                    <div class="dash-kpi__value">{mergedThisMonth}</div>
+                    <div class="dash-kpi__label">{i18n.kpiMergedMonth}</div>
+                </div>
+                <div class="dash-kpi dash-kpi--error">
+                    <div class="dash-kpi__value">{errorCount}</div>
+                    <div class="dash-kpi__label">{i18n.kpiErrors}</div>
+                </div>
+            </div>
+
+            <!-- 2-col chart grid -->
+            <div class="dash-grid">
+
+                <!-- ── Status ─────────────────────────────────────────────── -->
+                <div class="dash-card">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartStatus}</span>
+                        <div class="dash-toggle">
+                            <button class={statusBarClass}   data-key="status" data-type="bar"   onclick={handleChartTypeToggle}>{i18n.chartTypeBar}</button>
+                            <button class={statusDonutClass} data-key="status" data-type="donut" onclick={handleChartTypeToggle}>{i18n.chartTypeDonut}</button>
+                        </div>
+                    </div>
+                    <div class="dash-card__body">
+                        <template if:true={hasStatusData}>
+                            <template if:true={isBarStatus}>
+                                <template for:each={statusData} for:item="row">
+                                    <div key={row.key} class="dash-bar-row">
+                                        <span class="dash-bar-label" title={row.label}>{row.label}</span>
+                                        <div class="dash-bar-track">
+                                            <div class="dash-bar-fill" style={row.barStyle}></div>
+                                        </div>
+                                        <span class="dash-bar-val">{row.value}</span>
+                                    </div>
+                                </template>
+                            </template>
+                            <template if:true={isDonutStatus}>
+                                <div class="dash-donut-wrap">
+                                    <div class="dash-donut" style={statusDonutStyle}>
+                                        <div class="dash-donut__hole">
+                                            <span class="dash-donut__total">{totalTickets}</span>
+                                        </div>
+                                    </div>
+                                    <div class="dash-legend">
+                                        <template for:each={statusData} for:item="row">
+                                            <div key={row.key} class="dash-legend-row">
+                                                <span class="dash-legend-dot" style={row.dotStyle}></span>
+                                                <span class="dash-legend-label">{row.label}</span>
+                                                <span class="dash-legend-val">{row.value}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasStatusData}>
+                            <div class="dash-nodata">{i18n.noData}</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Match Type ──────────────────────────────────────────── -->
+                <div class="dash-card">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartMatchType}</span>
+                    </div>
+                    <div class="dash-card__body">
+                        <template if:true={hasMatchTypeData}>
+                            <template for:each={matchTypeData} for:item="row">
+                                <div key={row.key} class="dash-bar-row">
+                                    <span class="dash-bar-label" title={row.label}>{row.label}</span>
+                                    <div class="dash-bar-track">
+                                        <div class="dash-bar-fill" style={row.barStyle}></div>
+                                    </div>
+                                    <span class="dash-bar-val">{row.value}</span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasMatchTypeData}>
+                            <div class="dash-nodata">{i18n.noData}</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Object Type ─────────────────────────────────────────── -->
+                <div class="dash-card">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartObjectType}</span>
+                        <div class="dash-toggle">
+                            <button class={objTypeDonutClass} data-key="objType" data-type="donut" onclick={handleChartTypeToggle}>{i18n.chartTypeDonut}</button>
+                            <button class={objTypeBarClass}   data-key="objType" data-type="bar"   onclick={handleChartTypeToggle}>{i18n.chartTypeBar}</button>
+                        </div>
+                    </div>
+                    <div class="dash-card__body">
+                        <template if:true={hasObjTypeData}>
+                            <template if:true={isDonutObjType}>
+                                <div class="dash-donut-wrap">
+                                    <div class="dash-donut" style={objTypeDonutStyle}>
+                                        <div class="dash-donut__hole"></div>
+                                    </div>
+                                    <div class="dash-legend">
+                                        <template for:each={objTypeData} for:item="row">
+                                            <div key={row.key} class="dash-legend-row">
+                                                <span class="dash-legend-dot" style={row.dotStyle}></span>
+                                                <span class="dash-legend-label">{row.label}</span>
+                                                <span class="dash-legend-val">{row.value}</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <template if:true={isBarObjType}>
+                                <template for:each={objTypeData} for:item="row">
+                                    <div key={row.key} class="dash-bar-row">
+                                        <span class="dash-bar-label" title={row.label}>{row.label}</span>
+                                        <div class="dash-bar-track">
+                                            <div class="dash-bar-fill" style={row.barStyle}></div>
+                                        </div>
+                                        <span class="dash-bar-val">{row.value}</span>
+                                    </div>
+                                </template>
+                            </template>
+                        </template>
+                        <template if:false={hasObjTypeData}>
+                            <div class="dash-nodata">{i18n.noData}</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Closed Reasons ─────────────────────────────────────── -->
+                <div class="dash-card">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartClosedReasons}</span>
+                    </div>
+                    <div class="dash-card__body">
+                        <template if:true={hasClosedReasonData}>
+                            <template for:each={closedReasonData} for:item="row">
+                                <div key={row.key} class="dash-bar-row">
+                                    <span class="dash-bar-label" title={row.label}>{row.label}</span>
+                                    <div class="dash-bar-track">
+                                        <div class="dash-bar-fill" style={row.barStyle}></div>
+                                    </div>
+                                    <span class="dash-bar-val">{row.value}</span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={hasClosedReasonData}>
+                            <div class="dash-nodata">{i18n.noData}</div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- ── Merge Trend (full-width, navigable, grouped bars) ─── -->
+                <div class="dash-card dash-card--wide">
+                    <div class="dash-card__header">
+                        <span class="dash-card__title">{i18n.chartTrend}</span>
+                        <div class="dash-toggle">
+                            <button class={trendWeekClass}  data-key="trendPeriod" data-type="week"  onclick={handleChartTypeToggle}>{i18n.trendWeek}</button>
+                            <button class={trendMonthClass} data-key="trendPeriod" data-type="month" onclick={handleChartTypeToggle}>{i18n.trendMonth}</button>
+                            <button class={trendYearClass}  data-key="trendPeriod" data-type="year"  onclick={handleChartTypeToggle}>{i18n.trendYear}</button>
+                        </div>
+                    </div>
+                    <div class="dash-card__body dash-card__body--trend">
+                        <!-- Navigation row -->
+                        <div class="dash-trend-nav">
+                            <button class="dash-trend-nav-btn" disabled={navPrevDisabled} onclick={handleTrendPrev}>&#8249;</button>
+                            <span class="dash-trend-win">{trendWindowLabel}</span>
+                            <button class="dash-trend-nav-btn" disabled={navNextDisabled} onclick={handleTrendNext}>&#8250;</button>
+                        </div>
+                        <!-- Grouped bars: Contact + Account side by side -->
+                        <div class="dash-trend-cols">
+                            <template for:each={trendData} for:item="m">
+                                <div key={m.key} class="dash-trend-col">
+                                    <div class="dash-trend-spacer"></div>
+                                    <div class="dash-trend-grp">
+                                        <div class="dash-trend-grp__bar">
+                                            <template if:true={m.showContactCount}>
+                                                <div class="dash-trend-cnt" style={m.contactCountStyle}>{m.contactCount}</div>
+                                            </template>
+                                            <div class="dash-trend-seg" style={m.contactBarStyle}></div>
+                                        </div>
+                                        <div class="dash-trend-grp__bar">
+                                            <template if:true={m.showAccountCount}>
+                                                <div class="dash-trend-cnt" style={m.accountCountStyle}>{m.accountCount}</div>
+                                            </template>
+                                            <div class="dash-trend-seg" style={m.accountBarStyle}></div>
+                                        </div>
+                                    </div>
+                                    <div class="dash-trend-label">{m.label}</div>
+                                </div>
+                            </template>
+                        </div>
+                        <!-- Legend -->
+                        <div class="dash-trend-legend">
+                            <span class="dash-tl-dot" style={trendLegendContactStyle}></span>
+                            <span class="dash-tl-txt">{i18n.objectTypeContact}</span>
+                            <span class="dash-tl-dot" style={trendLegendAccountStyle}></span>
+                            <span class="dash-tl-txt">{i18n.objectTypeAccount}</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+
+        <!-- ── Color customization panel ─────────────────────────────────────── -->
+        <template if:true={_showColorPanel}>
+            <div class="color-panel-backdrop" onclick={handleColorPanelBackdropClick}>
+                <div class="color-panel" onclick={handleColorPanelBodyClick}>
+                    <div class="color-panel__header">
+                        <span class="color-panel__title">{i18n.colorPanel}</span>
+                        <button class="color-panel__close" onclick={handleCloseColorPanel}>&#10005;</button>
+                    </div>
+                    <div class="color-panel__body">
+
+                        <!-- Section: Status -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionStatus}</div>
+                            <template for:each={colorPanelStatusRows} for:item="row">
+                                <div key={row.key} class="color-row">
+                                    <span class="color-swatch" style={row.swatchStyle}></span>
+                                    <span class="color-row__label">{row.label}</span>
+                                    <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Section: Contact / Account (donut + trend) -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionObjTrend}</div>
+                            <template for:each={colorPanelObjRows} for:item="row">
+                                <div key={row.key} class="color-row">
+                                    <span class="color-swatch" style={row.swatchStyle}></span>
+                                    <span class="color-row__label">{row.label}</span>
+                                    <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Section: Series (detection type + closed reasons bars) -->
+                        <div class="color-section">
+                            <div class="color-section__title">{i18n.colorSectionSeries}</div>
+                            <div class="color-series-grid">
+                                <template for:each={colorPanelSeriesRows} for:item="row">
+                                    <div key={row.key} class="color-row color-row--compact">
+                                        <span class="color-swatch" style={row.swatchStyle}></span>
+                                        <span class="color-row__label">{row.label}</span>
+                                        <input type="color" class="color-input" data-key={row.key} value={row.color} oninput={handleColorChange} />
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="color-panel__footer">
+                        <button class="color-btn color-btn--reset" onclick={handleColorReset}>{i18n.colorReset}</button>
+                        <div class="color-panel__footer-right">
+                            <button class="color-btn color-btn--cancel" onclick={handleCloseColorPanel}>{i18n.cancel}</button>
+                            <button class="color-btn color-btn--save" onclick={handleColorSave}>{i18n.save}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+    </div>
+</template>

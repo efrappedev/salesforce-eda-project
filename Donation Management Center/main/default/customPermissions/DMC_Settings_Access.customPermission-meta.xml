@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants access to the DMC Settings tab where Zeffy API key and webhook secret can be configured.</description>
+    <label>DMC Settings Access</label>
+</CustomPermission>

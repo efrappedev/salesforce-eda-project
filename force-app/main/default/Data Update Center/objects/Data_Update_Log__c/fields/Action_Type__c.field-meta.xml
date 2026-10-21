@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Action_Type__c</fullName>
+    <description>Lifecycle state of this log record. SUBMIT_PENDING = before-snapshot captured at public submit time. APPLY_COMPLETED = reviewer applied changes successfully. APPLY_ERROR = an exception was thrown while applying. ROLLBACK_COMPLETED = a reviewer reverted a prior APPLY_COMPLETED change back to its before-state.</description>
+    <label>Action Type</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>SUBMIT_PENDING</fullName>
+                <default>false</default>
+                <label>Pending (before-snapshot captured)</label>
+            </value>
+            <value>
+                <fullName>APPLY_COMPLETED</fullName>
+                <default>false</default>
+                <label>Completed</label>
+            </value>
+            <value>
+                <fullName>APPLY_ERROR</fullName>
+                <default>false</default>
+                <label>Error</label>
+            </value>
+            <value>
+                <fullName>ROLLBACK_COMPLETED</fullName>
+                <default>false</default>
+                <label>Rolled Back</label>
+            </value>
+            <value>
+                <fullName>CORRECTED</fullName>
+                <default>false</default>
+                <label>Corrected (proposed value edited before apply)</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

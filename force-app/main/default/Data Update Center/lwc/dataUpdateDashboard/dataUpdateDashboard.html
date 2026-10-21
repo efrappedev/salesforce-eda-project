@@ -1,0 +1,113 @@
+<template>
+    <div class="duc-dash">
+        <div class="duc-dash-top">
+            <div class="duc-dash-title">{i18n.rdDashTitle}</div>
+            <template lwc:if={hasFormFilter}>
+                <div class="duc-chips" role="group" aria-label={i18n.rdLkForm}>
+                    <template for:each={formChips} for:item="c">
+                        <button key={c.value} class={c.cls} data-value={c.value} aria-pressed={c.pressed}
+                                onclick={handleFormChip}>{c.label}</button>
+                    </template>
+                    <template lwc:if={hasMoreForms}>
+                        <select class="duc-chip duc-chip-more" aria-label={moreFormsLabel} onchange={handleMoreForms}>
+                            <option value="" selected>{moreFormsLabel}</option>
+                            <template for:each={moreFormOptions} for:item="o">
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            </template>
+                        </select>
+                    </template>
+                </div>
+            </template>
+            <button class="duc-pen" onclick={handleRefresh} title={i18n.rdRefresh} aria-label={i18n.rdRefresh}>
+                <c-data-update-icon name="refresh" size="15"></c-data-update-icon>
+            </button>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+        </template>
+        <template lwc:else>
+            <div class="duc-tiles">
+                <template for:each={tiles} for:item="t">
+                    <button key={t.key} class="duc-kpi" style={t.style} data-status={t.status} onclick={handleStatusClick}>
+                        <b>{t.value}</b><span>{t.label}</span>
+                    </button>
+                </template>
+                <template lwc:if={showChecklistCard}>
+                    <div class="duc-kpi" style={churchTileStyle} role="button" tabindex="0" title={i18n.checklistInfoText}
+                         onclick={handleOpenChecklist} onkeydown={handleChurchKey}>
+                        <b>{checklistStats.responded}<small class="duc-kpi-of"> / {checklistStats.total}</small></b>
+                        <span>{i18n.rdKChurch}</span>
+                        <div class="duc-kpi-bar"><i style={checklistPct}></i></div>
+                        <small class="duc-kpi-sub" title={checklistCardSubtitle}>{checklistCardSubtitle}</small>
+                    </div>
+                </template>
+            </div>
+
+            <div class="duc-by-status">
+                <div class="duc-sec-head">
+                    <div class="duc-sec-title">{i18n.rdByStatus}</div>
+                    <button class="duc-color-btn" onclick={handleOpenColorPanel} title={i18n.rdColorPanel}>
+                        <c-data-update-icon name="pen" size="12"></c-data-update-icon>
+                        <span>{i18n.rdColorBtn}</span>
+                    </button>
+                </div>
+                <div class="duc-bars">
+                    <template for:each={statusBars} for:item="row">
+                        <button key={row.key} class={row.cls} aria-pressed={row.pressed} style={row.style} data-status={row.status} onclick={handleStatusClick}>
+                            <span class="duc-bl">{row.label}</span>
+                            <span class="duc-track"><i style={row.width}></i></span>
+                            <b>{row.count}</b>
+                        </button>
+                    </template>
+                </div>
+                <div class="duc-hint">{i18n.rdByStatusHint}</div>
+            </div>
+        </template>
+
+        <template lwc:if={showColorPanel}>
+            <div class="duc-cp-backdrop" onclick={handleColorBackdrop} onkeydown={handleColorPanelKey}>
+                <div class="duc-cp" role="dialog" aria-modal="true" aria-label={i18n.rdColorPanel}>
+                    <div class="duc-cp-head">
+                        <span>{i18n.rdColorPanel}</span>
+                        <button class="duc-pen" onclick={handleCloseColorPanel} title={i18n.rdCloseWindow} aria-label={i18n.rdCloseWindow}>
+                            <c-data-update-icon name="x" size="14"></c-data-update-icon>
+                        </button>
+                    </div>
+                    <div class="duc-cp-body">
+                        <div class="duc-sec-title">{i18n.rdByStatus}</div>
+                        <template for:each={colorPanelRows} for:item="row">
+                            <label key={row.key} class="duc-cp-row">
+                                <span class="duc-cp-sw" style={row.swatchStyle}></span>
+                                <span class="duc-cp-label">{row.label}</span>
+                                <input type="color" class="duc-cp-input" data-key={row.key} value={row.color} oninput={handleColorInput} />
+                            </label>
+                        </template>
+                        <div class="duc-hint">{i18n.rdColorPanelHint}</div>
+                    </div>
+                    <div class="duc-cp-foot">
+                        <button class="duc-btn" onclick={handleColorReset}>{i18n.rdColorReset}</button>
+                        <span class="duc-cp-spacer"></span>
+                        <button class="duc-btn" onclick={handleCloseColorPanel}>{i18n.btnCancel}</button>
+                        <button class="duc-btn duc-btn_primary" onclick={handleColorSave}>{i18n.rdColorSave}</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template lwc:if={showChecklistModal}>
+            <c-data-update-response-checklist
+                lang={lang}
+                form-name={checklistFormName}
+                form-label={checklistFormLabel}
+                form-options={checklistFormOptions}
+                onformchange={handleChecklistFormChange}
+                period={checklistPeriod}
+                custom-date={checklistCustomDate}
+                since-iso={checklistSinceIso}
+                onperiodchange={handleChecklistPeriodChange}
+                onclose={handleCloseChecklist}>
+            </c-data-update-response-checklist>
+        </template>
+    </div>
+</template>

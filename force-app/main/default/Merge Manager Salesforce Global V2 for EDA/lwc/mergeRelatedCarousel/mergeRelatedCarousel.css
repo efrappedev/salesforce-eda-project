@@ -1,10 +1,13 @@
-:host { display: block; }
+/* width + min-width keep the host inside a flex parent (slds-card__footer) */
+:host { display: block; width: 100%; min-width: 0; max-width: 100%; }
 
 .carousel-wrap {
     display: flex;
     align-items: center;
     width: 100%;
+    min-width: 0;
     gap: 4px;
+    overflow: hidden;
 }
 
 .carousel-arrow {
@@ -36,19 +39,25 @@
 }
 
 .rc-item {
-    flex: 1;
+    flex: 1 1 0;
     text-align: center;
     min-width: 0;
-    padding: 0 2px;
+    padding: 0 3px;
+    overflow: hidden;
 }
 
+/* Up to 2 lines, then ellipsis — fixed height keeps the counts aligned */
 .rc-label {
     font-size: 0.6875rem;
+    line-height: 1.2;
+    height: 2.4em;
     color: #706e6b;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     margin: 0 0 2px;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 /* countClass values come from the parent — replicate eda-count_active here */

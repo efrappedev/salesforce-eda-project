@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Read_Only__c</fullName>
+    <description>If true, the public form shows the question but the visitor cannot change it (set from the form builder: "Only see"). The portal ignores any value submitted for it. Is_Hidden__c wins when both are checked.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Is Read Only</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

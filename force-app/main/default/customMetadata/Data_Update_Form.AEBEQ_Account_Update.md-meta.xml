@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Account Updates</label>
+    <protected>false</protected>
+    <values>
+        <field>Allow_Duplicate_Open_Requests__c</field>
+        <value xsi:type="xsd:boolean">false</value>
+    </values>
+    <values>
+        <field>Identity_Field_1_API_Name__c</field>
+        <value xsi:type="xsd:string">ID_Account__c</value>
+    </values>
+    <values>
+        <field>Identity_Field_1_Comparison__c</field>
+        <value xsi:type="xsd:string">Exact</value>
+    </values>
+    <values>
+        <field>Identity_Field_2_API_Name__c</field>
+        <value xsi:type="xsd:string">LastName</value>
+    </values>
+    <values>
+        <field>Identity_Field_2_Comparison__c</field>
+        <value xsi:type="xsd:string">Normalized_Text</value>
+    </values>
+    <values>
+        <field>Is_Active__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>Is_Core_Form__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>Lock_Date_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Data_Update_Locked_Date__c</value>
+    </values>
+    <values>
+        <field>Lock_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Data_Update_Locked__c</value>
+    </values>
+    <values>
+        <field>Network_Name__c</field>
+        <value xsi:type="xsd:string">Mise à jour de compte AEBEQ</value>
+    </values>
+    <values>
+        <field>Owner_Queue_DeveloperName__c</field>
+        <value xsi:type="xsd:string">Data_Update_Requests</value>
+    </values>
+    <values>
+        <field>Portal_Appearance__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Blocks__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Form_Subtitle_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Form_Subtitle_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Form_Title_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Form_Title_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Id_Help_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Id_Help_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Lookup_Subtitle_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Lookup_Subtitle_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Lookup_Title_EN__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Lookup_Title_FR__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Portal_Text_Styles__c</field>
+        <value xsi:nil="true"/>
+    </values>
+    <values>
+        <field>Record_Name_Field_API_Name__c</field>
+        <value xsi:type="xsd:string">Name</value>
+    </values>
+    <values>
+        <field>Subject_Template__c</field>
+        <value xsi:type="xsd:string">{RecordName}</value>
+    </values>
+    <values>
+        <field>Target_Base_Filter_Field__c</field>
+        <value xsi:type="xsd:string">IsPersonAccount</value>
+    </values>
+    <values>
+        <field>Target_Base_Filter_Value__c</field>
+        <value xsi:type="xsd:string">true</value>
+    </values>
+    <values>
+        <field>Target_Object_API_Name__c</field>
+        <value xsi:type="xsd:string">Account</value>
+    </values>
+</CustomMetadata>

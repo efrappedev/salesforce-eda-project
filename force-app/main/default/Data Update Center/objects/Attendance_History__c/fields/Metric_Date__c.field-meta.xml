@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Metric_Date__c</fullName>
+    <description>Effective date of this measurement, stamped with the apply date. The X axis for a time-series Report Chart of attendance over time.</description>
+    <label>Metric Date</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Date</type>
+</CustomField>

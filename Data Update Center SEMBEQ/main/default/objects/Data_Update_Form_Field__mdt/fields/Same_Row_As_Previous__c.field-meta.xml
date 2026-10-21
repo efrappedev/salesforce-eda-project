@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Same_Row_As_Previous__c</fullName>
+    <description>If true, the public form renders this field on the same visual row as the immediately preceding active field within the same section (side by side, 2 fields per row), instead of stacked on its own line. Purely a layout hint for dataUpdateForm — has no effect on validation, submission, or history. Ignored (field renders on its own row) if the preceding field is itself already paired with another one.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Same Row As Previous</label>
+    <defaultValue>false</defaultValue>
+    <type>Checkbox</type>
+</CustomField>

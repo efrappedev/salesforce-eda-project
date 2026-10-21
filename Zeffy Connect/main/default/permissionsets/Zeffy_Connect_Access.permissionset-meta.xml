@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Base access for Zeffy Connect users. Grants app, tickets, donation review, and Settings (event toggles, tasks, lapsed, holding expiry). Does NOT include API Key / Webhook Secret — add Zeffy Connect Admin Access for that.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Zeffy Connect Access</label>
+
+    <!-- ── App visibility ─────────────────────────────────────────────── -->
+    <applicationVisibilities>
+        <application>Zeffy_Connect</application>
+        <visible>true</visible>
+    </applicationVisibilities>
+
+    <!-- ── Object permissions (alphabetical) ─────────────────────────── -->
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Zeffy_Webhook_Log__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Zeffy_Connect_Audit_Log__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Zeffy_Fund__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Zeffy_Config__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Zeffy_Identity__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Zeffy_Review_Ticket__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <!-- ── Field permissions ─────────────────────────────────────────── -->
+
+    <!-- Zeffy_Review_Ticket__c fields -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Zeffy_Review_Ticket__c.Zeffy_Amount_Not_Applied__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Zeffy_Review_Ticket__c.Zeffy_Amount_Reviewed__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Zeffy_Contact_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Zeffy_Transaction_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.First_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Last_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Email__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Phone__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Company_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Language__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Address__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.City__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Province__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Postal_Code__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Country__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Eligible_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Currency__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Payment_Method__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Payment_Type__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Gift_Date__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Rate_Title__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Receipt_Number__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Receipt_URL__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Form_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Form_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Zeffy_Origin__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Is_Recurring__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Zeffy_Subscription_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Subscription_Frequency__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Note__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Annotation__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Raw_Payload__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Error_Message__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Resolved_Account__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Resolved_Gift__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Resolved_By__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Resolved_At__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Resolution_Notes__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Manual_Assignee_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Manual_Assignee_Name__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Zeffy_Connect_Audit_Log__c fields (read-only for staff — Apex writes these; Action__c is required so no FLS entry needed) -->
+    <fieldPermissions><editable>false</editable><field>Zeffy_Connect_Audit_Log__c.Performed_By__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Connect_Audit_Log__c.Performed_At__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Connect_Audit_Log__c.Account__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Connect_Audit_Log__c.Notes__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Zeffy_Identity__c fields (Account__c and Zeffy_Contact_Id__c are required — no FLS needed) -->
+    <fieldPermissions><editable>true</editable><field>Zeffy_Identity__c.Email__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Identity__c.Is_Primary__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Identity__c.First_Seen__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Identity__c.Source__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Account fields -->
+    <fieldPermissions><editable>true</editable><field>Account.Zeffy_Contact_Id__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- GiftTransaction custom fields (all 25) -->
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Annotation__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Buyer_Questions__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Campaign_Category__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Card_Brand__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Card_Last4__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Currency__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Dispute_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Dispute_Reason__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Dispute_Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Fund_Code__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Fund_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Zeffy_Origin__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Is_Recurring__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Language__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>GiftTransaction.Net_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Note__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Payer_Email__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Payer_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Rate_Title__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Receipt_URL__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Refund_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Refund_Date__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Tribute_Honouree__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Tribute_Type__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Zeffy_Raw_Payload__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Zeffy_Transaction_Id__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- GiftCommitment custom fields -->
+    <fieldPermissions><editable>true</editable><field>GiftCommitment.Zeffy_Subscription_Id__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Campaign fields -->
+    <fieldPermissions><editable>true</editable><field>Campaign.Zeffy_Form_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Campaign.Zeffy_Fund__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Zeffy_Fund__c fields -->
+    <fieldPermissions><editable>false</editable><field>Zeffy_Fund__c.Description__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Fund__c.Is_Active__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Zeffy_Review_Ticket__c — Fund field (staff can assign manually) -->
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Fund__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Audit fixes 2026-10-02: Zeffy payload fields, webhook log (read), new lookups -->
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Buyer_Questions__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Campaign_Category__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Card_Brand__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Card_Last4__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Discount_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Discount_Code__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Dispute_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Dispute_Reason__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Dispute_Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Fund_Code__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Fund_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Fund_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Is_Corporate__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Review_Ticket__c.Address_Differs__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Refund_Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Refund_Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Pre_Review_Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Resolved_Commitment_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Resolved_Commitment__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Transaction_Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Tribute_Honouree__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Review_Ticket__c.Tribute_Type__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Amount__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Detail__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Donor_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Event_Type__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Has_Raw_Payload__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Message__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Occurred_At__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Raw_Payload__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Status__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Webhook_Log__c.Transaction_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Connect_Audit_Log__c.Ticket__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>GiftTransaction.Zeffy_Fund__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Campaign.Is_Zeffy_Managed__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Config__c.Process_Contact_Events__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Config__c.Process_Payment_Created__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Config__c.Process_Payment_Deleted__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field>Zeffy_Config__c.Process_Payment_Updated__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- Zeffy_Config__c — non-credential fields (language + app settings, all users can edit) -->
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Auto_Task_Enabled__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Holding_Auto_Expire_Enabled__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Holding_Expire_Days__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Show_Followup_Button__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Holding_Expire_Disabled_At__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Language__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Alert_Enabled__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Days__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Owner_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Owner_Name__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Schedule_Day__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Lapsed_Schedule_Frequency__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Due_Days__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Owner_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Zeffy_Config__c.Task_Owner_Name__c</field><readable>true</readable></fieldPermissions>
+
+    <!-- ── Tab visibility ────────────────────────────────────────────── -->
+    <tabSettings>
+        <tab>Zeffy_Connect_Review_Manager</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Zeffy_Review_Ticket__c</tab>
+        <visibility>Available</visibility>
+    </tabSettings>
+
+    <!-- ── Apex class access ──────────────────────────────────────────── -->
+    <classAccesses>
+        <apexClass>ZeffyConnectConfigService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZeffyConnectDonationService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZeffyConnectLapsedDonorBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZeffyConnectFundService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZeffyConnectWebhookReceiver</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ZeffyHoldingExpireBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+</PermissionSet>

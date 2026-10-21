@@ -1,0 +1,216 @@
+<template>
+    <!-- Mobile / small-screen block -->
+    <template if:true={isMobileDevice}>
+        <div class="mobile-block">
+            <lightning-icon icon-name="utility:desktop" size="large"
+                class="mobile-block__icon">
+            </lightning-icon>
+            <h2 class="mobile-block__title">{i18n.mobileTitle}</h2>
+            <p class="mobile-block__msg">{i18n.mobileMsg}</p>
+        </div>
+    </template>
+
+    <!-- Desktop app -->
+    <template if:false={isMobileDevice}>
+    <div class="merge-manager">
+        <div class="slds-grid slds-grid_vertical-stretch merge-manager__layout">
+
+            <!-- ── LEFT PANEL: ticket list ─────────────────────────────────── -->
+            <div class="merge-manager__left slds-col slds-size_1-of-3 slds-border_right">
+                <div class="slds-panel__header">
+                    <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread">
+                        <div class="slds-media slds-media_center">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name="standard:merge" size="x-small"></lightning-icon>
+                            </div>
+                            <div class="slds-media__body">
+                                <h2 class="slds-text-heading_small">{i18n.appTitle}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan + Reset + Config buttons -->
+                <div class="slds-p-horizontal_small slds-p-vertical_x-small slds-border_bottom
+                    slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <div class="slds-col slds-shrink">
+                        <lightning-button
+                            label={i18n.btnNewScan}
+                            icon-name="utility:search"
+                            variant="brand"
+                            onclick={openScanModal}>
+                        </lightning-button>
+                    </div>
+                    <div class="slds-col slds-shrink slds-grid slds-gutters_xx-small slds-grid_vertical-align-center">
+                        <template if:true={showResetButton}>
+                            <div class="slds-col slds-shrink">
+                                <lightning-button-icon
+                                    icon-name="utility:delete"
+                                    variant="border"
+                                    size="medium"
+                                    alternative-text={i18n.btnDeleteAlt}
+                                    title={i18n.btnResetTitle}
+                                    onclick={openResetModal}>
+                                </lightning-button-icon>
+                            </div>
+                        </template>
+                        <div class="slds-col slds-shrink">
+                            <lightning-button
+                                label={i18n.btnSettings}
+                                icon-name="utility:settings"
+                                variant="neutral"
+                                title={i18n.btnSettingsTitle}
+                                onclick={openObjectConfigModal}>
+                            </lightning-button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ticket list -->
+                <c-merge-ticket-list
+                    lang={lang}
+                    selected-ticket-id={activeTabId}
+                    onticketselect={handleTicketSelect}
+                    onticketreopened={handleTicketReopened}>
+                </c-merge-ticket-list>
+            </div>
+
+            <!-- ── RIGHT PANEL: tabs + wizards ────────────────────────────── -->
+            <div class="merge-manager__right slds-col slds-size_2-of-3">
+
+                <!-- Tab bar — always visible; dashboard tab is permanent first tab -->
+                <div class="mm-tabs-nav">
+                    <template if:true={_hasTabOverflow}>
+                    <button class="mm-tabs-arrow mm-tabs-arrow_left"
+                            onclick={scrollTabsLeft}
+                            title={i18n.tabScrollLeft}>&#8249;</button>
+                    </template>
+                    <div class="mm-tabs">
+                        <div class={dashboardTabClass} onclick={handleDashboardTabClick} title={i18n.dashboardTab}>
+                            <lightning-icon icon-name="utility:chart" size="xx-small" class="mm-tab__icon"></lightning-icon>
+                            <span class="mm-tab__label">{i18n.dashboardTab}</span>
+                        </div>
+                        <template for:each={enrichedTabs} for:item="tab">
+                            <div key={tab.ticketId}
+                                 class={tab.tabClass}
+                                 data-id={tab.ticketId}
+                                 onclick={handleTabActivate}
+                                 title={tab.label}>
+                                <lightning-icon
+                                    icon-name={tab.icon}
+                                    size="xx-small"
+                                    class="mm-tab__icon">
+                                </lightning-icon>
+                                <span class="mm-tab__label">{tab.label}</span>
+                                <button class="mm-tab__close"
+                                        data-id={tab.ticketId}
+                                        onclick={handleTabClose}
+                                        title={i18n.tabClose}>&#x2715;</button>
+                            </div>
+                        </template>
+                    </div>
+                    <template if:true={_hasTabOverflow}>
+                    <button class="mm-tabs-arrow mm-tabs-arrow_right"
+                            onclick={scrollTabsRight}
+                            title={i18n.tabScrollRight}>&#8250;</button>
+                    </template>
+                </div>
+
+                <!-- Dashboard panel — lazy mounted on first click -->
+                <template if:true={showDashboard}>
+                    <div class={dashboardPanelClass}>
+                        <c-merge-dashboard lang={lang}></c-merge-dashboard>
+                    </div>
+                </template>
+
+                <!-- Spinner shown during initial 300ms before dashboard mounts -->
+                <template if:true={_dashboardLoading}>
+                    <div class="mm-panel mm-loading">
+                        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                    </div>
+                </template>
+
+                <!-- One wizard per open tab; active = visible, others hidden -->
+                <template for:each={enrichedTabs} for:item="tab">
+                    <div key={tab.ticketId} class={tab.panelClass}>
+                        <c-merge-wizard
+                            lang={lang}
+                            ticket-id={tab.ticketId}
+                            object-type={tab.objectType}
+                            onmergecomplete={handleMergeComplete}
+                            onundocomplete={handleUndoComplete}
+                            ondismissed={handleDismissed}
+                            onticketreopened={handleTicketReopened}
+                            onclosetab={handleWizardCloseTab}
+                            onreasonadded={handleReasonAdded}>
+                        </c-merge-wizard>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    </template>
+
+    <!-- Object config modal (la tuerca) -->
+    <template if:true={showObjectConfigModal}>
+        <c-merge-object-config
+            lang={lang}
+            onlangchange={handleLangChange}
+            onconfigsaved={handleConfigSaved}
+            onclose={closeObjectConfigModal}>
+        </c-merge-object-config>
+    </template>
+
+    <!-- Scan modal -->
+    <template if:true={showScanModal}>
+        <c-merge-scan-modal
+            lang={lang}
+            default-object-type={_scanModalObjectType}
+            onclosescan={closeScanModal}
+            onscancomplete={handleScanComplete}>
+        </c-merge-scan-modal>
+    </template>
+
+    <!-- Reset confirmation modal -->
+    <template if:true={showResetModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header slds-theme_error">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        variant="bare-inverse"
+                        class="slds-modal__close"
+                        alternative-text={i18n.close}
+                        onclick={closeResetModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title">
+                        <lightning-icon icon-name="utility:warning" size="small"
+                            class="slds-m-right_x-small" variant="inverse">
+                        </lightning-icon>
+                        {i18n.resetModalTitle}
+                    </h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-m-bottom_small">
+                        {i18n.resetDescPart1} <strong>{i18n.resetDescBold}</strong> {i18n.resetDescPart2}
+                    </p>
+                    <p class="slds-text-color_error slds-text-body_small">
+                        {i18n.resetWarning}
+                    </p>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label={i18n.cancel} onclick={closeResetModal}></lightning-button>
+                    <lightning-button
+                        label={i18n.btnDeleteAll}
+                        variant="destructive"
+                        icon-name="utility:delete"
+                        onclick={confirmReset}
+                        disabled={isResetting}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants Read and Edit access to the Gender Identity field on Contact.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Gender Identity Access</label>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Contact.GenderIdentity</field>
+        <readable>true</readable>
+    </fieldPermissions>
+</PermissionSet>

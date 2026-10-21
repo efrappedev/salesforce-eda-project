@@ -1,0 +1,1217 @@
+/* Wizard fills the right panel and is itself a flex column.
+   Header and footer never scroll; only the body overflows. */
+:host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative; /* needed for the executing overlay */
+}
+
+.wizard-header {
+    flex-shrink: 0;
+    background-color: #fafaf9;
+    z-index: 10;
+}
+
+.wizard-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.wizard-footer {
+    flex-shrink: 0;
+    background-color: #fafaf9;
+    z-index: 10;
+}
+
+/* ── Custom step progress ────────────────────────────────────────────────── */
+
+.wiz-stepper {
+    display: flex;
+    align-items: flex-start;
+    padding: 0.75rem 0.5rem;
+}
+
+.wiz-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 72px;
+}
+
+.wiz-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0;
+    margin-bottom: 5px;
+    cursor: default;
+    outline: none;
+    transition: box-shadow 0.15s;
+}
+
+.wiz-circle:disabled { opacity: 1; cursor: default; }
+
+.wiz-circle_done {
+    background: #2e844a;
+    color: #fff;
+    cursor: pointer;
+}
+.wiz-circle_done:hover { box-shadow: 0 0 0 4px rgba(46,132,74,0.2); }
+
+.wiz-circle_active {
+    background: #0176d3;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(1,118,211,0.2);
+}
+
+.wiz-circle_inactive {
+    background: #e0e0e0;
+    color: #706e6b;
+}
+
+.wiz-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #706e6b;
+    text-align: center;
+    white-space: nowrap;
+}
+.wiz-label_active { color: #0176d3; font-weight: 700; }
+.wiz-label_done   { color: #2e844a; font-weight: 600; }
+
+.wiz-connector {
+    flex: 1;
+    height: 2px;
+    background: #e0e0e0;
+    margin-top: 15px;
+    min-width: 16px;
+}
+.wiz-connector_done { background: #2e844a; }
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+
+.wizard-loading {
+    display: flex;
+    justify-content: center;
+    padding: 3rem;
+    min-height: 200px;
+    align-items: center;
+}
+
+/* ── Candidate cards (Step 1) ────────────────────────────────────────────── */
+
+.candidate-cards-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    padding-bottom: 0.25rem;
+}
+
+.candidate-cards-row_scroll {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.candidate-card-col {
+    flex: 1 1 280px;
+    min-width: 280px;
+}
+
+.candidate-cards-row_scroll .candidate-card-col {
+    flex: 0 0 280px;
+}
+
+.candidate-card {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.candidate-card:hover {
+    border-color: #0176d3;
+    box-shadow: 0 2px 8px rgba(1,118,211,0.15);
+}
+
+.candidate-card_selected {
+    border-color: #0176d3 !important;
+    box-shadow: 0 0 0 3px rgba(1,118,211,0.2);
+}
+
+.candidate-card_loser {
+    border-color: #ba0517 !important;
+    box-shadow: 0 0 0 3px rgba(186,5,23,0.15);
+}
+
+/* Post-merge cleanup notification banner */
+.cleanup-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background-color: #f3fdf3;
+    border: 1px solid #4bca81;
+    border-left: 4px solid #2e844a;
+    border-radius: 4px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #1d4e2d;
+    line-height: 1.5;
+}
+.cleanup-banner__icon {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: #2e844a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+.cleanup-banner__title {
+    font-weight: 700;
+    margin: 0 0 2px 0;
+}
+.cleanup-banner__detail {
+    margin: 0;
+    color: #2e4637;
+}
+
+/* Info banner for 3+ candidates */
+.multi-candidate-banner {
+    display: flex;
+    align-items: flex-start;
+    background-color: #f0f8ff;
+    border: 1px solid #9dcaf0;
+    border-radius: 4px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #032d60;
+    line-height: 1.5;
+}
+.multi-candidate-banner__icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+.multi-candidate-banner__text {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Loser-selection pill in card header (3+ candidates) */
+.loser-pill {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 2px 10px;
+    border-radius: 12px;
+    border: 1px solid #c9c7c5;
+    background: #fff;
+    color: #3e3e3c;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.6;
+    transition: background-color 0.1s, border-color 0.1s;
+}
+.loser-pill:hover {
+    border-color: #ba0517;
+    color: #ba0517;
+    background: #fde8e8;
+}
+.loser-pill_selected {
+    background: #fde8e8;
+    color: #ba0517;
+    border-color: #f0a0a0;
+}
+.loser-pill_selected:hover {
+    background: #ffd0d0;
+}
+
+.candidate-fields {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    column-gap: 6px;
+    row-gap: 3px;
+    margin: 0;
+}
+
+.candidate-fields dt {
+    color: #706e6b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    align-self: baseline;
+}
+
+.candidate-fields dd {
+    margin: 0;
+    color: #3e3e3c;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    align-self: baseline;
+}
+
+.eda-count_active {
+    color: #ba0517;
+    font-weight: 700;
+}
+
+.candidate-warning {
+    display: flex;
+    align-items: center;
+    background-color: #fecd34;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #3e3e3c;
+}
+
+/* ── Confidence badge ────────────────────────────────────────────────────── */
+
+.badge-medium {
+    background-color: #dd7a01;
+    color: #fff;
+}
+
+/* ── Orphaned Account modal ──────────────────────────────────────────────── */
+
+.orphan-account-row {
+    background-color: #fafaf9;
+}
+
+.badge-warning-soft {
+    background-color: #fff3cd;
+    color: #664d03;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #ffca2c;
+}
+
+/* ── Executing overlay ───────────────────────────────────────────────────── */
+
+.wizard-executing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 4px;
+}
+
+/* ── Modal close button ────────────────────────────────────────────────── */
+.btn-modal-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.375rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    opacity: 0.85;
+    z-index: 10;
+}
+.btn-modal-close:hover { opacity: 1; }
+
+/* ── Deleted accounts restore section ─────────────────────────────────── */
+.deleted-accounts-box {
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    background: #fafaf9;
+    padding: 0.75rem;
+}
+.deleted-accounts-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+.deleted-account-row {
+    padding: 0.375rem 0;
+    border-top: 1px solid #e8e7e6;
+    font-size: 0.8125rem;
+}
+
+.deleted-record-badge {
+    display: inline-block;
+    background: #fde8e8;
+    color: #ba0517;
+    border: 1px solid #f0a0a0;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.deleted-expired-note {
+    font-size: 0.7rem;
+    color: #a8a8a8;
+    font-style: italic;
+    white-space: nowrap;
+}
+.deleted-restore-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+.deleted-days-note {
+    font-size: 0.65rem;
+    color: #706e6b;
+    white-space: nowrap;
+}
+
+/* ── Merged-status indicators on wizard candidate cards ───────────────── */
+.merged-loser-row {
+    gap: 0.375rem;
+}
+
+.undo-badge-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: 1px solid #9dcaf0;
+    border-radius: 10px;
+    padding: 2px 8px 2px 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #0176d3;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: background-color 0.1s, border-color 0.1s;
+}
+
+.undo-badge-btn:hover:not(:disabled) {
+    background: #e8f4fd;
+    border-color: #0176d3;
+}
+
+.undo-badge-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.merged-loser-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #fde8e8;
+    color: #ba0517;
+    border: 1px solid #f0a0a0;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 9px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.merged-master-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #eaf5ea;
+    color: #2e844a;
+    border: 1px solid #91db8b;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 9px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+/* ── Candidate card header title — name + eye icon inline ───────────────────── */
+
+.candidate-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+/* ── View record button on candidate cards ──────────────────────────────────── */
+
+.candidate-view-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 4px;
+    color: #706e6b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.12s, color 0.12s;
+    line-height: 1;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.candidate-view-btn:hover {
+    background-color: #e8f4fd;
+    color: #0176d3;
+}
+
+/* ── Candidate full-record modal (Step 1 view button) ───────────────────────── */
+
+.candidate-modal__container {
+    max-width: 64rem;
+    width: 92vw;
+}
+
+.candidate-modal__body {
+    padding: 1rem 1.75rem;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+/* ── Related record compact modal (Step 2 view button) ──────────────────────── */
+
+.record-view-modal__container {
+    max-width: 36rem;
+    width: 90%;
+}
+
+.record-view-modal__body {
+    padding: 1rem 1.5rem;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+.record-view-modal__spinner {
+    min-height: 6rem;
+}
+
+.record-view-modal__fields {
+    padding: 0.25rem 0;
+}
+
+/* ── Snapshot view modal (merged loser records) ──────────────────────────── */
+
+.snapshot-modal__body {
+    padding: 0;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+.snapshot-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background-color: #fff3e0;
+    border-left: 4px solid #dd7a01;
+    padding: 0.75rem 1rem;
+}
+
+.snapshot-banner__icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #dd7a01;
+}
+
+.snapshot-banner__title {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #3e2f00;
+    margin: 0 0 2px 0;
+}
+
+.snapshot-banner__text {
+    font-size: 0.8125rem;
+    color: #544000;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 2-column grid — mirrors lightning-record-form layout */
+.snapshot-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid #e0e0e0;
+}
+
+.snapshot-field {
+    padding: 0.625rem 1rem 0.5rem 1rem;
+    border-bottom: 1px solid #e8e7e6;
+    border-right: 1px solid #e8e7e6;
+    min-width: 0;
+}
+
+/* Right-column cells have no right border */
+.snapshot-field:nth-child(even) {
+    border-right: 0;
+}
+
+.snapshot-field__label {
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin: 0 0 0.25rem 0;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.snapshot-field__value {
+    font-size: 0.875rem;
+    color: #181818;
+    margin: 0;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+
+/* ── Candidate name link (opens native SF record page) ─────────────────── */
+.candidate-name-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: inherit;
+    font-weight: inherit;
+    color: #0176d3;
+    text-align: left;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.candidate-name-link:hover {
+    text-decoration: underline;
+    color: #014486;
+}
+
+/* ── Ignore reason banner (ticket already closed) ───────────────────────── */
+.ignore-reason-banner {
+    background: #fef3cd;
+    border: 1px solid #f4bc25;
+    border-left: 4px solid #f4bc25;
+    border-radius: 0.25rem;
+    padding: 0.625rem 0.75rem;
+}
+
+.ignore-reason-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #514f4d;
+}
+
+.ignore-reason-banner__icon {
+    --slds-c-icon-color-foreground: #c07000;
+    --slds-c-icon-color-foreground-default: #c07000;
+    flex-shrink: 0;
+}
+
+.ignore-reason-banner__notes {
+    margin: 0.375rem 0 0 1.5rem;
+    font-size: 0.8125rem;
+    color: #706e6b;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Merge log banner (ticket already merged) ────────────────────────────── */
+.merge-log-banner {
+    background: #e8f4e8;
+    border: 1px solid #2e844a;
+    border-left: 4px solid #2e844a;
+    border-radius: 0.25rem;
+    padding: 0.625rem 0.75rem;
+}
+
+.merge-log-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #1c3a27;
+    flex-wrap: wrap;
+}
+
+.merge-log-banner__icon {
+    --slds-c-icon-color-foreground: #2e844a;
+    --slds-c-icon-color-foreground-default: #2e844a;
+    flex-shrink: 0;
+}
+
+.merge-log-banner__row {
+    margin: 0.3rem 0 0 1.5rem;
+    font-size: 0.8125rem;
+    color: #2c4631;
+}
+
+.merge-log-banner__label {
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
+/* ── Exception modal — choice cards ───────────────────────────────────── */
+.exception-choice-grid {
+    display: flex;
+    gap: 0.875rem;
+}
+.exception-choice-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 1.25rem 1rem 1.125rem;
+    border: 1.5px solid #dddbda;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+
+/* ── À Valider card (blue) ── */
+.exception-choice-card_validate:hover:not(.exception-choice-card_selected) {
+    border-color: #9dcaf0;
+    background: #f0f7ff;
+    box-shadow: 0 2px 6px rgba(1,118,211,0.12);
+}
+.exception-choice-card_validate.exception-choice-card_selected {
+    border-color: #0176d3;
+    background: #f0f7ff;
+    box-shadow: 0 0 0 1px #0176d3, 0 2px 6px rgba(1,118,211,0.15);
+}
+
+/* ── Cerrar card (same blue as validate) ── */
+.exception-choice-card_close:hover:not(.exception-choice-card_selected) {
+    border-color: #9dcaf0;
+    background: #f0f7ff;
+    box-shadow: 0 2px 6px rgba(1,118,211,0.12);
+}
+.exception-choice-card_close.exception-choice-card_selected {
+    border-color: #0176d3;
+    background: #f0f7ff;
+    box-shadow: 0 0 0 1px #0176d3, 0 2px 6px rgba(1,118,211,0.15);
+}
+
+/* ── Icon circle ── */
+.exception-card__icon-wrap {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-bottom: 0.25rem;
+}
+.exception-card__icon-wrap_validate {
+    background: #ddeeff;
+}
+.exception-card__icon-wrap_close {
+    background: #ddeeff;
+}
+
+/* ── Check badge ── */
+.exception-card__check {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.exception-card__check_validate {
+    background: #0176d3;
+    color: #fff;
+}
+.exception-card__check_close {
+    background: #0176d3;
+    color: #fff;
+}
+
+/* ── Card text ── */
+.exception-card__title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #080707;
+    display: block;
+}
+.exception-card__desc {
+    font-size: 0.75rem;
+    color: #706e6b;
+    display: block;
+    line-height: 1.4;
+}
+
+/* ── Form area (appears after card click) ────────────────────────────── */
+.exception-content {
+    margin-top: 1.125rem;
+    padding: 1rem;
+    background: #f9f8f7;
+    border-radius: 8px;
+    border: 1px solid #e8e7e6;
+    border-left-width: 4px;
+}
+.exception-content_validate { border-left-color: #0176d3; }
+.exception-content_close    { border-left-color: #0176d3; }
+
+.dismiss-add-reason {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.dismiss-reason-input { flex: 1; height: 2rem; }
+.dismiss-add-btn { white-space: nowrap; flex-shrink: 0; }
+
+/* ── Closed ticket banner ──────────────────────────────────────────────── */
+.closed-reason-banner {
+    background: #eaf5ee;
+    border: 1px solid #2e844a;
+    border-left: 4px solid #2e844a;
+    border-radius: 0.25rem;
+    padding: 0.625rem 0.75rem;
+}
+.closed-reason-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #1c5c33;
+    flex-wrap: wrap;
+}
+.closed-reason-banner__icon {
+    --slds-c-icon-color-foreground: #2e844a;
+    --slds-c-icon-color-foreground-default: #2e844a;
+    flex-shrink: 0;
+}
+.closed-reason-banner__badge {
+    background: #2e844a;
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+.closed-reason-banner__notes {
+    margin: 0.375rem 0 0 1.5rem;
+    font-size: 0.8125rem;
+    color: #1c5c33;
+}
+
+/* ── Reopened banner ─────────────────────────────────────────────────────── */
+
+.reopened-banner {
+    background: #f3f3f3;
+    border: 1px solid #8e8e8e;
+    border-left: 4px solid #706e6b;
+    border-radius: 0.25rem;
+    padding: 0.625rem 0.75rem;
+}
+.reopened-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #3e3e3c;
+}
+.reopened-banner__icon {
+    --slds-c-icon-color-foreground: #706e6b;
+    --slds-c-icon-color-foreground-default: #706e6b;
+    flex-shrink: 0;
+}
+
+/* ── History inside banner ───────────────────────────────────────────────── */
+/* ── Unified history log section ─────────────────────────────────────────── */
+
+.audit-log-box {
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    background: #fafaf9;
+    padding: 0.75rem;
+}
+.audit-log-header {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+.audit-log-entry {
+    padding: 0.375rem 0;
+    border-top: 1px solid #e8e7e6;
+}
+
+.banner-hist-entry {
+    background: rgba(0,0,0,0.04);
+    border-left: 2px solid rgba(0,0,0,0.12);
+    border-radius: 0 0.2rem 0.2rem 0;
+    padding: 0.25rem 0.5rem;
+}
+.banner-hist-entry__row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: #3e3e3c;
+    flex-wrap: wrap;
+}
+.banner-hist-entry__status {
+    font-weight: 700;
+    color: #181818;
+}
+.banner-hist-entry__date {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    color: #706e6b;
+}
+.banner-hist-entry__notes {
+    margin: 0.15rem 0 0 1.1rem;
+    font-size: 0.6875rem;
+    color: #514f4d;
+    font-style: italic;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.banner-hist-expand {
+    background: none;
+    border: none;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.15rem 0;
+    text-align: left;
+    color: rgba(0,0,0,0.45);
+    font-weight: 600;
+}
+.banner-hist-expand:hover {
+    color: rgba(0,0,0,0.7);
+}
+
+/* ── Add custom reason — container + popover ───────────────────────────── */
+.add-reason-container {
+    position: relative;
+}
+.add-reason-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 9001;
+    background: #fff;
+    border: 1px solid #dddbda;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+    padding: 0.875rem;
+}
+.add-reason-popover__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #080707;
+}
+.add-reason-popover__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #706e6b;
+    font-size: 0.875rem;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.add-reason-popover__close:hover { background: #f3f3f3; color: #080707; }
+.add-reason-popover__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+}
+
+/* ── Merge log banner — undo section ──────────────────────────────────── */
+.merge-log-banner__undo {
+    margin-top: 0.625rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.merge-log-banner__undo-note {
+    font-size: 0.75rem;
+    color: rgba(0,0,0,0.5);
+    font-style: italic;
+}
+.undo-confirm-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+.undo-confirm-row__icon {
+    --slds-c-icon-color-foreground: #ca8a00;
+    --slds-c-icon-color-foreground-default: #ca8a00;
+}
+
+/* ── Related records section (Step 2) ────────────────────────────────── */
+.related-records-section {
+    border: 1px solid #e8e7e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.related-records-section__header {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem;
+    background: #f0f7ff;
+    border-bottom: 1px solid #c9ddf5;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #0176d3;
+}
+.related-records-section__title {
+    flex: 1;
+}
+.related-records-section__hint {
+    padding: 0.5rem 1rem 0;
+    font-size: 0.8125rem;
+    color: #706e6b;
+}
+.related-obj-group {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f2f2;
+}
+.related-obj-group:last-child { border-bottom: none; }
+.related-obj-header {
+    display: flex;
+    align-items: center;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #444;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.related-cols {
+    display: flex;
+    gap: 1rem;
+}
+.related-col {
+    flex: 1;
+    min-width: 0;
+}
+.related-col__title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #706e6b;
+    margin-bottom: 0.375rem;
+}
+.related-rec {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    margin-bottom: 0.25rem;
+    background: #f9f8f7;
+    font-size: 0.8125rem;
+}
+.related-rec_conflict {
+    background: #fff8e1;
+    border: 1px solid #f0c800;
+}
+.related-rec__icon_master {
+    flex-shrink: 0;
+    --slds-c-icon-color-foreground: #2e844a;
+    --slds-c-icon-color-foreground-default: #2e844a;
+}
+.related-rec__name-block {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+.related-rec__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #1b1b1b;
+}
+.related-rec__preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem 0.5rem;
+    margin-top: 0.05rem;
+}
+.related-rec__preview-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+}
+.related-rec__preview-chip:not(:last-child)::after {
+    content: '·';
+    color: #c9c7c5;
+    margin-left: 0.15rem;
+}
+.related-rec__preview-lbl {
+    color: #706e6b;
+}
+.related-rec__preview-val {
+    color: #3e3e3c;
+    font-weight: 500;
+}
+.related-rec__view-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    color: #747474;
+    opacity: 0.4;
+    margin-left: 0.25rem;
+    padding: 0;
+    min-width: unset;
+    height: unset;
+    line-height: 1;
+}
+.related-rec__view-btn:hover {
+    opacity: 1;
+    color: #0070d2;
+}
+.record-view-modal__open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+.related-rec__empty {
+    font-size: 0.8125rem;
+    color: #b0adab;
+    padding: 0.25rem 0.5rem;
+}
+.related-conflict-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f0c800;
+    color: #3a2800;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.related-rec__delete-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #c23934;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.related-rec__checkbox {
+    accent-color: #c23934;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Step bar: muted for Merged/Closed tickets ───────────────────────────── */
+.wiz-stepper_muted {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+/* ── Footer: days-remaining text for Merged tickets ─────────────────────── */
+.merge-footer-days {
+    color: var(--lwc-colorTextWeak, #747474);
+    font-size: 0.8125rem;
+    align-self: center;
+    padding: 0 0.25rem;
+}
+
+/* ── Error banner (Step 1, ticket Status = Error) ────────────────────────── */
+.error-banner {
+    border-left: 4px solid #ba0517;
+    border-radius: 0.25rem;
+    background: #fff1f0;
+    padding: 0.75rem 1rem;
+}
+.error-banner__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #ba0517;
+    font-weight: 700;
+    --slds-c-icon-color-foreground: #ba0517;
+    --slds-c-icon-color-foreground-default: #ba0517;
+}
+.error-banner__icon { flex-shrink: 0; }
+.error-banner__msg {
+    margin-top: 0.5rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+    background: #ffeaea;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #6b0000;
+}
+.error-banner__hint {
+    margin-top: 0.375rem;
+    color: var(--lwc-colorTextWeak, #747474);
+    font-size: 0.8rem;
+    font-style: italic;
+}

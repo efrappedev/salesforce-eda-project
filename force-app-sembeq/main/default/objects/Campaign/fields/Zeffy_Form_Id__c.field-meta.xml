@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zeffy_Form_Id__c</fullName>
+    <description>ID of the Zeffy donation form/event tied to this Campaign - lets the webhook match incoming donations to a Campaign (and its Gift Designation) directly by ID, without name-based matching.</description>
+    <externalId>true</externalId>
+    <label>Zeffy Form ID</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

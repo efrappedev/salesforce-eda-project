@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Main screen of the Zeffy Connect — review donation tickets and link donors to Salesforce accounts.</description>
+    <flexiPage>Zeffy_Connect_Review_Manager</flexiPage>
+    <label>Zeffy Connect</label>
+    <motif>Custom27: Laptop</motif>
+</CustomTab>

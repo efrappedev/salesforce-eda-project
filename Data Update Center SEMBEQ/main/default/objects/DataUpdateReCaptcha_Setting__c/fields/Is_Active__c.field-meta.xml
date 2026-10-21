@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Is_Active__c</fullName>
+    <defaultValue>false</defaultValue>
+    <externalId>false</externalId>
+    <label>Is Active</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+    <description>Kill switch. While false (or Secret_Key__c is blank), the lookup form works exactly as before — no captcha is required and no verification is enforced. Set to true only after Site_Key__c and Secret_Key__c are filled in.</description>
+</CustomField>

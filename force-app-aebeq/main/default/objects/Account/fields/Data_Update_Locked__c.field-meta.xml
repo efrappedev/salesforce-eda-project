@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Data_Update_Locked__c</fullName>
+    <description>True once this contact has submitted an update request through the Data Update Center self-service portal. Blocks further submissions until an admin unlocks the record from the "Locked Accounts" list or the review panel.</description>
+    <externalId>false</externalId>
+    <label>Data Update Locked</label>
+    <defaultValue>false</defaultValue>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Checkbox</type>
+</CustomField>

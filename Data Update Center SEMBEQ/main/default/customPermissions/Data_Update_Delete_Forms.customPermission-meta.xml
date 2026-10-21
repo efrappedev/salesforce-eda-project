@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Allows permanently deleting Data Update Center forms (hard delete via Metadata API). Kept separate from Data Update Center Access so it can be granted only to trusted System Administrators, never to every user with app access.</description>
+    <isLicensed>false</isLicensed>
+    <label>Data Update Delete Forms</label>
+</CustomPermission>

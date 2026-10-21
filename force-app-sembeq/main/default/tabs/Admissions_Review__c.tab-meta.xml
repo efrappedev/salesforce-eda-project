@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customObject>true</customObject>
+    <label>Admissions Reviews</label>
+    <motif>Custom76: Book</motif>
+    <description>Tab for Admissions Review - SEMBEQ Admissions module.</description>
+</CustomTab>

@@ -1,0 +1,96 @@
+<template>
+    <div class="duc-mback" onclick={handleClose}></div>
+    <section class="duc-cl" role="dialog" aria-modal="true" aria-labelledby="duc-cl-title" onkeydown={handleKeydown}>
+        <header class="duc-cl-head">
+            <div class="duc-cl-titles">
+                <h2 id="duc-cl-title" class="duc-cl-title">{i18n.kpiChecklist}</h2>
+                <div class="duc-cl-sub">{subtitle}</div>
+            </div>
+            <button class="duc-pen duc-cl-x" onclick={handleClose} title={i18n.rdCloseWindow} aria-label={i18n.rdCloseWindow}>
+                <c-data-update-icon name="x" size="15"></c-data-update-icon>
+            </button>
+        </header>
+
+        <div class="duc-cl-tools">
+            <template lwc:if={hasFormChoice}>
+                <label class="duc-cl-field">
+                    <span class="duc-cl-lbl">{i18n.checklistFormLabel}</span>
+                    <select class="duc-select" onchange={handleFormChange}>
+                        <template for:each={formSelectOptions} for:item="o">
+                            <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                        </template>
+                    </select>
+                </label>
+            </template>
+            <label class="duc-cl-field">
+                <span class="duc-cl-lbl">{i18n.periodLabel}</span>
+                <select class="duc-select" onchange={handlePeriodChange}>
+                    <template for:each={periodOptions} for:item="o">
+                        <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                    </template>
+                </select>
+            </label>
+            <label class="duc-search duc-cl-search">
+                <c-data-update-icon name="search" size="15"></c-data-update-icon>
+                <input type="text" placeholder={i18n.checklistSearchPlaceholder} value={searchTerm}
+                       autocomplete="off" oninput={handleSearchChange} />
+            </label>
+        </div>
+
+        <div class="duc-cl-summary">
+            <div class="duc-cl-progress">
+                <b>{summaryText}</b>
+                <span class="duc-cl-track"><i style={pctStyle}></i></span>
+            </div>
+            <div class="duc-cl-segs" role="group">
+                <template for:each={statusSegments} for:item="g">
+                    <button key={g.value} class={g.cls} data-value={g.value} aria-pressed={g.pressed}
+                            onclick={handleStatusSegment}>{g.label}<span class="duc-cl-n">{g.count}</span></button>
+                </template>
+            </div>
+        </div>
+
+        <div class="duc-cl-body">
+            <template lwc:if={isLoading}>
+                <div class="duc-spin"><lightning-spinner size="small" alternative-text={i18n.loading}></lightning-spinner></div>
+            </template>
+            <template lwc:elseif={isEmpty}>
+                <div class="duc-empty">{i18n.checklistEmptyState}</div>
+            </template>
+            <template lwc:else>
+                <ul class="duc-cl-list">
+                    <template for:each={filteredItems} for:item="item">
+                        <li key={item.recordId} class={item.rowClass}>
+                            <span class="duc-cl-mark" title={item.statusAlt} aria-label={item.statusAlt}>
+                                <c-data-update-icon name={item.iconName} size="12"></c-data-update-icon>
+                            </span>
+                            <span class="duc-cl-name" title={item.recordName}>{item.recordName}</span>
+                            <span class="duc-cl-date" title={i18n.checklistLastResponse}>{item.dateText}</span>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+        </div>
+
+        <footer class="duc-cl-foot">
+            <button class="duc-btn" onclick={handleClose}>{i18n.rdClose}</button>
+        </footer>
+    </section>
+
+    <template lwc:if={showDatePicker}>
+        <div class="duc-mback duc-cl-dback" onclick={handleDateCancel}></div>
+        <div class="duc-mini-modal duc-cl-dmodal" role="dialog" aria-modal="true" aria-labelledby="duc-cl-dtitle"
+             onkeydown={handleKeydown}>
+            <div class="duc-mm-title" id="duc-cl-dtitle">{i18n.periodPickDate}</div>
+            <label class="duc-cl-field">
+                <span class="duc-cl-lbl">{i18n.periodSinceDate}</span>
+                <input type="date" class="duc-select duc-cl-date-input" value={draftDate}
+                       onchange={handleDraftDate} oninput={handleDraftDate} onkeydown={handleDateKey} />
+            </label>
+            <div class="duc-mm-foot">
+                <button class="duc-btn" onclick={handleDateCancel}>{i18n.rdCancel}</button>
+                <button class="duc-btn duc-btn_primary" disabled={isDateApplyDisabled} onclick={handleDateApply}>{i18n.rdConfirm}</button>
+            </div>
+        </div>
+    </template>
+</template>

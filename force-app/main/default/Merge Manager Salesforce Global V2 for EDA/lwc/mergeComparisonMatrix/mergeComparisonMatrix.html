@@ -100,18 +100,75 @@
                                     </template>
                                     <!-- Updateable: radio selector -->
                                     <template if:false={row.isReadOnly}>
-                                        <label class="matrix-cell-label">
-                                            <input
-                                                type="radio"
-                                                name={row.radioGroupName}
-                                                value={cell.recordId}
-                                                checked={cell.isSelected}
-                                                data-field={row.fieldApiName}
-                                                onchange={handleFieldDecisionChange}
-                                                class="slds-assistive-text">
-                                            <span class="matrix-cell-radio__faux"></span>
-                                            <span class="matrix-cell-value">{cell.displayValue}</span>
-                                        </label>
+                                        <template if:true={cell.isNormalCell}>
+                                            <label class="matrix-cell-label">
+                                                <input
+                                                    type="radio"
+                                                    name={row.radioGroupName}
+                                                    value={cell.recordId}
+                                                    checked={cell.isSelected}
+                                                    data-field={row.fieldApiName}
+                                                    onchange={handleFieldDecisionChange}
+                                                    class="slds-assistive-text">
+                                                <span class="matrix-cell-radio__faux"></span>
+                                                <span class="matrix-cell-value">{cell.displayValue}</span>
+                                            </label>
+                                            <!-- Value rescued from a duplicate, pending write into this empty field -->
+                                            <template if:true={cell.pendingRescue}>
+                                                <div class="rescue-pending" title={i18n.rescuePending}>
+                                                    <lightning-icon icon-name="utility:level_down" size="xx-small"
+                                                        class="rescue-pending__icon"></lightning-icon>
+                                                    <span>{cell.pendingRescue}</span>
+                                                </div>
+                                            </template>
+                                        </template>
+                                        <!-- Loser email cell: the email itself is the picklist -->
+                                        <template if:true={cell.isRescueCell}>
+                                            <div class="rescue-cell">
+                                                <button type="button" class={row.rescueInfo.dotClass}
+                                                    data-sourcefield={row.fieldApiName}
+                                                    data-loserid={row.rescueInfo.loserId}
+                                                    aria-label={i18n.rescueOverwrite}
+                                                    title={i18n.rescueOverwrite}
+                                                    onclick={handleRescueDot}></button>
+                                                <button type="button" class={row.rescueInfo.btnClass}
+                                                    data-sourcefield={row.fieldApiName}
+                                                    data-optcount={row.rescueInfo.optCount}
+                                                    aria-haspopup="true"
+                                                    aria-expanded={row.rescueInfo.ariaExpanded}
+                                                    onclick={handleRescueToggle}>
+                                                    <span class="rescue-drop__text">{cell.displayValue}</span>
+                                                    <lightning-icon icon-name="utility:chevrondown" size="xx-small"
+                                                        class="rescue-drop__chevron"></lightning-icon>
+                                                </button>
+                                                <template if:true={row.rescueInfo.needsAction}>
+                                                    <span class="rescue-flag">{i18n.rescueDifferent}</span>
+                                                </template>
+                                            </div>
+                                            <!-- Floating menu: position fixed, does not change row height -->
+                                            <template if:true={row.rescueInfo.isOpen}>
+                                                <div class="rescue-menu" style={row.rescueInfo.menuStyle}
+                                                    role="menu" onkeydown={handleRescueMenuKeydown}>
+                                                    <template for:each={row.rescueInfo.options} for:item="opt">
+                                                        <button key={opt.key} type="button" role="menuitemradio"
+                                                            class="rescue-menu__item"
+                                                            aria-checked={opt.ariaChecked}
+                                                            data-value={opt.value}
+                                                            data-sourcefield={row.fieldApiName}
+                                                            data-loserid={row.rescueInfo.loserId}
+                                                            onclick={handleRescuePick}>
+                                                            <span class="rescue-menu__check">
+                                                                <template if:true={opt.selected}>
+                                                                    <lightning-icon icon-name="utility:check" size="xx-small"
+                                                                        class="rescue-menu__check-icon"></lightning-icon>
+                                                                </template>
+                                                            </span>
+                                                            <span>{opt.label}</span>
+                                                        </button>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </template>
                                     </template>
                                 </td>
                             </template>

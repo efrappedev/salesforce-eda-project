@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Eglise_Attendance_Date__c</fullName>
+    <description>Date à laquelle le décompte d'assistance (Eglise_Attendance__c) a été pris — saisie par le visiteur sur le portail Data Update Center (formulaire Église), sur la même ligne que le champ d'assistance. Utilisée comme source pour Metric_Date__c sur Attendance_History__c via History_Date_Source_Field_API_Name__c, à la place d'une date auto-générée.</description>
+    <externalId>false</externalId>
+    <label>Église - Date de l'assistance</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Date</type>
+</CustomField>

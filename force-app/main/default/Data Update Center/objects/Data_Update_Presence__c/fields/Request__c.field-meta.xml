@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Request__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Ticket being viewed.</description>
+    <label>Request</label>
+    <referenceTo>Data_Update_Request__c</referenceTo>
+    <relationshipLabel>Data Update Presences</relationshipLabel>
+    <relationshipName>Data_Update_Presences</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

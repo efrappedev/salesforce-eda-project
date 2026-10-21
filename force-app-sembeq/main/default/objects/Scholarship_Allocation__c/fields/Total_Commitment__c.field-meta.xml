@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Total_Commitment__c</fullName>
+    <description>Monthly amount x number of payments - helper field that feeds the Total_Allocated__c value on Scholarship__c.</description>
+    <label>Total Commitment</label>
+    <precision>16</precision>
+    <scale>2</scale>
+    <formula>Monthly_Amount__c * Number_of_Payments__c</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <type>Currency</type>
+</CustomField>

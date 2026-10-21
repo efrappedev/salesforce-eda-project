@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customObject>true</customObject>
+    <label>Gift Commitment Schedules</label>
+    <motif>Custom26: Sync</motif>
+    <description>Tab for Gift Commitment Schedule - SEMBEQ Fundraising module.</description>
+</CustomTab>

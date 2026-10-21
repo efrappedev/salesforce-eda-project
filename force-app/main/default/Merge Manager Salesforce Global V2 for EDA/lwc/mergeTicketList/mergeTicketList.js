@@ -251,7 +251,7 @@ export default class MergeTicketList extends LightningElement {
         const total  = this._totalCount > 0 ? this._totalCount : loaded;
         const base   = `${total.toLocaleString()} ${this.i18n.casFound}`;
         if (loaded > 0 && loaded < total) {
-            return `${base} ${this.i18n.casShowing.replace('{0}', loaded.toLocaleString())}`;
+            return `${base} ${(this.i18n.casShowing || '({0})').replace('{0}', loaded.toLocaleString())}`;
         }
         return base;
     }
@@ -482,12 +482,12 @@ export default class MergeTicketList extends LightningElement {
     }
 
     _relativeDate(iso, t) {
-        if (!iso) return '';
+        if (!iso || !t) return '';
         const ms = Date.now() - new Date(iso).getTime();
         const m  = Math.floor(ms / 60000);
-        if (m < 60)   return t.agoMin.replace('{0}', m);
+        if (m < 60)   return (t.agoMin  || '{0}min').replace('{0}', m);
         const h = Math.floor(m / 60);
-        if (h < 24)   return t.agoHour.replace('{0}', h);
-        return t.agoDay.replace('{0}', Math.floor(h / 24));
+        if (h < 24)   return (t.agoHour || '{0}h'  ).replace('{0}', h);
+        return             (t.agoDay  || '{0}d'  ).replace('{0}', Math.floor(h / 24));
     }
 }
